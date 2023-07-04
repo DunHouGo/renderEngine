@@ -269,7 +269,7 @@ class NodeGraghHelper(object):
         return shader 
 
     # 删除Shader
-    def remove_shader(self, shader):
+    def remove_shader(self, shader: maxon.GraphNode):
         """
         Removes the given shader from the graph.
 
@@ -399,6 +399,34 @@ class NodeGraghHelper(object):
             port = shader.GetOutputs().FindChild(port_id)
             
         return port
+
+    # 获取节点 NEW(2023.07.02) 
+    def GetNodes(self, shader: maxon.GraphNode | str) -> list[maxon.GraphNode]:
+        """
+        Get all Nodes of given shader.
+
+        Parameters
+        ----------
+        :param shader: the shader
+        :type shader: maxon.GraphNode | str
+        :return: the return nodes
+        :rtype: list[maxon.GraphNode]
+        """
+        if self.graph is None:
+            return None
+        if not shader:
+            return None
+        
+        result: list[maxon.GraphNode] = []
+        
+        if isinstance(shader, maxon.GraphNode):
+            asset_id = self.GetAssetId(shader)
+            
+        if isinstance(shader, str):
+            asset_id = shader
+        maxon.GraphModelHelper.FindNodesByAssetId(
+            self.graph, asset_id, True, result)
+        return result
 
     # 获取Output Node ==> ok
     def GetOutput(self):
@@ -935,6 +963,8 @@ class TexPack:
             # 用户任意选择一张贴图
             file = c4d.storage.LoadDialog(type=c4d.FILESELECTTYPE_IMAGES, title='Select a texture',
                                         flags=c4d.FILESELECT_LOAD)
+            if not file:
+                return
         if file:
             # 关键词列表， 原始数据
             all_keys, key_data = self.get_all_keys()
@@ -1163,5 +1193,36 @@ def deselect_all_materials():
     for m in doc.GetActiveMaterials() :
         doc.AddUndo(c4d.UNDOTYPE_BITS, m)
         m.DelBit(c4d.BIT_ACTIVE)
+
+
+def GetFileAssetUrl(aid: maxon.Id|str) -> maxon.Url:
+    """Returns the asset URL for the given file asset ID.
+    """
+    # Bail when the asset ID is invalid.
+    if not isinstance(aid, maxon.Id) or aid.IsEmpty():        
+        aid = maxon.Id(aid)
+        
+    if aid.IsEmpty():
+        raise RuntimeError("Could not find the maxon id")
+
+    # Get the user repository, a repository which contains almost all assets, and try to find the
+    # asset description, a bundle of asset metadata, for the given asset ID in it.
+    repo: maxon.AssetRepositoryRef = maxon.AssetInterface.GetUserPrefsRepository()
+    if repo.IsNullValue():
+        raise RuntimeError("Could not access the user repository.")
+    
+    asset: maxon.AssetDescription = repo.FindLatestAsset(
+        maxon.AssetTypes.File(), aid, maxon.Id(), maxon.ASSET_FIND_MODE.LATEST)
+    if asset.IsNullValue():
+        raise RuntimeError(f"Could not find file asset for {aid}.")
+
+    # When an asset description has been found, return the URL of that asset in the "asset:///"
+    # scheme for the latest version of that asset.
+    return maxon.AssetInterface.GetAssetUrl(asset, True)
+
+def GetFileAssetStr(aid: maxon.Id) -> str:
+    """Returns the asset str for the given file asset ID.
+    """
+    return str(GetFileAssetUrl(aid))
 
 # todo

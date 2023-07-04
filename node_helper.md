@@ -50,3 +50,4 @@ All the boghma plugins and boghma library is FREE.
   - __AddConnection__ : Connect two ports on two diffrent nodes.
   - __RemoveConnection__ : Remove the connection of the given port on a node.
   - __FoldPreview__ : Toggle folding state of the shader previews.
+  - __GetNodes__ : Get all Nodes of given shader. (NEW@ v0.1.1)

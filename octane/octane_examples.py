@@ -1,3 +1,5 @@
+# Octane
+
 ###  ==========  Import Libs  ==========  ###
 from typing import Optional
 import c4d,maxon
@@ -76,11 +78,11 @@ def example_02_aovs():
     aov_helper = oc.AOVHelper(videopost)
     # Create a Octane aov item id can find from octane_id.py
     # If #name is None, defulat to type.
-    diff_aov = aov_helper.create_aov_shader(aov_tye = RNDAOV_DIFFUSE)
+    diff_aov = aov_helper.create_aov_shader(aov_type = RNDAOV_DIFFUSE)
     # Add the DIFFUSE aov just created to the Octane aov system
     aov_helper.add_aov(diff_aov)
     # Add some aovs
-    aov_helper.add_aov(aov_helper.create_aov_shader(aov_tye = RNDAOV_POST,aov_name = 'POST'))
+    aov_helper.add_aov(aov_helper.create_aov_shader(aov_type = RNDAOV_POST,aov_name = 'POST'))
     aov_helper.add_aov(aov_helper.create_aov_shader(RNDAOV_DIF_D))
     aov_helper.add_aov(aov_helper.create_aov_shader(RNDAOV_DIF_I))
     aov_helper.add_aov(aov_helper.create_aov_shader(RNDAOV_REFL_D))

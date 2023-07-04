@@ -18,7 +18,7 @@ To use this library, you have two options:
 
 # Examples
 - [__Octane Example__](./octane/octane_examples.py) (Beta)
-- [__Redshift Example__](./redshift/redshift_examples.py)  (not ready now)
+- [__Redshift Example__](./redshift/redshift_examples.py) (Beta)
 - [__Arnold Example__](./arnold/arnold_examples.py)  (not ready now)
 
 
@@ -48,7 +48,7 @@ To use this library, you have two options:
   - MaterialHelper (class)
   - SceneHelper (class)
 
-## redshift (not ready now)
+## [redshift](./redshift/Redshift.md) (Beta)
 - __redshift__ : unique ids for redshift object, and name map of aovs.
 - __redshift_helper__ : all the helper class and function.
   - methods
@@ -56,8 +56,9 @@ To use this library, you have two options:
   - RedshiftAOVData (class)
   - AOVHelper (class)
   - MaterialHelper (class)
+  - RSMaterialTransaction (class)
   - SceneHelper (class)
-  - 
+
 ## arnold (not ready now)
 - __arnold__ : unique ids for arnold object, and name map of aovs.
 - __arnold_helper__ : all the helper class and function.
@@ -69,5 +70,13 @@ To use this library, you have two options:
   - SceneHelper (class)
 
 # Version & Updates
-- **0.1.0** : octane_helper and node_helper is beta now. (update@2023.06.30)
+- ### 0.1.0
+  - octane_helper and node_helper is beta now. (update@2023.06.30)
+- ### 0.1.1
+  - redshift_helper is beta now. (update@2023.07.04)
+  - add undo to octane_helper and fix some typing mistakes.
+  - add **GetFileAssetUrl** and **GetFileAssetStr** to node_helper.
+  - fix some decision and add some desciption.
+
+
 - __coming soon...__

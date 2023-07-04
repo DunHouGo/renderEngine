@@ -48,29 +48,31 @@ except:
 from renderEngine import node_helper
 reload(node_helper)
 
+
+# todo : add undo
 ###  ==========  Import from disk  ==========  ###
+""""
+# import custom API
+PLUGIN_PATH = r"D:\OneDrive\CG_Config\C4D_Boghma_Plugins\Boghma_dev\My Custom API Helper\renderEngine\octane"
 
-# # import custom API
-# PLUGIN_PATH = r"D:\OneDrive\CG_Config\C4D_Boghma_Plugins\Boghma_dev\My Custom API Helper\renderEngine\octane"
+sys.path.insert(0, PLUGIN_PATH)
 
-# sys.path.insert(0, PLUGIN_PATH)
-
-# try:
-#     import octane_id
-#     reload(octane_id)  
-#     from octane_id import *
+try:
+    import octane_id
+    reload(octane_id)  
+    from octane_id import *
     
-# except:
-#     from renderEngine.octane.octane_id import *
+except:
+    from renderEngine.octane.octane_id import *
     
-# finally:
-#     # Remove the path we've just inserted.
-#     sys.path.pop(0)
+finally:
+    # Remove the path we've just inserted.
+    sys.path.pop(0)
 
 
 # IDs in octane symbol.h
-# from octane_id import *
-
+from octane_id import *
+"""
 
 ID_MATERIAL_MANAGER: int = 12159
 
@@ -243,14 +245,16 @@ class VideoPostHelper:
     def videopost_to_camera(self, tag : c4d.BaseTag ):
         
         sBC = self.doc.GetDataInstance()
-        data = sBC.GetContainerInstance( ID_OCTANE_LIVEPLUGIN )
-
+        data = sBC.GetContainerInstance( ID_OCTANE_LIVEPLUGIN )        
+        
         if tag != None and tag.GetType() == ID_OCTANE_CAMERATAG : 
             
             tag[c4d.OCTANECAMERA_ENABLE_IMAGER] = True
             tag[c4d.OCT_CAMIMAGER_EN_DENOISER] = True # Denoise ON        
             
             tagBC = tag.GetDataInstance()
+            
+            self.doc.AddUndo(c4d.UNDOTYPE_CHANGE,tagBC)
             
             # Denoise
             tagBC.SetBool(c4d.OCT_CAMIMAGER_DENOISE_VOLUMES,    data.GetBool(c4d.SET_CAMIMAGER_DENOISE_VOLUME)) 
@@ -290,6 +294,8 @@ class VideoPostHelper:
         
         if self.vp is None:
             raise RuntimeError(f"Can't get the {self.vpname} VideoPost")
+        
+        self.doc.AddUndo(c4d.UNDOTYPE_CHANGE,self.vp)
         
         self.vp[c4d.SET_PASSES_ENABLED] = True
         self.vp[c4d.SET_PASSES_BEAUTY_DENOISER2] = True
@@ -581,7 +587,7 @@ class AOVHelper:
         print ("--- OCTANERENDER ---")
 
     # 创建aov ==> ok
-    def create_aov_shader(self, aov_tye: int = RNDAOV_ZDEPTH, aov_name: str = "") -> c4d.BaseShader :
+    def create_aov_shader(self, aov_type: int = RNDAOV_ZDEPTH, aov_name: str = "") -> c4d.BaseShader :
         """
         Create a shader of octane aov.
 
@@ -597,7 +603,7 @@ class AOVHelper:
 
         aov = c4d.BaseList2D(ID_OCTANE_RENDERPASS_AOV)
         # set
-        aov[RNDAOV_TYPE] = aov_tye
+        aov[RNDAOV_TYPE] = aov_type
         # read
         aov_type = aov[RNDAOV_TYPE]
         
@@ -912,7 +918,8 @@ class NodeHelper:
         theNode = c4d.BaseList2D(shaderID)                  
         if parentNode:
                 self.material[parentNode] = theNode                                     
-        self.material.InsertShader(theNode)                        
+        self.material.InsertShader(theNode)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,self.material)
         return theNode
 
     def AddTransform(self, parentNode: c4d.BaseList2D = None) -> c4d.BaseList2D:
@@ -1277,6 +1284,7 @@ class MaterialHelper(NodeHelper):
         if self.material is None: return False
         self.material.Update(True, True)
         self.doc.InsertMaterial(self.material)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, self.material)
         return self.material
 
     # 刷新材质 ==> ok
@@ -1292,7 +1300,8 @@ class MaterialHelper(NodeHelper):
         Set the material active in the document.
         """
         if self.material is not None:
-            self.doc.SetActiveMaterial(self.material)
+            self.doc.AddUndo(c4d.UNDOTYPE_BITS, self.material)
+            self.doc.SetActiveMaterial(self.material)            
     
     # 创建材质 ==> ok
     def SetupTextures(self):
@@ -1726,7 +1735,7 @@ class SceneHelper:
         """
         # __init pram__
         ModifierID = ID_SCATTER_OBJECT
-        ModifierName = 'Scatter : '  # Modifier Name
+        ModifierName = 'OC Scatter : '  # Modifier Name
         seed = random.randint(0,9999)
         
         pos = generator_node.GetMg()  # The object’s world matrix.
