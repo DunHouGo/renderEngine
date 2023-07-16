@@ -27,7 +27,8 @@ import c4d
 import maxon
 from typing import Union
 from typing import Optional
-import os,json
+import os
+import random
 from pprint import pprint
 
 # redshift
@@ -95,7 +96,7 @@ class NodeGraghHelper(object):
         :type material: c4d.BaseMaterial
         """
         self.material: c4d.BaseMaterial = material
-        
+
         if self.material is not None:
             if isinstance(self.material, c4d.Material):
             
@@ -114,6 +115,7 @@ class NodeGraghHelper(object):
                     raise ValueError("Cannot retrieve the graph of this nimbus NodeSpace.")
                 
                 self.root: maxon.GraphNode = self.graph.GetRoot()
+
                 
             if isinstance(self.material, c4d.NodeMaterial):
                 # node
@@ -128,6 +130,7 @@ class NodeGraghHelper(object):
                     raise ValueError("Cannot retrieve the graph of this nimbus NodeSpace.")
                 
                 self.root: maxon.GraphNode = self.graph.GetRoot()
+                
 
     def __str__(self):
         return (f"{self.__class__.__name__}:(Material Name:{self.material.GetName()}) @nodespaceId: {self.nodespaceId}")
@@ -267,7 +270,7 @@ class NodeGraghHelper(object):
         shader: maxon.GraphNode = self.graph.AddChild(childId=maxon.Id(), nodeId=nodeId, args=maxon.DataDictionary())
 
         return shader 
-
+    
     # 删除Shader
     def remove_shader(self, shader: maxon.GraphNode):
         """
@@ -285,6 +288,53 @@ class NodeGraghHelper(object):
             return
 
         shader.Remove()
+
+    # 创建Shader 可以提供链接
+    def AddConnectShader(self, nodeID: str=None, 
+                input_ports: list[str|maxon.GraphNode]=None, connect_inNodes: list[maxon.GraphNode]=None,
+                output_ports: list[str|maxon.GraphNode]=None, connect_outNodes: list[maxon.GraphNode]=None
+                ) -> maxon.GraphNode|None :
+        
+        if self.graph is None:
+            return None
+        
+        shader: maxon.GraphNode = self.graph.AddChild("", nodeID , maxon.DataDictionary())
+        if not shader:
+            return None
+        
+        if isinstance(input_ports,maxon.GraphNode) and not isinstance(input_ports,list):
+            input_ports = [input_ports]
+        
+        if isinstance(output_ports,maxon.GraphNode) and not isinstance(output_ports,list):
+            output_ports = [output_ports]
+            
+        if isinstance(connect_inNodes,maxon.GraphNode) and not isinstance(connect_inNodes,list):
+            connect_inNodes = [connect_inNodes]
+        
+        if isinstance(connect_outNodes,maxon.GraphNode) and not isinstance(connect_outNodes,list):
+            connect_outNodes = [connect_outNodes]  
+
+        if input_ports is not None:
+            if connect_inNodes is not None:
+                if len(connect_inNodes) > len(input_ports):
+                    raise ValueError('Port nodes can not bigger than input port.')
+                if len(input_ports) > len(connect_inNodes):
+                    input_ports = input_ports[:len(connect_inNodes)]
+                for i, input_port in enumerate(input_ports):
+                    input: maxon.GraphNode = self.GetPort(shader,input_port)
+                    connect_inNodes[i].Connect(input)
+        
+        if output_ports is not None:
+            if connect_outNodes is not None:
+                if len(connect_outNodes) > len(output_ports):
+                    raise ValueError('Port nodes can not bigger than output port.')
+                if len(output_ports) > len(connect_outNodes):
+                    output_ports = output_ports[:len(connect_outNodes)]
+                for i, output_port in enumerate(output_ports):
+                    output: maxon.GraphNode = self.GetPort(shader,output_port)
+                    output.Connect(connect_outNodes[i])
+
+        return shader
 
     # NEW 新建（暴露端口）
     def AddPort(self, node: maxon.GraphNode, port :Union[str, maxon.GraphNode]) -> maxon.GraphNode:
@@ -374,7 +424,7 @@ class NodeGraghHelper(object):
     # 获取节点上端口
     def GetPort(self, shader: maxon.GraphNode, port_id :str = None) -> maxon.GraphNode:
         """
-        Get a port from a Shader node.
+        Get a port from a Shader node.if port id is None,try to find out port.
 
         Parameters
         ----------
@@ -390,15 +440,36 @@ class NodeGraghHelper(object):
         if not shader:
             return None
         
-        if port_id == None:
-            port_id = self.GetAssetId(shader) + 'outcolor'
+        if self.nodespaceId == RS_NODESPACE:
+            if port_id == None:
+                out_ids = ['outcolor','output','out']
+                for out in out_ids:
+                    port_id = self.GetAssetId(shader) + out                
+                    port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
+                    if port.IsNullValue():
+                        port = shader.GetOutputs().FindChild(port_id)
+                    if not port.IsNullValue():
+                        return port
+            else:
+                port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
+                if port.IsNullValue():
+                    port = shader.GetOutputs().FindChild(port_id)
+            return port
         
-        port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
-        
-        if port.IsNullValue():
-            port = shader.GetOutputs().FindChild(port_id)
-            
-        return port
+        if self.nodespaceId == AR_NODESPACE:
+            if port_id == None:
+                out_ids = ['outcolor','output','out']
+                for out in out_ids:                               
+                    port: maxon.GraphNode = shader.GetInputs().FindChild(out)
+                    if port.IsNullValue():
+                        port = shader.GetOutputs().FindChild(out)
+                    if not port.IsNullValue():
+                        return port
+            else:
+                port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
+                if port.IsNullValue():
+                    port = shader.GetOutputs().FindChild(port_id)
+            return port
 
     # 获取节点 NEW(2023.07.02) 
     def GetNodes(self, shader: maxon.GraphNode | str) -> list[maxon.GraphNode]:
@@ -721,7 +792,7 @@ class NodeGraghHelper(object):
         return connections
     
     # 添加连接线
-    def AddConnection(self, soure_node: maxon.GraphNode, outPort: maxon.GraphNode, target_node: maxon.GraphNode, inPort: maxon.GraphNode) -> list[maxon.GraphNode,maxon.Id]:
+    def AddConnection(self, soure_node: maxon.GraphNode, outPort: maxon.GraphNode|str, target_node: maxon.GraphNode, inPort: maxon.GraphNode|str) -> list[maxon.GraphNode,maxon.Id]:
         """
         Connects the given shaders with given port.
 
@@ -821,59 +892,6 @@ class NodeGraghHelper(object):
             for graph_node in nodes:
                 graph_node.SetValue(maxon.NODE.BASE.DISPLAYPREVIEW  , maxon.Bool(state))
             transaction.Commit()
-
-    ###  备选 deprecated ###
-    # 获取激活的节点
-    def GetActiveNode_custom(self) -> Union[maxon.GraphNode, None]:
-        """
-        Optional
-        
-        Get select node.
-
-        :return: the active node
-        :rtype: Union[maxon.GraphNode, None]
-        """
-        # Retrieve all nodes, child of the root node
-        nodes = []
-        self.root.GetChildren(nodes, maxon.NODE_KIND.NODE)
-
-        # Create a list of the selected ones.
-        selectedNodes = []
-
-        for node in nodes:
-            if maxon.GraphModelHelper.IsNodeSelected(node):
-                selectedNodes.append(node)
-        
-        if len(selectedNodes) != 1:                
-            return None
-        
-        return selectedNodes[0]
-    
-    # 获取激活的节点列表，列表中的每个元素都是一个Maxon.GraphNode对象。
-    def GetActiveNodes_custom(self) -> Union[list[maxon.GraphNode], None]:
-        """
-        Optional
-        
-        Get select node list.
-
-        :return: the active node
-        :rtype: Union[maxon.GraphNode, None]
-        """
-        # Retrieve all nodes, child of the root node
-        nodes = []
-        self.root.GetChildren(nodes, maxon.NODE_KIND.NODE)
-
-        # Create a list of the selected ones.
-        selectedNodes = []
-
-        for node in nodes:
-            if maxon.GraphModelHelper.IsNodeSelected(node):
-                selectedNodes.append(node)
-        
-        if len(selectedNodes) == 0:
-            return None
-        
-        return selectedNodes
 
     # todo
 
@@ -1052,7 +1070,7 @@ def get_all_nodes(doc: c4d.documents.BaseDocument) -> list[c4d.BaseObject] :
     return result
 
 # 根据[类型]获取对象
-def get_nodes(doc: c4d.documents.BaseDocument, TRACKED_TYPES : list[int]) -> list[c4d.BaseObject] :
+def get_nodes(doc: c4d.documents.BaseDocument, TRACKED_TYPES : list[int]) -> list[c4d.BaseObject] | bool :
     """
     Walks an object tree and yields all nodes that are of a type which is contained in TRACKED_TYPES.
     Args:
@@ -1081,9 +1099,12 @@ def get_nodes(doc: c4d.documents.BaseDocument, TRACKED_TYPES : list[int]) -> lis
             continue
         result.append(obj)
 
-    # Return the object List.
-    return result
-
+    if len(result) == 0:
+        return False
+    else: 
+        # Return the object List.
+        return result
+    
 # 根据[类型]获取标签
 def get_tags(doc: c4d.documents.BaseDocument, TRACKED_TYPES : list[int]) -> list[c4d.BaseTag] :
     """
@@ -1178,7 +1199,7 @@ def get_texture_tag(selectionTag : c4d.SelectionTag) -> c4d.TextureTag :
             return textag
     return False
 
-# 取消选择所有材质
+# 选择所有材质
 def select_all_materials():
     # Deselect All Mats
     doc = c4d.documents.GetActiveDocument()
@@ -1194,8 +1215,8 @@ def deselect_all_materials():
         doc.AddUndo(c4d.UNDOTYPE_BITS, m)
         m.DelBit(c4d.BIT_ACTIVE)
 
-
-def GetFileAssetUrl(aid: maxon.Id|str) -> maxon.Url:
+# 获取资产url
+def get_asset_url(aid: maxon.Id|str) -> maxon.Url:
     """Returns the asset URL for the given file asset ID.
     """
     # Bail when the asset ID is invalid.
@@ -1220,9 +1241,131 @@ def GetFileAssetUrl(aid: maxon.Id|str) -> maxon.Url:
     # scheme for the latest version of that asset.
     return maxon.AssetInterface.GetAssetUrl(asset, True)
 
-def GetFileAssetStr(aid: maxon.Id) -> str:
+# 获取资产str
+def get_asset_str(aid: maxon.Id|str) -> str:
     """Returns the asset str for the given file asset ID.
     """
-    return str(GetFileAssetUrl(aid))
+    return str(get_asset_url(aid))
+
+# 迭代对象
+def iter_node(node, include_node=False, include_siblings=False) -> list[c4d.GeListNode]:
+    """Provides a non-recursive iterator for all descendants of a node.
+
+    Args:
+        node (c4d.GeListNode): The node to iterate over.
+        include_node (bool, optional): If node itself should be included in
+         the generator. Defaults to False. 
+        include_siblings (bool, optional): If the siblings (and their
+         descendants) of node should be included. Will implicitly include
+         node (i.e. set include_node to True). Defaults to False. 
+
+    Yields:
+        c4d.GeListNode: A descendant of node.
+
+    Example:
+        For the following graph with object.2 as the input node.
+
+        object.0
+            object.1
+            object.2
+                object.3
+                object.4
+                    object.5
+            object.6
+                object.7
+                object.8
+
+        >> for node in iter_node(object_2, False, False):
+        >>     print node.GetName()
+        object.3
+        object.4
+        object.5
+        >> for node in iter_node(object_2, True, False):
+        >>     print node.GetName()
+        object.2
+        object.3
+        object.4
+        object.5
+        >> for node in iter_node(object_2, True, True):
+        >>     print node.GetName()
+        object.1
+        object.2
+        object.3
+        object.4
+        object.5
+        object.6
+        object.7
+        object.8
+    """
+    if not isinstance(node, c4d.GeListNode):
+        msg = "The argument node has to be a c4d.GeListNode. Received: {}."
+        raise TypeError(msg.format(type(node)))
+
+    # Lookup lists
+    input_node = node
+    yielded_nodes = []
+    top_nodes = []
+
+    # Set top nodes (and set node to first sibling if siblings are included)
+    if include_siblings:
+        while node.GetNext():
+            node = node.GetNext()
+        top_nodes = [node]
+        while node.GetPred():
+            node = node.GetPred()
+            top_nodes.append(node)
+    else:
+        top_nodes = [node]
+
+    # Start of iterator
+    while node:
+        # Yield the current node if it has not been yielded yet
+        if node not in yielded_nodes:
+            yielded_nodes.append(node)
+            if node is input_node and include_node:
+                yield node
+            elif node is not input_node:
+                yield node
+
+        # Get adjacent nodes
+        is_top_node = node in top_nodes
+        node_down = node.GetDown()
+        node_next = node.GetNext()
+        node_up = node.GetUp()
+
+        if is_top_node:
+            node_up = None
+        if is_top_node and not include_siblings:
+            node_next = None
+
+        # Get the next node in the graph in a depth first fashion
+        if node_down and node_down not in yielded_nodes:
+            node = node_down
+        elif node_next and node_next not in yielded_nodes:
+            node = node_next
+        elif node_up:
+            node = node_up
+        else:
+            node = None
+
+# 生成随机颜色
+def generate_random_color(pastel_factor = 0.5):
+    def _color_distance(c1,c2):
+        return sum([abs(x[0]-x[1]) for x in zip(c1,c2)])
+    #_ 在指定饱和度生成随机颜色 v1.0
+    def _get_random_color(pastel_factor):
+        return [(x+pastel_factor)/(1.0+pastel_factor) for x in [random.uniform(0,1.0) for i in [1,2,3]]]
+    existing_colors = []
+    max_distance = None
+    best_color = None
+    for i in range(0,100):
+        color = _get_random_color(pastel_factor = pastel_factor)
+        if not existing_colors:
+            return color
+        best_distance = min([_color_distance(color,c) for c in existing_colors])
+        if not max_distance or best_distance > max_distance:
+            max_distance = best_distance
+            best_color = color
+    return best_color
 
 # todo

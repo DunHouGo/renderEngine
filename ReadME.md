@@ -6,25 +6,25 @@ All the boghma plugins and boghma library is FREE.
 
 ## Installation
 To use this library, you have two options:
-1. Download the source and import it to your Cinema 4D
+1. Download the source and import it to your Cinema 4D.
 2. (**Not Ready Now**) You can also download [Boghma Plugin Manager](https://www.boghma.com/) and install any plugin, the boghma lib will auto installed.
 
 # Limit
 - Due to Otoy use a custom userarea for the node editor, and don't support python. We can not get the selection of the node edtor, so it is not possible to interact with node editor. 
 - Redshift and Arnold material helper only support NodeGragh, so the Cinema 4D before R26 is not support.
-- AddChild() and AddTextureTree() will return a not auto-layout node network now.
-- GetID() is broken, wait Maxon fix it, GetParamDataTypeID() can not get vector id
+- AddChild() and AddTextureTree() may return a not auto-layout node network now.
+- GetID() is broken, wait Maxon fix it, GetParamDataTypeID() can not get vector id.
 
 
 # Examples
-- [__Octane Example__](./octane/octane_examples.py) (Beta)
-- [__Redshift Example__](./redshift/redshift_examples.py) (Beta)
-- [__Arnold Example__](./arnold/arnold_examples.py)  (not ready now)
+- [__Octane Example__](./octane/octane_examples.py)
+- [__Redshift Example__](./redshift/redshift_examples.py)
+- [__Arnold Example__](./arnold/arnold_examples.py)
 
 
 # Class Presentation
 
-## [node_helper](./node_helper.md) (Beta)
+## [node_helper](./node_helper.md)
 - __NodeGraghHelper__ : helper class for Cinema 4D NodeGragh.
 - __TexPack__ : helper class to get texture data.
 - __methods__ : helper functions.
@@ -36,38 +36,41 @@ To use this library, you have two options:
   - get_texture_tag
   - select_all_materials
   - deselect_all_materials
+  - get_asset_url
+  - get_asset_str
+  - iter_node
+  - generate_random_color
 
-## [octane](./octane/Octane.md) (Beta)
+## [octane_helper](./octane/Octane.md)
 - __octane_id__ : unique ids for octane object, and name map of aovs.
 - __octane_helper__ : all the helper class and function.
   - methods
   - VideoPostHelper (class)
-  - AOVData (class)
   - AOVHelper (class)
   - NodeHelper (class)
   - MaterialHelper (class)
   - SceneHelper (class)
 
-## [redshift](./redshift/Redshift.md) (Beta)
+## [redshift_helper](./redshift/Redshift.md)
 - __redshift__ : unique ids for redshift object, and name map of aovs.
 - __redshift_helper__ : all the helper class and function.
   - methods
   - VideoPostHelper (class)
-  - RedshiftAOVData (class)
   - AOVHelper (class)
   - MaterialHelper (class)
   - RSMaterialTransaction (class)
   - SceneHelper (class)
 
-## arnold (not ready now)
+## [arnold_helper](./arnold/Arnold.md)
 - __arnold__ : unique ids for arnold object, and name map of aovs.
 - __arnold_helper__ : all the helper class and function.
   - methods
   - VideoPostHelper (class)
-  - AOVData (class)
   - AOVHelper (class)
   - MaterialHelper (class)
   - SceneHelper (class)
+  - ArnoldShaderLinkCustomData (class)
+  - ArnoldVColorCustomData (class)
 
 # Version & Updates
 - ### 0.1.0
@@ -75,8 +78,23 @@ To use this library, you have two options:
 - ### 0.1.1
   - redshift_helper is beta now. (update@2023.07.04)
   - add undo to octane_helper and fix some typing mistakes.
-  - add **GetFileAssetUrl** and **GetFileAssetStr** to node_helper.
+  - add **get_asset_url** and **get_asset_str** to node_helper.
   - fix some decision and add some desciption.
+- ### 0.1.2
+  - arnold_helper is beta now. (update@2023.07.12)
+  - add **iter_node** and **generate_random_color** to node_helper.
+  - **GetPort**(get outport mode) now working with arnold.
+  - fix some typing mistakes.
+- ### 0.1.3
+  - renderEngine is beta now. (update@2023.07.16)
+  - remove all the **AOVData** class and **read_aov** function(not used).
+  - add **AddConnectShader** to node_helper
+  - re-write redshift **MaterialHelper** with AddConnectShader.
+  - re-name some redshift_helper basic functions to match arnold_helper.
+- ### 1.0.0
+- renderEngine version 1.0.0 (update@2023.07.17)
 
 
+
+---
 - __coming soon...__

@@ -33,7 +33,7 @@ To use this library, you need to download the source or download Boghma Plugin M
   - __OpenNodeEditor__ : Open Node Editor for given material.
   - __AovManager__ : Open aov Manager.
   - __TextureManager__ : Open Redshift Texture Manager.
-  - __RedshiftNodeBasedr__ : Check if in Redshift and use node material mode.
+  - __RedshiftNodeBased__ : Check if in Redshift and use node material mode.
 
 
 ### AOVData:
@@ -119,7 +119,7 @@ To use this library, you need to download the source or download Boghma Plugin M
   - __AddDisplacement__ : Adds a new displacement shader to the graph.
   - __AddDisplacementBlender__ : Adds a new displacement blender shader to the graph.
   - __AddRoundCorner__ : Adds a new Round Corners shader to the graph.
-  - 
+
   - __AddFresnel__ : Adds a new Fresnel shader to the graph.
   - __AddAO__ : Adds a new AO shader to the graph.
   - __AddCurvature__ : Adds a new Curvature shader to the graph.

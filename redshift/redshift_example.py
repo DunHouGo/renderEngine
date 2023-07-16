@@ -39,34 +39,10 @@ except:
 from renderEngine import node_helper
 reload(node_helper)
 
-doc = c4d.documents.GetActiveDocument()
 
 #=============================================
 #                  Examples
 #=============================================
-
-def GetFileAssetUrl(aid: maxon.Id) -> maxon.Url:
-    """Returns the asset URL for the given file asset ID.
-    """
-    # Bail when the asset ID is invalid.
-    if not isinstance(aid, maxon.Id) or aid.IsEmpty():
-        raise RuntimeError(f"{aid = } is not a a valid asset ID.")
-
-    # Get the user repository, a repository which contains almost all assets, and try to find the
-    # asset description, a bundle of asset metadata, for the given asset ID in it.
-    repo: maxon.AssetRepositoryRef = maxon.AssetInterface.GetUserPrefsRepository()
-    if repo.IsNullValue():
-        raise RuntimeError("Could not access the user repository.")
-    
-    asset: maxon.AssetDescription = repo.FindLatestAsset(
-        maxon.AssetTypes.File(), aid, maxon.Id(), maxon.ASSET_FIND_MODE.LATEST)
-    if asset.IsNullValue():
-        raise RuntimeError(f"Could not find file asset for {aid}.")
-
-    # When an asset description has been found, return the URL of that asset in the "asset:///"
-    # scheme for the latest version of that asset.
-    return maxon.AssetInterface.GetAssetUrl(asset, True)
-
 
        
 #---------------------------------------------------------
@@ -148,7 +124,7 @@ def example_02_aovs():
 # Example 03
 # MaterialHelper
 #---------------------------------------------------------
-if rs.RedshiftNodeBased():
+if rs.IsNodeBased():
     
     #---------------------------------------------------------
     # Example 01
@@ -193,7 +169,7 @@ if rs.RedshiftNodeBased():
             
             # Add a Texture node and set a tex to it , change color space to RAW
             # 添加一个Texture shader , 设置贴图路径,并将色彩空间设置为RAW
-            tex_node = redshiftMaterial.AddTexture(shadername = 'YourTex', filepath = url, raw = True)            
+            # tex_node = redshiftMaterial.AddTexture(shadername = 'YourTex', filepath = url, raw = True)
 
 
             # Add a texture tree to base color
@@ -301,15 +277,15 @@ def example_04_scenes():
     
     ### == Light == ###
     # Add a rig of hdr and rgb backdrop
-    hdr_url: str =  node_helper.GetFileAssetStr(maxon.Id("file_d21cf4cfdec8c636"))
+    hdr_url: str =  node_helper.get_asset_str(maxon.Id("file_d21cf4cfdec8c636"))
     scene_helper.add_dome_rig(texture_path = hdr_url, rgb = c4d.Vector(0,0,0))
     
     # Add a light object and and some modify tags
-    gobo_url: maxon.Url = GetFileAssetUrl(maxon.Id("file_66b116a34a150e7e"))    
+    gobo_url: maxon.Url = node_helper.get_asset_str(maxon.Id("file_66b116a34a150e7e"))    
     mylight = scene_helper.add_light(light_name = 'My Light', texture_path = gobo_url, intensity=2, exposure=0)
     scene_helper.add_light_modifier(light = mylight, target = True, gsg_link = True, rand_color = True)
     # Add a IES light
-    ies_url: str = GetFileAssetUrl("file_6f300f2ba077da4a")
+    ies_url: str = node_helper.get_asset_str("file_6f300f2ba077da4a")
     ies = scene_helper.add_ies(light_name = 'My IES', texture_path = ies_url, intensity=1, exposure=0)
     
     ### == Tag == ###

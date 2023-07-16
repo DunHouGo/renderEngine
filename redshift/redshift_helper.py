@@ -51,18 +51,7 @@ RS_STANDARD_SURFACE_PREFIX = "com.redshift3d.redshift4c4d.nodes.core.standardmat
 RS_NODESPACE = "com.redshift3d.redshift4c4d.class.nodespace" # node space
 RS_MATERIAL_END_NODE = "com.autodesk.Redshift.material"      # old mat
 
-
-#=============================================
-#                   ID
-#=============================================
-
-
 ###  ==========  Redshift ID Fuction  ==========  ###
-
-#=============================================
-#                   Node
-#=============================================
-
 
 # Shader Asset ID Strings ==> commonly used
 # You can get these IDs manually by searching for the node in the commander, showing its details,
@@ -345,25 +334,12 @@ def StrtoMaxonID(ID_string):
     realID = maxon.Id(str(ID_string))
     return realID
 
-
-# StandardMaterialAssetID = ShaderID.StandardMaterial                                   # maxon.Id("com.redshift3d.redshift4c4d.nodes.core.standardmaterial") # standard surface node
-# StandardOutputPortID = PortID.standard_outcolor                                        # maxon.Id("com.redshift3d.redshift4c4d.nodes.core.standardmaterial.outcolor") # standard surface output
-# OutputMaterialAssetID = ShaderID.Output                                                # maxon.Id("com.redshift3d.redshift4c4d.node.output") # Output node
-# OutputSurfacePortID = PortID.Output_Surface                                            # maxon.Id("com.redshift3d.redshift4c4d.node.output.surface") # Output node surface
-# OutDisplacementPortID = PortID.Output_Displacement                                     # maxon.Id("com.redshift3d.redshift4c4d.node.output.displacement") # Output node displacement
-# ImageNodeID = StrtoMaxonID(StrNodeID("texturesampler"))                           # maxon.Id("com.redshift3d.redshift4c4d.nodes.core.texturesampler") # texture node
-# ColorCorrectionNodeID = StrtoMaxonID(StrNodeID("rscolorcorrection"))              # maxon.Id("com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection") # color correct
-# StandardOutputPort = PortStr.standard_outcolor                                         # "com.redshift3d.redshift4c4d.nodes.core.standardmaterial.outcolor"
-# OutputSurfacePort = PortStr.Output_Surface                                             # "com.redshift3d.redshift4c4d.node.output.surface"
-
 ID_MATERIAL_MANAGER: int = 12159
-
-doc = c4d.documents.GetActiveDocument()
 
 #=============================================
 #              Common Fuctions
 #=============================================
-def GetRedshiftPreference() -> c4d.BaseList2D:
+def GetPreference() -> c4d.BaseList2D:
     """
     Get the Redshift preferenc.
     """
@@ -380,11 +356,11 @@ def GetRedshiftPreference() -> c4d.BaseList2D:
     return prefs[descIdSettings]
 
 # 首选项设置为Node材质
-def RedshiftNodeBased():
+def IsNodeBased():
     """
     Check if in Redshift and use node material mode.
     """
-    return GetRedshiftPreference()[c4d.PREFS_REDSHIFT_USE_NODE_MATERIALS]
+    return GetPreference()[c4d.PREFS_REDSHIFT_USE_NODE_MATERIALS]
 
 def SetMaterialPreview(preview_mode: int = 1):
     """
@@ -413,7 +389,7 @@ def GetRenderEngine(document: c4d.documents.BaseDocument = None) -> int :
     """
     if not document:
         document = c4d.documents.GetActiveDocument()
-    return doc.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]
+    return document.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]
 
 # 获取渲染器版本
 def GetVersion() -> str :
@@ -450,7 +426,7 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
         raise ValueError("Failed to retrieve a Material.")
         
     if GetRenderEngine() == ID_REDSHIFT_VIDEO_POST:
-        if RedshiftNodeBased():
+        if IsNodeBased():
             c4d.CallCommand(465002211) # Node Editor...
             c4d.CallCommand(465002360) # Material
         else:
@@ -473,23 +449,6 @@ def TextureManager() -> None:
     Open Redshift Texture Manager.
     """
     c4d.CallCommand(1038683) # Redshift Asset Manager
-
-
-@dataclass
-class RedshiftAOVData:
-    """
-    Redshift AOV dataclass structure
-    """
-    aov_shader: c4d.BaseShader
-    aov_enabled: bool
-    aov_name: str
-    aov_type: c4d.BaseList2D
-    aov_muti_enabled: bool
-    aov_bit_depth: int
-    aov_dir_output: bool
-    aov_dir_outpath: str
-    aov_subdata: any
-    light_group_data: any
 
 
 class VideoPostHelper:
@@ -563,7 +522,7 @@ class VideoPostHelper:
 
 class AOVHelper:
     """
-    用于获取/删除Octane AOV
+    用于获取/删除Redshift AOV
     """
     def __init__(self, videopost: c4d.documents.BaseVideoPost):
         if isinstance(videopost, c4d.documents.BaseVideoPost):
@@ -573,6 +532,7 @@ class AOVHelper:
     def __str__(self) -> str:
         return (f'<Class> AOVHelper with videopost named {self.vpname}')
 
+    # 获取aov默认名称 ==> ok
     def get_type_name(self, aov_type: c4d.BaseList2D) -> str:
         """
         Get the name string of given aov type.
@@ -581,6 +541,7 @@ class AOVHelper:
             if i == aov_type:
                 return REDSHIFT_AOVS_NAME[REDSHIFT_AOVS.index(i)]
 
+    # 获取aov名称 ==> ok
     def get_name(self, aov: int|c4d.redshift.RSAOV = None) -> str:
         """
         Get the name of given aov.
@@ -595,6 +556,7 @@ class AOVHelper:
         if isinstance(aov, int):
             return self.get_aov(aov).GetParameter(c4d.REDSHIFT_AOV_NAME)
 
+    # 设置aov名称 ==> ok
     def set_name(self, aov: int|c4d.redshift.RSAOV = None, name: str = None) -> str:
         """
         Set the name of given aov.
@@ -650,81 +612,6 @@ class AOVHelper:
                 return aov
 
         return None
-
-    # 读取aov (看情况删除)
-    def read_aov(self) -> list:
-        
-        if self.vp is None:
-            raise RuntimeError(f"Can't get the {self.vpname} VideoPost")
-
-        aovs = redshift.RendererGetAOVs(self.vp)
-        aovCnt = len(aovs)
-        
-        #aovs: list = []
-        
-        for i in range(0, aovCnt):
-            aov = aovs[i]
-            aov_enabled = aov.GetParameter(c4d.REDSHIFT_AOV_ENABLED)
-            aov_name = aov.GetParameter(c4d.REDSHIFT_AOV_NAME)
-            aov_type = aov.GetParameter(c4d.REDSHIFT_AOV_TYPE)
-            aov_muti_enabled = aov.GetParameter(c4d.REDSHIFT_AOV_MULTIPASS_ENABLED)
-            aov_bit_depth = aov.GetParameter(c4d.REDSHIFT_AOV_MULTIPASS_BIT_DEPTH)
-            aov_dir_output = aov.GetParameter(c4d.REDSHIFT_AOV_ENABLED)
-            aov_dir_outpath = aov.GetParameter(c4d.REDSHIFT_AOV_FILE_PATH)
-            aov_subdata = None
-            light_group_data = None
-            
-            # light group
-            try:
-                light_group_data = [
-                    aov.GetParameter(c4d.REDSHIFT_AOV_LIGHTGROUP_GLOBALAOV),
-                    aov.GetParameter(c4d.REDSHIFT_AOV_LIGHTGROUP_ALL),
-                    aov.GetParameter(c4d.REDSHIFT_AOV_LIGHTGROUP_NAMES)
-                    ]
-            except:
-                light_group_data = None
-            
-            # Z-Depth
-            if aov_type == c4d.REDSHIFT_AOV_TYPE_DEPTH:
-                aov_subdata = [
-                    aov[c4d.REDSHIFT_AOV_FILTER_TYPE],
-                    aov[c4d.REDSHIFT_AOV_DEPTH_MODE],
-                    aov[c4d.REDSHIFT_AOV_DEPTH_USE_CAMERA_NEAR_FAR],
-                    aov[c4d.REDSHIFT_AOV_DEPTH_MIN], 
-                    aov[c4d.REDSHIFT_AOV_DEPTH_MAX],
-                    aov[c4d.REDSHIFT_AOV_ENVIRONMENT_RAYS_TO_BLACK]
-                    ]
-            # Cryptomatte
-            if aov_type == c4d.REDSHIFT_AOV_TYPE_CRYPTOMATTE:
-                aov_subdata = [
-                    aov.GetParameter(c4d.REDSHIFT_AOV_CRYPTOMATTE_TYPE),
-                    aov.GetParameter(c4d.REDSHIFT_AOV_CRYPTOMATTE_USER_ATTRIBUTE),
-                    aov.GetParameter(c4d.REDSHIFT_AOV_CRYPTOMATTE_DEPTH),
-                    aov.GetParameter(c4d.REDSHIFT_AOV_CRYPTOMATTE_TYPE),
-                    ]      
-            # Puzzle
-            if aov_type == c4d.REDSHIFT_AOV_TYPE_PUZZLE_MATTE:
-                aov_subdata = [
-                    aov[c4d.REDSHIFT_AOV_PUZZLE_MATTE_MODE],
-                    aov[c4d.REDSHIFT_AOV_PUZZLE_MATTE_RED_ID],
-                    aov[c4d.REDSHIFT_AOV_PUZZLE_MATTE_GREEN_ID],
-                    aov[c4d.REDSHIFT_AOV_PUZZLE_MATTE_BLUE_ID], 
-                    aov[c4d.REDSHIFT_AOV_PUZZLE_MATTE_REFLECTION_REFRACTION]
-                    ]         
-            
-            # Aov data
-            aovs.append(RedshiftAOVData(aov_shader = aov,
-                                      aov_enabled = aov_enabled,
-                                      aov_name = aov_name,
-                                      aov_type = aov_type,
-                                      aov_muti_enabled = aov_muti_enabled,
-                                      aov_bit_depth = aov_bit_depth,                                      
-                                      aov_dir_output = aov_dir_output,
-                                      aov_dir_outpath = aov_dir_outpath,
-                                      aov_subdata = aov_subdata,
-                                      light_group_data = light_group_data
-                                      ))
-        return aovs
     
     # 打印aov ==> ok
     def print_aov(self):
@@ -1242,824 +1129,368 @@ class MaterialHelper:
     
     ### Material ###
     
-    def AddStandardMaterial(self, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddStandardMaterial(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Standard Material shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.standardmaterial", maxon.DataDictionary())
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.standardmaterial",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.standardmaterial.base_color'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.standardmaterial.outcolor'], 
+            connect_outNodes = target
+            )
     
-    def AddRSMaterial(self, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddRSMaterial(self,  inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new RSMaterial shader to the graph.
 
         """
-        if self.graph is None:
-            return None
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.material", maxon.DataDictionary())
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.material.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.material",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.material.diffuse_color'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.material.outcolor'], 
+            connect_outNodes = target
+            )
     
-    def AddMaterialBlender(self, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddMaterialBlender(self,  inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Material Blender shader to the graph.
 
         """
-        if self.graph is None:
-            return None
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.materialblender", maxon.DataDictionary())
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.materialblender.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.materialblender",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.materialblender.basecolor',
+                           'com.redshift3d.redshift4c4d.nodes.core.materialblender.layercolor1',
+                           'com.redshift3d.redshift4c4d.nodes.core.materialblender.blendcolor1'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.materialblender.out'], 
+            connect_outNodes = target
+            )
     
-    def AddMaterialLayer(self, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddMaterialLayer(self,  inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Material Layer shader to the graph.
 
         """
-        if self.graph is None:
-            return None
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.materiallayer",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.materiallayer.basecolor',
+                           'com.redshift3d.redshift4c4d.nodes.core.materiallayer.layercolor',
+                           'com.redshift3d.redshift4c4d.nodes.core.materiallayer.layermask',
+                           'com.redshift3d.redshift4c4d.nodes.core.materiallayer.layerblendtype'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.materiallayer.out'], 
+            connect_outNodes = target
+            )
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.materiallayer", maxon.DataDictionary())
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.materiallayer.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
-
-    def AddIncandescent(self, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddIncandescent(self,  inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Incandescent Material shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.incandescent", maxon.DataDictionary())
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.incandescent.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.incandescent",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.incandescent.color'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.incandescent.outcolor'], 
+            connect_outNodes = target
+            )
     
-    def AddSprite(self, input_port: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddSprite(self,  inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Sprite Material shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.sprite", maxon.DataDictionary())
-        if input_port:
-            if isinstance(input_port, maxon.GraphNode):
-                input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.sprite.input')
-
-                try:
-                    input_port.Connect(input)
-                except:
-                    pass
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.sprite.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.sprite",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.sprite.input'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.sprite.outcolor'], 
+            connect_outNodes = target
+            )
     
     ### Color ###
 
     # 创建Color Constant ==> OK
-    def AddColorConstant(self, input_port: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddColorConstant(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Color Constant shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rscolorconstant", maxon.DataDictionary())
-        
-        if input_port:
-            if isinstance(input_port, maxon.GraphNode):
-                input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolorconstant.color')
-
-                try:
-                    input_port.Connect(input)
-                except:
-                    pass
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolorconstant.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolorconstant",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rscolorconstant.color'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rscolorconstant.outcolor'], 
+            connect_outNodes = target
+            )
     
     # 创建Color Splitter ==> OK
-    def AddColorSplitter(self, input_port: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddColorSplitter(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Color Splitter shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter", maxon.DataDictionary())
-        
-        if input_port:
-            if isinstance(input_port, maxon.GraphNode):
-                input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter.input')
-
-                try:
-                    input_port.Connect(input)
-                except:
-                    pass
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter.outr')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-        
-        return shader
-    
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter.input'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter.outr',
+                          'com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter.outg',
+                          'com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter.outb',
+                          'com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter.outa'
+                          ], 
+            connect_outNodes = target
+            )
+  
     # 创建Color Composite ==> OK
-    def AddColorComposite(self, base_color: maxon.GraphNode = None, blend_color: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddColorComposite(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Color Composite shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rscolorcomposite", maxon.DataDictionary())
-        
-        if base_color:
-            if isinstance(base_color, maxon.GraphNode):
-                input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolorcomposite.base_color')
-
-                try:
-                    base_color.Connect(input)
-                except:
-                    pass
-                
-        if blend_color:
-            if isinstance(blend_color, maxon.GraphNode):
-                input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolorcomposite.blend_color')
-
-                try:
-                    blend_color.Connect(input)
-                except:
-                    pass
-                
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolorcomposite.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolorcomposite",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rscolorcomposite.base_color','com.redshift3d.redshift4c4d.nodes.core.rscolorcomposite.blend_color'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rscolorcomposite.outcolor'], 
+            connect_outNodes = target
+            )
     
     # 创建Color Layer ==> OK
-    def AddColorLayer(self, input_port: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddColorLayer(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Color Layer shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rscolorlayer", maxon.DataDictionary())
-        
-        if input_port:
-            if isinstance(input_port, maxon.GraphNode):
-                input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolorlayer.base_color')
-
-                try:
-                    input_port.Connect(input)
-                except:
-                    pass
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolorlayer.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-        
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolorlayer",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rscolorlayer.base_color',
+                           'com.redshift3d.redshift4c4d.nodes.core.rscolorlayer.layer1_color',
+                           'com.redshift3d.redshift4c4d.nodes.core.rscolorlayer.layer1_mask'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rscolorlayer.outcolor'], 
+            connect_outNodes = target
+            )
      
     # 创建Color Change Range ==> OK
-    def AddColorChangeRange(self, input_port: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddColorChangeRange(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Color Change Range shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rscolorrange", maxon.DataDictionary())
-        
-        if input_port:
-            if isinstance(input_port, maxon.GraphNode):
-                input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolorrange.input')
-
-                try:
-                    input_port.Connect(input)
-                except:
-                    pass
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolorrange.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-        
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolorrange",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rscolorrange.input'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rscolorrange.outcolor'], 
+            connect_outNodes = target
+            )
     
     # 创建color correct ==> OK
-    def AddColorCorrect(self, input_port: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddColorCorrect(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new color correct shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-        nodeId = "rscolorcorrection"
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core." + nodeId, maxon.DataDictionary())
-        
-        if input_port:
-            if isinstance(input_port, maxon.GraphNode):
-                input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.input')
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.input'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.outcolor'], 
+            connect_outNodes = target
+            )
 
-                try:
-                    input_port.Connect(input)
-                except:
-                    pass
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
-    
     ### Operator ###
 
     # 创建Math Mix(Float64) ==> OK
-    def AddMathMix(self, input_port_A: maxon.GraphNode = None, input_port_B: maxon.GraphNode = None, mix: maxon.GraphNode|int = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddMathMix(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Math Mix shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rsmathmix", maxon.DataDictionary())
-        
-        if input_port_A:
-            if isinstance(input_port_A, maxon.GraphNode):
-                input1: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathmix.input1')
-
-                try:
-                    input_port_A.Connect(input1)
-                except:
-                    pass
-                
-        if input_port_B:
-            if isinstance(input_port_B, maxon.GraphNode):
-                input2: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathmix.input2')
-
-                try:
-                    input_port_B.Connect(input2)
-                except:
-                    pass
-                
-        if mix:
-            input3: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathmix.mixamount')
-            if isinstance(mix, maxon.GraphNode):
-                try:
-                    mix.Connect(input3)
-                except:
-                    pass                 
-            if isinstance(mix, int):
-                input3.SetDefaultValue(mix)
-                       
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathmix.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathmix",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathmix.input1',
+                           'com.redshift3d.redshift4c4d.nodes.core.rsmathmix.input2',
+                           'com.redshift3d.redshift4c4d.nodes.core.rsmathmix.mixamount'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rsmathmix.out'], 
+            connect_outNodes = target
+            )
     
     # 创建Vector Mix(Vector64) ==> OK
-    def AddVectorMix(self, input_port_A: maxon.GraphNode = None, input_port_B: maxon.GraphNode = None, mix: maxon.GraphNode|int = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddVectorMix(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Vector Mix shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rsmathmixvector", maxon.DataDictionary())
-        
-        if input_port_A:
-            if isinstance(input_port_A, maxon.GraphNode):
-                input1: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathmixvector.input1')
-
-                try:
-                    input_port_A.Connect(input1)
-                except:
-                    pass
-                
-        if input_port_B:
-            if isinstance(input_port_B, maxon.GraphNode):
-                input2: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathmixvector.input2')
-
-                try:
-                    input_port_B.Connect(input2)
-                except:
-                    pass
-                
-        if mix:
-            input3: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathmixvector.mixamount')
-            if isinstance(mix, maxon.GraphNode):
-                try:
-                    mix.Connect(input3)
-                except:
-                    pass                 
-            if isinstance(mix, int):
-                input3.SetDefaultValue(mix)
-                       
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathmixvector.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathmixvector",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathmixvector.input1',
+                           'com.redshift3d.redshift4c4d.nodes.core.rsmathmixvector.input2',
+                           'com.redshift3d.redshift4c4d.nodes.core.rsmathmixvector.mixamount'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rsmathmixvector.out'], 
+            connect_outNodes = target
+            )
    
     # 创建Color Mix(ColorAlpha64) ==> OK
-    def AddColorMix(self, input_port_A: maxon.GraphNode = None, input_port_B: maxon.GraphNode = None, mix: maxon.GraphNode|int = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddColorMix(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Color Mix shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rscolormix", maxon.DataDictionary())
-        
-        if input_port_A:
-            if isinstance(input_port_A, maxon.GraphNode):
-                input1: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolormix.input1')
-
-                try:
-                    input_port_A.Connect(input1)
-                except:
-                    pass
-                
-        if input_port_B:
-            if isinstance(input_port_B, maxon.GraphNode):
-                input2: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolormix.input2')
-
-                try:
-                    input_port_B.Connect(input2)
-                except:
-                    pass
-                
-        if mix:
-            input3: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolormix.mixamount')
-            if isinstance(mix, maxon.GraphNode):
-                try:
-                    mix.Connect(input3)
-                except:
-                    pass                 
-            if isinstance(mix, int):
-                input3.SetDefaultValue(mix)
-                       
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rscolormix.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolormix",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rscolormix.input1',
+                           'com.redshift3d.redshift4c4d.nodes.core.rscolormix.input2',
+                           'com.redshift3d.redshift4c4d.nodes.core.rscolormix.mixamount'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rscolormix.out'], 
+            connect_outNodes = target
+            )
    
     # 创建Math Add(Float64) ==> OK
-    def AddMathAdd(self, input_port_A: maxon.GraphNode = None, input_port_B: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddMathAdd(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Math Add shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rsmathadd", maxon.DataDictionary())
-        
-        if input_port_A:
-            if isinstance(input_port_A, maxon.GraphNode):
-                input1: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathadd.input1')
-
-                try:
-                    input_port_A.Connect(input1)
-                except:
-                    pass
-                
-        if input_port_B:
-            if isinstance(input_port_B, maxon.GraphNode):
-                input2: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathadd.input2')
-
-                try:
-                    input_port_B.Connect(input2)
-                except:
-                    pass
-                       
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathadd.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathadd",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathadd.input1',
+                           'com.redshift3d.redshift4c4d.nodes.core.rsmathadd.input2'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rsmathadd.out'], 
+            connect_outNodes = target
+            )
     
     # 创建Vector Add(Vector64) ==> OK
-    def AddVectorAdd(self, input_port_A: maxon.GraphNode = None, input_port_B: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddVectorAdd(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Vector Add shader to the graph.
 
         """
-        if self.graph is None:
-            return None
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathaddvector",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathaddvector.input1',
+                           'com.redshift3d.redshift4c4d.nodes.core.rsmathaddvector.input2'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rsmathaddvector.out'], 
+            connect_outNodes = target
+            )
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rsmathaddvector", maxon.DataDictionary())
-        
-        if input_port_A:
-            if isinstance(input_port_A, maxon.GraphNode):
-                input1: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathaddvector.input1')
-
-                try:
-                    input_port_A.Connect(input1)
-                except:
-                    pass
-                
-        if input_port_B:
-            if isinstance(input_port_B, maxon.GraphNode):
-                input2: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathaddvector.input2')
-
-                try:
-                    input_port_B.Connect(input2)
-                except:
-                    pass
-                       
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathaddvector.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
-   
     # 创建Math Sub(Float64) ==> OK
-    def AddMathSub(self, input_port_A: maxon.GraphNode = None, input_port_B: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddMathSub(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Math Sub shader to the graph.
 
         """
-        if self.graph is None:
-            return None
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathsub",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathsub.input1',
+                           'com.redshift3d.redshift4c4d.nodes.core.rsmathsub.input2'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rsmathsub.out'], 
+            connect_outNodes = target
+            )
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rsmathsub", maxon.DataDictionary())
-        
-        if input_port_A:
-            if isinstance(input_port_A, maxon.GraphNode):
-                input1: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathsub.input1')
-
-                try:
-                    input_port_A.Connect(input1)
-                except:
-                    pass
-                
-        if input_port_B:
-            if isinstance(input_port_B, maxon.GraphNode):
-                input2: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathsub.input2')
-
-                try:
-                    input_port_B.Connect(input2)
-                except:
-                    pass
-                       
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathsub.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
-    
     # 创建Vector Sub(Vector64) ==> OK
-    def AddVectorSub(self, input_port_A: maxon.GraphNode = None, input_port_B: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddVectorSub(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Vector Sub shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rsmathsubvector", maxon.DataDictionary())
-        
-        if input_port_A:
-            if isinstance(input_port_A, maxon.GraphNode):
-                input1: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathsubvector.input1')
-
-                try:
-                    input_port_A.Connect(input1)
-                except:
-                    pass
-                
-        if input_port_B:
-            if isinstance(input_port_B, maxon.GraphNode):
-                input2: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathsubvector.input2')
-
-                try:
-                    input_port_B.Connect(input2)
-                except:
-                    pass
-                       
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathsubvector.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathsubvector",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathsubvector.input1',
+                           'com.redshift3d.redshift4c4d.nodes.core.rsmathsubvector.input2'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rsmathsubvector.out'], 
+            connect_outNodes = target
+            )
 
     # 创建Color Sub(ColorAlpha64) ==> OK
-    def AddColorSub(self, input_port_A: maxon.GraphNode = None, input_port_B: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddColorSub(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Color Sub shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rsmathsubcolor", maxon.DataDictionary())
-        
-        if input_port_A:
-            if isinstance(input_port_A, maxon.GraphNode):
-                input1: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathsubcolor.input1')
-
-                try:
-                    input_port_A.Connect(input1)
-                except:
-                    pass
-                
-        if input_port_B:
-            if isinstance(input_port_B, maxon.GraphNode):
-                input2: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathsubcolor.input2')
-
-                try:
-                    input_port_B.Connect(input2)
-                except:
-                    pass
-                       
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathsubcolor.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathsubcolor",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathsubcolor.input1',
+                           'com.redshift3d.redshift4c4d.nodes.core.rsmathsubcolor.input2'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rsmathsubcolor.out'], 
+            connect_outNodes = target
+            )
 
     # 创建Math Mul(Float64) ==> OK
-    def AddMathMul(self, input_port_A: maxon.GraphNode = None, input_port_B: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddMathMul(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Math Mul shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rsmathmul", maxon.DataDictionary())
-        
-        if input_port_A:
-            if isinstance(input_port_A, maxon.GraphNode):
-                input1: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathmul.input1')
-
-                try:
-                    input_port_A.Connect(input1)
-                except:
-                    pass
-                
-        if input_port_B:
-            if isinstance(input_port_B, maxon.GraphNode):
-                input2: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathmul.input2')
-
-                try:
-                    input_port_B.Connect(input2)
-                except:
-                    pass
-                       
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathmul.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathmul",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathmul.input1',
+                           'com.redshift3d.redshift4c4d.nodes.core.rsmathmul.input2'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rsmathmul.out'], 
+            connect_outNodes = target
+            )
     
     # 创建Vector Mul(Vector64) ==> OK
-    def AddVectorMul(self, input_port_A: maxon.GraphNode = None, input_port_B: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddVectorMul(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Vector Mul shader to the graph.
 
         """
-        if self.graph is None:
-            return None
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathmulvector",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathmulvector.input1',
+                           'com.redshift3d.redshift4c4d.nodes.core.rsmathmulvector.input2'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rsmathmulvector.out'], 
+            connect_outNodes = target
+            )
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rsmathmulvector", maxon.DataDictionary())
-        
-        if input_port_A:
-            if isinstance(input_port_A, maxon.GraphNode):
-                input1: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathmulvector.input1')
-
-                try:
-                    input_port_A.Connect(input1)
-                except:
-                    pass
-                
-        if input_port_B:
-            if isinstance(input_port_B, maxon.GraphNode):
-                input2: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathmulvector.input2')
-
-                try:
-                    input_port_B.Connect(input2)
-                except:
-                    pass
-                       
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathmulvector.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
-   
     # 创建Math Div(Float64) ==> OK
-    def AddMathDiv(self, input_port_A: maxon.GraphNode = None, input_port_B: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddMathDiv(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Math Div shader to the graph.
 
         """
-        if self.graph is None:
-            return None
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathdiv",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathdiv.input1',
+                           'com.redshift3d.redshift4c4d.nodes.core.rsmathdiv.input2'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rsmathdiv.out'], 
+            connect_outNodes = target
+            )
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rsmathdiv", maxon.DataDictionary())
-        
-        if input_port_A:
-            if isinstance(input_port_A, maxon.GraphNode):
-                input1: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathdiv.input1')
-
-                try:
-                    input_port_A.Connect(input1)
-                except:
-                    pass
-                
-        if input_port_B:
-            if isinstance(input_port_B, maxon.GraphNode):
-                input2: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathdiv.input2')
-
-                try:
-                    input_port_B.Connect(input2)
-                except:
-                    pass
-                       
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathdiv.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
-    
     # 创建Vector Div(Vector64) ==> OK
-    def AddVectorDiv(self, input_port_A: maxon.GraphNode = None, input_port_B: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddVectorDiv(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Vector Div shader to the graph.
 
         """
-        if self.graph is None:
-            return None
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathdivvector",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathdivvector.input1',
+                           'com.redshift3d.redshift4c4d.nodes.core.rsmathdivvector.input2'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rsmathdivvector.out'], 
+            connect_outNodes = target
+            )
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rsmathdivvector", maxon.DataDictionary())
-        
-        if input_port_A:
-            if isinstance(input_port_A, maxon.GraphNode):
-                input1: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathdivvector.input1')
-
-                try:
-                    input_port_A.Connect(input1)
-                except:
-                    pass
-                
-        if input_port_B:
-            if isinstance(input_port_B, maxon.GraphNode):
-                input2: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathdivvector.input2')
-
-                try:
-                    input_port_B.Connect(input2)
-                except:
-                    pass
-                       
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsmathdivvector.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
-   
     ### Bump ###
 
     # 创建Bump ==> OK
@@ -2076,19 +1507,15 @@ class MaterialHelper:
         if input_port:
             if isinstance(input_port, maxon.GraphNode):
                 input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpmap.input')
-                try:
-                    input_port.Connect(input)
-                except:
-                    pass
+                input_port.Connect(input)
+
                 
         output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpmap.out')
         
         if target_port is not None:
-            if isinstance(target_port, maxon.GraphNode):                
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
+            if isinstance(target_port, maxon.GraphNode):
+                output.Connect(target_port)
+
 
         else:
             material = self.helper.GetRootBRDF()
@@ -2097,95 +1524,25 @@ class MaterialHelper:
         return shader
     
     # 创建Bump Blender ==> OK
-    def AddBumpBlender(self, base_port: maxon.GraphNode = None, additive: bool = False,
-                       tex0_input: maxon.GraphNode = None,  tex0_weight: maxon.GraphNode|int = None,
-                       tex1_input: maxon.GraphNode = None,  tex1_weight: maxon.GraphNode|int = None, 
-                       tex2_input: maxon.GraphNode = None,  tex2_weight: maxon.GraphNode|int = None, 
-                       target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddBumpBlender(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new bump blender shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.bumpblender", maxon.DataDictionary())
-        
-        if base_port:
-            if isinstance(base_port, maxon.GraphNode):
-                base: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpblender.baseinput')
-
-                try:
-                    base_port.Connect(base)
-                except:
-                    pass
-        # layer0      
-        if tex0_input:
-            if isinstance(tex0_input, maxon.GraphNode):
-                layer0_input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpblender.bumpinput0')
-
-                try:
-                    tex0_input.Connect(layer0_input)
-                except:
-                    pass                
-        if tex0_weight:
-            layer0_weight_port: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpblender.bumpweight0')
-            if isinstance(tex0_weight, maxon.GraphNode):                
-                try:
-                    tex0_weight.Connect(layer0_weight_port)
-                except:
-                    pass
-            if isinstance(tex0_weight, int):
-                layer0_weight_port.SetDefaultValue(tex0_weight)
-        # layer1
-        if tex1_input:
-            if isinstance (tex1_input, maxon.GraphNode):
-                layer1_input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpblender.bumpinput1')
-
-                try:
-                 tex1_input.Connect(layer1_input)
-                except:
-                    pass                
-        if tex1_weight:
-            layer1_weight_port: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpblender.bumpweight1')
-            if isinstance(tex1_weight, maxon.GraphNode):                
-                try:
-                    tex1_weight.Connect(layer1_weight_port)
-                except:
-                    pass
-            if isinstance(tex1_weight, int):
-                layer1_weight_port.SetDefaultValue(tex1_weight)            
-        # layer2   
-        if tex2_input:
-            if isinstance(tex2_input, maxon.GraphNode):
-                layer2_input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpblender.bumpinput2')
-
-                try:
-                    tex2_input.Connect(layer2_input)
-                except:
-                    pass                
-        if tex2_weight:
-            layer2_weight_port: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpblender.bumpweight2')
-            if isinstance(tex2_weight, maxon.GraphNode):                
-                try:
-                    tex2_weight.Connect(layer2_weight_port)
-                except:
-                    pass
-            if isinstance(tex2_weight, int):
-                layer2_weight_port.SetDefaultValue(tex2_weight)            
-                       
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpblender.outdisplacementvector')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-
-        additive_port: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpblender.additive')
-        additive_port.SetDefaultValue(additive)
-
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.bumpblender",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.bumpblender.baseinput',
+                           'com.redshift3d.redshift4c4d.nodes.core.bumpblender.bumpinput0',
+                           'com.redshift3d.redshift4c4d.nodes.core.bumpblender.bumpweight0',
+                           'com.redshift3d.redshift4c4d.nodes.core.bumpblender.bumpinput1',
+                           'com.redshift3d.redshift4c4d.nodes.core.bumpblender.bumpweight1',
+                           'com.redshift3d.redshift4c4d.nodes.core.bumpblender.bumpinput2',
+                           'com.redshift3d.redshift4c4d.nodes.core.bumpblender.bumpweight2'                           
+                           ],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.bumpblender.outdisplacementvector'], 
+            connect_outNodes = target
+            )
     
     # 创建displacement ==> OK
     def AddDisplacement(self, input_port: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
@@ -2223,379 +1580,186 @@ class MaterialHelper:
         return shader
 
     # 创建displacement Blender ==> OK
-    def AddDisplacementBlender(self, base_port: maxon.GraphNode = None, additive: bool = False,
-                       tex0_input: maxon.GraphNode = None,  tex0_weight: maxon.GraphNode|int = None,
-                       tex1_input: maxon.GraphNode = None,  tex1_weight: maxon.GraphNode|int = None, 
-                       tex2_input: maxon.GraphNode = None,  tex2_weight: maxon.GraphNode|int = None, 
-                       target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddDisplacementBlender(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new displacement blender shader to the graph.
 
         """
-        if self.graph is None:
-            return None
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.displacementblender",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.displacementblender.baseinput',
+                           'com.redshift3d.redshift4c4d.nodes.core.displacementblender.displaceinput0',
+                           'com.redshift3d.redshift4c4d.nodes.core.displacementblender.displaceweight0',
+                           'com.redshift3d.redshift4c4d.nodes.core.displacementblender.displaceinput1',
+                           'com.redshift3d.redshift4c4d.nodes.core.displacementblender.displaceweight1',
+                           'com.redshift3d.redshift4c4d.nodes.core.displacementblender.displaceinput2',
+                           'com.redshift3d.redshift4c4d.nodes.core.displacementblender.displaceweight2'                           
+                           ],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.displacementblender.out'], 
+            connect_outNodes = target
+            )
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.displacementblender", maxon.DataDictionary())
-        
-        if base_port:
-            if isinstance(base_port, maxon.GraphNode):
-                base: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacementblender.baseinput')
-
-                try:
-                    base_port.Connect(base)
-                except:
-                    pass
-        # layer0      
-        if tex0_input:
-            if isinstance(tex0_input, maxon.GraphNode):
-                layer0_input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacementblender.displaceinput0')
-
-                try:
-                    tex0_input.Connect(layer0_input)
-                except:
-                    pass                
-        if tex0_weight:
-            layer0_weight_port: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacementblender.displaceweight0')
-            if isinstance(tex0_weight, maxon.GraphNode):                
-                try:
-                    tex0_weight.Connect(layer0_weight_port)
-                except:
-                    pass
-            if isinstance(tex0_weight, int):
-                layer0_weight_port.SetDefaultValue(tex0_weight)
-        # layer1
-        if tex1_input:
-            if isinstance (tex1_input, maxon.GraphNode):
-                layer1_input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacementblender.displaceinput1')
-
-                try:
-                 tex1_input.Connect(layer1_input)
-                except:
-                    pass                
-        if tex1_weight:
-            layer1_weight_port: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacementblender.displaceweight1')
-            if isinstance(tex1_weight, maxon.GraphNode):                
-                try:
-                    tex1_weight.Connect(layer1_weight_port)
-                except:
-                    pass
-            if isinstance(tex1_weight, int):
-                layer1_weight_port.SetDefaultValue(tex1_weight)            
-        # layer2   
-        if tex2_input:
-            if isinstance(tex2_input, maxon.GraphNode):
-                layer2_input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacementblender.displaceinput2')
-
-                try:
-                    tex2_input.Connect(layer2_input)
-                except:
-                    pass                
-        if tex2_weight:
-            layer2_weight_port: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacementblender.displaceweight2')
-            if isinstance(tex2_weight, maxon.GraphNode):                
-                try:
-                    tex2_weight.Connect(layer2_weight_port)
-                except:
-                    pass
-            if isinstance(tex2_weight, int):
-                layer2_weight_port.SetDefaultValue(tex2_weight)            
-                       
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacementblender.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-
-        additive_port: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacementblender.additive')
-        additive_port.SetDefaultValue(additive)
-
-        return shader
-   
     # 创建Round Corners ==> OK
-    def AddRoundCorner(self, radius: float = 0.5, samples: int = 6, same_object: bool = False, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddRoundCorner(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Round Corners shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.roundcorners" , maxon.DataDictionary())
-
-
-        radius_port: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.roundcorners.radius')
-        samples_port: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.roundcorners.numsamples')
-        same_object_port: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.roundcorners.sameobjectonly')
-        radius_port.SetDefaultValue(radius)
-        samples_port.SetDefaultValue(samples)
-        same_object_port.SetDefaultValue(same_object)
-
-                
-        output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.roundcorners.out')
-        
-        if target_port is not None:
-            if isinstance(target_port, maxon.GraphNode):                
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-
-        return shader
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.roundcorners",
+            input_ports = None,
+            connect_inNodes = None,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.roundcorners.out'], 
+            connect_outNodes = target
+            )
     
     ### State ###
 
     # 创建Fresnel ==> OK
-    def AddFresnel(self, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddFresnel(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Fresnel shader to the graph.
 
         """
-        if self.graph is None:
-            return None
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolorconstant",
+            input_ports = None,
+            connect_inNodes = None,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rscolorconstant.outcolor'], 
+            connect_outNodes = target
+            )
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.rscolorconstant", maxon.DataDictionary())
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.fresnel.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
-    
     # 创建AO ==> OK
-    def AddAO(self, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddAO(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new AO shader to the graph.
 
         """
-        if self.graph is None:
-            return None
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.ambientocclusion",
+            input_ports = None,
+            connect_inNodes = None,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.ambientocclusion.out'], 
+            connect_outNodes = target
+            )
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.ambientocclusion", maxon.DataDictionary())
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.ambientocclusion.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
-   
     # 创建Curvature ==> OK
-    def AddCurvature(self, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddCurvature(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Curvature shader to the graph.
 
         """
-        if self.graph is None:
-            return None
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.curvature",
+            input_ports = None,
+            connect_inNodes = None,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.curvature.out'], 
+            connect_outNodes = target
+            )
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.curvature", maxon.DataDictionary())
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.curvature.out')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
-    
     # 创建Flakes ==> OK
-    def AddFlakes(self, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddFlakes(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Flakes shader to the graph.
 
         """
-        if self.graph is None:
-            return None
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.flakes",
+            input_ports = None,
+            connect_inNodes = None,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.flakes.outnormal'], 
+            connect_outNodes = target
+            )
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.flakes", maxon.DataDictionary())
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.flakes.outnormal')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
-    
     # 创建Point Attribute ==> OK
-    def AddPointAttribute(self, out_color: maxon.GraphNode = None, out_scalar: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddPointAttribute(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Point Attribute shader to the graph.
 
         """
-        if self.graph is None:
-            return None
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.particleattributelookup",
+            input_ports = None,
+            connect_inNodes = None,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.particleattributelookup.outscalar',
+                          'com.redshift3d.redshift4c4d.nodes.core.particleattributelookup.outcolor'], 
+            connect_outNodes = target
+            )
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.particleattributelookup", maxon.DataDictionary())
-
-        if out_color:
-            if isinstance(out_color, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.particleattributelookup.outcolor')
-                try:
-                    output.Connect(out_color)
-                except:
-                    pass
-        if out_scalar:
-            if isinstance(out_scalar, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.particleattributelookup.outscalar')
-                try:
-                    output.Connect(out_scalar)
-                except:
-                    pass         
-        return shader
-    
     # 创建Vertex Attribute ==> OK
-    def AddVertexAttribute(self, out_color: maxon.GraphNode = None, out_scalar: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddVertexAttribute(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new Vertex Attribute shader to the graph.
 
         """
-        if self.graph is None:
-            return None
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.vertexattributelookup",
+            input_ports = None,
+            connect_inNodes = None,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.vertexattributelookup.outscalar',
+                          'com.redshift3d.redshift4c4d.nodes.core.vertexattributelookup.outcolor'], 
+            connect_outNodes = target
+            )
 
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core.vertexattributelookup", maxon.DataDictionary())
-
-        if out_color:
-            if isinstance(out_color, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.vertexattributelookup.outcolor')
-                try:
-                    output.Connect(out_color)
-                except:
-                    pass
-        if out_scalar:
-            if isinstance(out_scalar, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.vertexattributelookup.outscalar')
-                try:
-                    output.Connect(out_scalar)
-                except:
-                    pass         
-        return shader
-    
     ### Texture ###
     
     # 创建ramp ==> OK
-    def AddRamp(self, input_port: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddRamp(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new ramp shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-        nodeId = "rsramp"
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core." + nodeId, maxon.DataDictionary())
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsramp",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsramp.input'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rsramp.outcolor'], 
+            connect_outNodes = target
+            )
 
-        if input_port:
-            if isinstance(input_port, maxon.GraphNode):
-                input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsramp.input')
-                try:
-                    input_port.Connect(input)
-                except:
-                    pass
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsramp.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
-    
     # 创建scalar ramp ==> OK
-    def AddScalarRamp(self, input_port: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddScalarRamp(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new scalar ramp shader to the graph.        
 
         """
-        if self.graph is None:
-            return None
-        nodeId = "rsscalarramp"
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core." + nodeId, maxon.DataDictionary())
-        
-        if input_port:
-            if isinstance(input_port, maxon.GraphNode):
-                input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsscalarramp.input')
-                try:
-                    input_port.Connect(input)
-                except:
-                    pass
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.rsscalarramp.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader       
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsscalarramp",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsscalarramp.input'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rsscalarramp.out'], 
+            connect_outNodes = target
+            )
 
     # 创建TriPlanar ==> OK
-    def AddTriPlanar(self, input_port: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddTriPlanar(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new TriPlanar shader to the graph.
 
         """
-        if self.graph is None:
-            return None
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.triplanar",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.triplanar.imagex'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.triplanar.outcolor'], 
+            connect_outNodes = target
+            )
 
-        nodeId = "triplanar"
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core." + nodeId, maxon.DataDictionary())
-
-        if input_port:
-            if isinstance(input_port, maxon.GraphNode):
-                input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.triplanar.imagex')
-                try:
-                    input_port.Connect(input)
-                except:
-                    pass
-
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.triplanar.outcolor')
-                try:
-                    output.Connect(target_port)
-                except:
-                    pass
-                
-        return shader
-    
     # 创建maxon noise ==> OK
-    def AddMaxonNoise(self, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddMaxonNoise(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
         """
         Adds a new maxonnoise shader to the graph.
 
         """
-        if self.graph is None:
-            return None
-        nodeId = "maxonnoise"
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core." + nodeId, maxon.DataDictionary())
-        
-        if target_port:
-            if isinstance(target_port, maxon.GraphNode):
-                outPort: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.maxonnoise.outcolor')
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.maxonnoise",
+            input_ports = None,
+            connect_inNodes = None,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.maxonnoise.outcolor'], 
+            connect_outNodes = target
+            )
 
-                try:
-                    outPort.Connect(target_port)
-                except:
-                    pass
-                
-        return shader      
-    
     # 创建Texture ==> OK
     def AddTexture(self, shadername :str = 'Texture', filepath: str = None, raw: bool = True, gamma: int = 1, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
         """
@@ -2635,7 +1799,7 @@ class MaterialHelper:
         return shader
 
     ### Tree ###
-
+    # todo
     # NEW
     def AddTextureTree(self, shadername :str = 'Texture', filepath: str = None, raw: bool = True, gamma: int = 1.0, triplaner_node: bool = False, color_mode: bool = False,scaleramp: bool = False,color_mutiplier: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> list[maxon.GraphNode] :
         """
@@ -2649,14 +1813,14 @@ class MaterialHelper:
         color_mutiplier_port = self.helper.GetPort(tex_node,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.color_multiplier")
         
         if color_mode:
-            cc_node = self.AddColorCorrect(target_port=target_port)
+            cc_node = self.AddColorCorrect(target=target_port)
         
         else:
             cc_node = self.AddColorCorrect()
             if scaleramp:
-                ramp_node = self.AddScalarRamp(target_port=target_port)
+                ramp_node = self.AddScalarRamp(target=target_port)
             else:
-                ramp_node = self.AddRamp(target_port=target_port)
+                ramp_node = self.AddRamp(target=target_port)
         
         if triplaner_node:
             triplaner_node = self.AddTriPlanar(self.helper.GetPort(tex_node,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor"), self.helper.GetPort(cc_node,"com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.input"))
@@ -2803,6 +1967,7 @@ class SceneHelper:
         light = c4d.BaseObject(ID_REDSHIFT_LIGHT)
         light[c4d.REDSHIFT_LIGHT_TYPE] = 4
         self.doc.InsertObject(light)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,light)
         light.SetName("RS HDR Dome")
         light[c4d.REDSHIFT_LIGHT_DOME_MULTIPLIER] = intensity
         light[c4d.REDSHIFT_LIGHT_DOME_EXPOSURE0] = exposure
@@ -2829,6 +1994,7 @@ class SceneHelper:
         light = c4d.BaseObject(ID_REDSHIFT_LIGHT)
         light[c4d.REDSHIFT_LIGHT_TYPE] = 4
         self.doc.InsertObject(light)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,light)
         light.SetName("RS RGB Dome")
         light[c4d.REDSHIFT_LIGHT_DOME_COLOR] = rgb
         light[c4d.REDSHIFT_LIGHT_DOME_MULTIPLIER] = intensity
@@ -2853,7 +2019,8 @@ class SceneHelper:
         null[c4d.ID_BASELIST_ICON_FILE] = '1052837'
         null[c4d.ID_BASELIST_ICON_COLORIZE_MODE] = 1
         null[c4d.ID_BASELIST_ICON_COLOR] = c4d.Vector(0.008, 0.659, 0.902)
-        doc.InsertObject(null)
+        self.doc.InsertObject(null)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,null)
         hdr_dome.InsertUnder(null)
         black_dome.InsertUnder(null)
         hdr_dome.DelBit(c4d.BIT_ACTIVE)
@@ -2867,6 +2034,7 @@ class SceneHelper:
         
         light = c4d.BaseObject(ID_REDSHIFT_LIGHT)
         self.doc.InsertObject(light)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,light)
         # 定义灯光属性
         light[c4d.REDSHIFT_LIGHT_PHYSICAL_AREA_GEOMETRY] = 0
         if light_name:
@@ -2900,8 +2068,9 @@ class SceneHelper:
     def add_ies(self, light_name: str = None, intensity: float = 1.0, exposure: float = 0.0, texture_path: str = None) -> c4d.BaseObject :
         light = c4d.BaseObject(ID_REDSHIFT_LIGHT)
         self.doc.InsertObject(light)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,light)
         # 定义灯光属性
-        light[c4d.REDSHIFT_LIGHT_PHYSICAL_AREA_GEOMETRY] = 5 # ies
+        light[c4d.REDSHIFT_LIGHT_TYPE] = 5 # ies
         if light_name:
             light.SetName(light_name)
         else:
@@ -2918,6 +2087,8 @@ class SceneHelper:
     def add_gobo(self,light_name: str = None, intensity: float = 250000.0, exposure: float = -3.0, texture_path: str = None) -> c4d.BaseObject :
         light = c4d.BaseObject(ID_REDSHIFT_LIGHT)
         self.doc.InsertObject(light)
+        
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,light)
         # 定义灯光属性
         light[c4d.REDSHIFT_LIGHT_PHYSICAL_AREA_GEOMETRY] = 2 # spot
         if light_name:
@@ -2940,7 +2111,9 @@ class SceneHelper:
         sky.SetName( "Redshift Sun")
         sun[c4d.REDSHIFT_LIGHT_PHYSICAL_AREA_GEOMETRY] = 7 # sun
         self.doc.InsertObject(sky)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,sky)
         self.doc.InsertObject(sun)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,sun)
         sky[c4d.REDSHIFT_SKY_PHYSICALSKY_SUN] = sun
         
         sky[c4d.REDSHIFT_SKY_PHYSICALSKY_MULTIPLIER] = int(sky_intensity)
@@ -2951,10 +2124,11 @@ class SceneHelper:
     def add_light_modifier(self, light: c4d.BaseObject, target: c4d.BaseObject = None, gsg_link: bool = False, rand_color: bool = False, seed: int = 0):
         
         # 新建目标标签
-        if target:        
+        if target is not None:        
             mbtag = c4d.BaseTag(5676) # target
-            doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, mbtag)
-            mbtag[c4d.TARGETEXPRESSIONTAG_LINK] = target
+            self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, mbtag)
+            if isinstance(target, c4d.BaseObject):
+                mbtag[c4d.TARGETEXPRESSIONTAG_LINK] = target
             light.InsertTag(mbtag)
         
         # GSG HDR LINK
@@ -2973,13 +2147,14 @@ class SceneHelper:
             light[c4d.ID_BASELIST_ICON_COLORIZE_MODE] = 1
             
             if seed == 0:
-                randcolor = c4d.Vector(*generate_random_color(1))
+                randcolor = c4d.Vector(*node_helper.generate_random_color(1))
             else:
                 random.seed(seed)
-                randcolor = generate_random_color(1)
+                randcolor = node_helper.generate_random_color(1)
             light[c4d.ID_BASELIST_ICON_COLOR] = randcolor
 
     ### Tag ###
+    
     def add_object_id(self, node : c4d.BaseObject, maskID: int = 2) -> c4d.BaseTag:
         mask_tag = c4d.BaseTag(ID_REDSHIFT_TAG)
         node.InsertTag(mask_tag)
@@ -3036,6 +2211,7 @@ class SceneHelper:
     def add_env(self, emisson: c4d.Vector = c4d.Vector(0,0,0), seen_by_camera: bool = True) -> c4d.BaseObject :
         env = c4d.BaseObject(ID_REDSHIFT_ENVIROMENT)
         self.doc.InsertObject(env)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,env)
         env[c4d.REDSHIFT_ENVIRONMENT_VOLUMESCATTERING_FOG_AMBIENT] = emisson
         if not seen_by_camera:
             env[c4d.REDSHIFT_ENVIRONMENT_VOLUMESCATTERING_FOG_AMBIENT] = 0
@@ -3059,11 +2235,13 @@ class SceneHelper:
             except:
                 pass
         vdb_obj = self.doc.InsertObject(vdb)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,vdb)
         return vdb_obj
 
     def add_proxy(self, name: str = None, proxy_path: str = None, mesh: bool = True, mode: int = None) -> c4d.BaseObject :
         proxy = c4d.BaseObject(ID_REDSHIFT_PROXY)
         self.doc.InsertObject(proxy)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,proxy)
         if name:
             proxy.SetName(name)
         else:
@@ -3128,10 +2306,10 @@ class SceneHelper:
             obj.DelBit(c4d.BIT_ACTIVE)
         
         if filepath is None:
-            proxy_path = os.path.join(doc.GetDocumentPath(),"_Proxy") # Proxy Temp Folder
+            proxy_path = os.path.join(self.doc.GetDocumentPath(),"_Proxy") # Proxy Temp Folder
             if not os.path.exists(proxy_path):
                 os.makedirs(proxy_path)
-            filepath = os.path.join(doc.GetDocumentPath(), "_Proxy", node.GetName())
+            filepath = os.path.join(self.doc.GetDocumentPath(), "_Proxy", node.GetName())
         self.doc.SetSelection(ex_node)
         print(filepath)
         c4d.documents.SaveDocument(self.doc, filepath, c4d.SAVEDOCUMENTFLAGS_DONTADDTORECENTLIST, redshift.Frsproxyexport) 

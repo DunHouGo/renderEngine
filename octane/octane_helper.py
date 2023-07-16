@@ -49,7 +49,6 @@ from renderEngine import node_helper
 reload(node_helper)
 
 
-# todo : add undo
 ###  ==========  Import from disk  ==========  ###
 """"
 # import custom API
@@ -76,28 +75,6 @@ from octane_id import *
 
 ID_MATERIAL_MANAGER: int = 12159
 
-doc = c4d.documents.GetActiveDocument()
-
-# 生成随机颜色
-def generate_random_color(pastel_factor = 0.5):
-    def _color_distance(c1,c2):
-        return sum([abs(x[0]-x[1]) for x in zip(c1,c2)])
-    #_ 在指定饱和度生成随机颜色 v1.0
-    def _get_random_color(pastel_factor):
-        return [(x+pastel_factor)/(1.0+pastel_factor) for x in [random.uniform(0,1.0) for i in [1,2,3]]]
-    existing_colors = []
-    max_distance = None
-    best_color = None
-    for i in range(0,100):
-        color = _get_random_color(pastel_factor = pastel_factor)
-        if not existing_colors:
-            return color
-        best_distance = min([_color_distance(color,c) for c in existing_colors])
-        if not max_distance or best_distance > max_distance:
-            max_distance = best_distance
-            best_color = color
-    return best_color
-
 def iterate(node):
     while isinstance(node, c4d.BaseList2D):
         yield node
@@ -116,7 +93,7 @@ def GetRenderEngine(document: c4d.documents.BaseDocument = None) -> int :
     """
     if not document:
         document = c4d.documents.GetActiveDocument()
-    return doc.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]
+    return document.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]
 
 # 获取渲染器版本
 def GetVersion() -> str :
@@ -254,7 +231,7 @@ class VideoPostHelper:
             
             tagBC = tag.GetDataInstance()
             
-            self.doc.AddUndo(c4d.UNDOTYPE_CHANGE,tagBC)
+            self.doc.AddUndo(c4d.UNDOTYPE_CHANGE,tag)
             
             # Denoise
             tagBC.SetBool(c4d.OCT_CAMIMAGER_DENOISE_VOLUMES,    data.GetBool(c4d.SET_CAMIMAGER_DENOISE_VOLUME)) 
@@ -311,18 +288,6 @@ class VideoPostHelper:
             self.vp[c4d.SET_RENDERPASS_INFO_SAMPLINGMODE] = 2 # info sample to no filtering
 
 
-@dataclass
-class AOVData:
-    """
-    Octane AOV dataclass structure
-    """
-    aov_shader: c4d.BaseShader
-    aov_enabled: bool
-    aov_name: str
-    aov_type: c4d.BaseList2D
-    aov_subdata: list
-
-
 class AOVHelper:
     """
     用于获取/删除Octane AOV
@@ -331,6 +296,8 @@ class AOVHelper:
         if isinstance(videopost, c4d.documents.BaseVideoPost):
             self.vp: c4d.documents.BaseVideoPost = videopost
             self.vpname: str = self.vp.GetName()
+            self.doc: c4d.documents.BaseDocument = self.vp.GetDocument()
+
 
       # 名称对照字典
     
@@ -431,87 +398,6 @@ class AOVHelper:
             result.append(obj)
 
         return result
-
-    # 读取aov ==> ok
-    def read_aov(self) -> list[AOVData]:
-        """
-        Get aov data in a list.
-        [
-            aov_shader: c4d.BaseShader
-            aov_enabled: bool
-            aov_name: str
-            aov_type: c4d.BaseList2D
-            aov_subdata: list
-        ]
-        
-        :return: aov data list.
-        :rtype: list[OctaneAOVData]
-        """
-        
-        if self.vp is None:
-            raise RuntimeError(f"Can't get the {self.vpname} VideoPost")
-
-        aovCnt = self.vp[SET_RENDERAOV_IN_CNT]        
-        
-        aovs: list[AOVData] = []
-        
-        for i in range(0, aovCnt):
-            aov = self.vp[SET_RENDERAOV_INPUT_0+i]
-            aov_enabled = aov[RNDAOV_ENABLED]
-            aov_name = aov[RNDAOV_NAME]
-            aov_type = aov[RNDAOV_TYPE]
-            aov_subdata = None
-            
-            # Z-Depth
-            if aov_type == RNDAOV_ZDEPTH:
-                aov_subdata = [
-                    aov[RNDAOV_ZDEPTH_MAX],
-                    aov[RNDAOV_ZDEPTH_ENVDEPTH]
-                    ]
-                print ("Subdata: Z-depth max:",aov[RNDAOV_ZDEPTH_MAX]," Env.depth:",aov[RNDAOV_ZDEPTH_ENVDEPTH])
-                
-            # Light
-            if aov_type == RNDAOV_LIGHT:
-                aov_subdata = [
-                    aov[RNDAOV_LIGHT_ID]
-                    ]
-                print ("Subdata: Light ID:",aov[RNDAOV_LIGHT_ID])  
-                
-            # Light D
-            if aov_type == RNDAOV_LIGHT_D:
-                aov_subdata = [
-                    aov[RNDAOV_LIGHT_ID]
-                    ]
-                print ("Subdata: Light ID (direct):",aov[RNDAOV_LIGHT_ID])  
-                
-            # Light I
-            if aov_type == RNDAOV_LIGHT_I:
-                aov_subdata = [
-                    aov[RNDAOV_LIGHT_ID]
-                    ]
-                print ("Subdata: Light ID (indirect):",aov[RNDAOV_LIGHT_ID])  
-                
-            # Custom
-            if aov_type == RNDAOV_CUSTOM:
-                aov_subdata = [
-                    aov[RNDAOV_CUSTOM_IDS],
-                    aov[RNDAOV_VISIBLE_AFTER]
-                    ]
-                print ("Subdata: Custom ID:",aov[RNDAOV_CUSTOM_IDS]," Vis after:", aov[RNDAOV_VISIBLE_AFTER])    
-                
-            # Cryptomatte
-            if aov_type == RNDAOV_CRYPTOMATTE:
-                aov_subdata = [
-                    aov[RNDAOV_CRYPTO_TYPE]
-                    ]
-                print ("Subdata: Custom ID:",aov[RNDAOV_CRYPTO_TYPE])    
-                                        
-            aovs.append(AOVData(aov_shader=aov,
-                                      aov_enabled=aov_enabled,
-                                      aov_name=aov_name,
-                                      aov_type=aov_type,
-                                      aov_subdata=aov_subdata))
-        return aovs
 
     # 打印aov ==> ok
     def print_aov(self):
@@ -636,6 +522,7 @@ class AOVHelper:
         # insert octane_aov to new port
         try:
             self.vp.InsertShader(aov_shader)
+            self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,aov_shader)
         except:
             pass
         self.vp[SET_RENDERAOV_INPUT_0 + old_aovCnt] = aov_shader
@@ -740,7 +627,7 @@ class AOVHelper:
             raise RuntimeError(f"Can't get the {self.vpname} VideoPost")
         aovCnt = self.vp[SET_RENDERAOV_IN_CNT]        
         
-        aovs: list[AOVData] = []
+        aovs: list = []
 
         for i in range(0, aovCnt):
             aov: c4d.BaseShader = self.vp[SET_RENDERAOV_INPUT_0+i]
@@ -1162,6 +1049,7 @@ class MaterialHelper(NodeHelper):
         else: return False
 
     # 创建基础材质 ==> ok
+    # todo
     def CreateBasicMaterial(self, isMetal: bool = False, matType: int = MAT_TYPE_UNIVERSAL, matName: str = None) -> c4d.BaseMaterial:
         """
         Create an Octane Basic(classic) material of given type and name.
@@ -1172,6 +1060,8 @@ class MaterialHelper(NodeHelper):
         if material is None:
             raise ValueError("Cannot create a BaseMaterial")
 
+        material[c4d.OCT_MATERIAL_DIFFUSE_COLOR] = c4d.Vector(0.7,0.7,0.7) # albedo
+        material[c4d.OCT_MATERIAL_FAKESHADOW] = True # fake shadow
         if isMetal:
             material[c4d.OCT_MATERIAL_TYPE] = MAT_TYPE_UNIVERSAL
             material.SetName(MetallicName)
@@ -1184,6 +1074,7 @@ class MaterialHelper(NodeHelper):
             except:
                 material[c4d.OCT_MATERIAL_TYPE] = MAT_TYPE_UNIVERSAL                    
 
+        # if matType == MAT_TYPE_UNIVERSAL:
 
             material[c4d.OCT_MAT_BRDF_MODEL] = 6 # ggx energy preserving
             material[c4d.OCT_MATERIAL_ROUGHNESS_FLOAT] = 0.2
@@ -1435,6 +1326,7 @@ class SceneHelper:
         env.InsertShader(image)
         env[c4d.ENVIRONMENTTAG_TEXTURE] = image
         self.doc.InsertObject(osky)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,osky)
         osky.SetName('Octane HDR Dome')
         
         if texture_path:        
@@ -1471,6 +1363,7 @@ class SceneHelper:
         env[c4d.ENVIRONMENTTAG_TEXTURE] = rgb_tex
         rgb_tex[c4d.RGBSPECTRUMSHADER_COLOR] = rgb
         self.doc.InsertObject(osky)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,osky)
         osky.SetName('Octane RGB Dome')
         return env
 
@@ -1483,14 +1376,15 @@ class SceneHelper:
         :param unselect: True if the dome can not be select, defaults to True
         :type unselect: bool, optional
         """
-        hdr_dome = self.add_hdr_dome(texture_path).GetObject()
-        black_dome = self.add_rgb_dome(rgb).GetObject()
+        hdr_dome: c4d.BaseObject = self.add_hdr_dome(texture_path).GetObject()
+        black_dome: c4d.BaseObject = self.add_rgb_dome(rgb).GetObject()
         null = c4d.BaseObject(c4d.Onull)
         null.SetName("Environment")
         null[c4d.ID_BASELIST_ICON_FILE] = '1052837'
         null[c4d.ID_BASELIST_ICON_COLORIZE_MODE] = 1
         null[c4d.ID_BASELIST_ICON_COLOR] = c4d.Vector(0.008, 0.659, 0.902)
-        doc.InsertObject(null)
+        self.doc.InsertObject(null)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,null)
         hdr_dome.InsertUnder(null)
         black_dome.InsertUnder(null)
         hdr_dome.DelBit(c4d.BIT_ACTIVE)
@@ -1538,6 +1432,7 @@ class SceneHelper:
         light.SetName(light_name)
         # Insert light into document.
         self.doc.InsertObject(light)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,light)
         return light
    
     def add_light_texture(self, light_tag: c4d.BaseTag = None,  texture_path: str = None, distribution_path: str = None) -> c4d.BaseTag :
@@ -1552,6 +1447,8 @@ class SceneHelper:
         if texture_path:
             imageTextureNode_tex = c4d.BaseList2D(ID_OCTANE_IMAGE_TEXTURE)
             light_tag.InsertShader(imageTextureNode_tex)
+            self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,imageTextureNode_tex)
+
             light_tag[c4d.LIGHTTAG_EFFIC_OR_TEX] = imageTextureNode_tex
             imageTextureNode_tex[c4d.IMAGETEXTURE_FILE] = texture_path
         
@@ -1559,6 +1456,7 @@ class SceneHelper:
         if distribution_path:
             imageTextureNod_dis = c4d.BaseList2D(ID_OCTANE_IMAGE_TEXTURE)
             light_tag.InsertShader(imageTextureNod_dis)
+            self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,imageTextureNod_dis)
             light_tag[c4d.LIGHTTAG_DISTRIBUTION] = imageTextureNod_dis
             imageTextureNod_dis[c4d.IMAGETEXTURE_FILE] = distribution_path        
 
@@ -1604,6 +1502,7 @@ class SceneHelper:
         # Name
         light.SetName(light_name)
         self.doc.InsertObject(light)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,light)
         return light
 
     def add_light_modifier(self, light: c4d.BaseObject, target: c4d.BaseObject|bool = None, gsg_link: bool = False, rand_color: bool = False, seed: int = 0):
@@ -1617,7 +1516,7 @@ class SceneHelper:
         # 新建目标标签
         if target:
             mbtag = c4d.BaseTag(5676) # target
-            doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, mbtag)
+            self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, mbtag)
             if isinstance(target, c4d.BaseObject):
                 mbtag[c4d.TARGETEXPRESSIONTAG_LINK] = target
             elif isinstance(target, bool):
@@ -1631,6 +1530,7 @@ class SceneHelper:
                 if gsglink:
                     linktag = c4d.BaseTag(1037662)
                     light.InsertTag(linktag)
+                    self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,linktag)
                     linktag[2001] = ''
             except:
                 pass
@@ -1640,10 +1540,10 @@ class SceneHelper:
             light[c4d.ID_BASELIST_ICON_COLORIZE_MODE] = 1
             
             if seed == 0:
-                randcolor = c4d.Vector(*generate_random_color(1))
+                randcolor = c4d.Vector(*node_helper.generate_random_color(1))
             else:
                 random.seed(seed)
-                randcolor = generate_random_color(1)
+                randcolor = node_helper.generate_random_color(1)
             light[c4d.ID_BASELIST_ICON_COLOR] = randcolor
             
         return light
@@ -1684,7 +1584,7 @@ class SceneHelper:
             atag[c4d.OBJECTTAG_LAYERID] = nodes.index(node)+1
             atag[c4d.OBJECTTAG_INSTANCE_ID] = nodes.index(node)+1
             atag[c4d.OBJECTTAG_BAKEID] = nodes.index(node)+1
-            atag[c4d.OBJTAG_OBJ_COLOR] = c4d.Vector(*generate_random_color(1))
+            atag[c4d.OBJTAG_OBJ_COLOR] = c4d.Vector(*node_helper.generate_random_color(1))
             atag[c4d.ID_BASELIST_NAME] = node.GetName()
             node.InsertTag(atag)
             self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,atag)
@@ -1761,7 +1661,7 @@ class SceneHelper:
             # make child
             for child in scatter_nodes:
                 child.InsertUnderLast(Modifier)
-        doc.SetActiveObject(Modifier, c4d.SELECTION_NEW)
+        self.doc.SetActiveObject(Modifier, c4d.SELECTION_NEW)
         #_reset_local_coordinates(node) # reset local coordinates
         # Unfold the null if it is fold
         if Modifier.GetNBit(c4d.NBIT_OM1_FOLD) == False:
@@ -1780,6 +1680,7 @@ class SceneHelper:
         if animation: # Animation.
             c4d.CallButton(vdb, c4d.VOLUMEOBJECT_VDB_SEQ_CALC)
         vdb_obj = self.doc.InsertObject(vdb)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,vdb_obj)
         return vdb_obj
 
 # to be move on...

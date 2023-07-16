@@ -21,7 +21,6 @@ Due to otoy use a custom userarea for the node editor, and don't support python.
 #### This Class contains the functions for the library. And it has some children Classes.
 - __Functions(functions)__
 - __VideoPostHelper__
-- __AOVData__
 - __AOVHelper__
 - __MaterialHelper__
 - __SceneHelper__
@@ -52,7 +51,6 @@ Due to otoy use a custom userarea for the node editor, and don't support python.
   - __get_aov_data__ : Get all aov data in a list of BaseContainer.
   - __get_all_aovs__ : Get all octane aovs in a list.
   - __get_aov__ : Get all the aovs of given type in a list.
-  - __read_aov__ : Get aov data in a list of AOVData Class.
   - __print_aov__ : Print main info of existed aov in python console.
   - __create_aov_shader__ : Create a shader of octane aov.
   - __add_aov__ : Add the octane aov shader to Octane Render.

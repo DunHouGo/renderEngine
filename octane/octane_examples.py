@@ -11,6 +11,8 @@ try:
     from octane_id import *
 except:
     from renderEngine.octane.octane_id import *
+from renderEngine import node_helper
+reload(node_helper)
 
 ###  ==========  Author INFO  ==========  ###
 
@@ -27,40 +29,15 @@ doc: c4d.documents.BaseDocument  # The active document
 op: Optional[c4d.BaseObject]  # The active object, None if unselected
 render_path: str = r'Render/example/test.png'
 
-def GetFileAssetUrl(aid: maxon.Id) -> str:
-    """Returns the asset URL for the given file asset ID.
-    """
-    # Bail when the asset ID is invalid.
-    if not isinstance(aid, maxon.Id) or aid.IsEmpty():
-        raise RuntimeError(f"{aid = } is not a a valid asset ID.")
-
-    # Get the user repository, a repository which contains almost all assets, and try to find the
-    # asset description, a bundle of asset metadata, for the given asset ID in it.
-    repo: maxon.AssetRepositoryRef = maxon.AssetInterface.GetUserPrefsRepository()
-    if repo.IsNullValue():
-        raise RuntimeError("Could not access the user repository.")
-    
-    asset: maxon.AssetDescription = repo.FindLatestAsset(
-        maxon.AssetTypes.File(), aid, maxon.Id(), maxon.ASSET_FIND_MODE.LATEST)
-    if asset.IsNullValue():
-        raise RuntimeError(f"Could not find file asset for {aid}.")
-
-    # When an asset description has been found, return the URL of that asset in the "asset:///"
-    # scheme for the latest version of that asset.
-    return str(maxon.AssetInterface.GetAssetUrl(asset, True))
-
-
 #---------------------------------------------------------
 # Example 01
 # VideoPostHelper
 #---------------------------------------------------------
 def example_01_videopost():
     # Get the RenderEngine id.
-    render_engine: int = oc.GetRenderEngine(doc)
-    print(f'Current render engine ID : {render_engine}.')
+    print(f'Current render engine ID : {oc.GetRenderEngine(doc)}.')
     # Get the current render version.
-    render_version: str = oc.GetVersion()
-    print(f'Current render engine version : {render_version}.')
+    print(f'Current render engine version : {oc.GetVersion()}.')
     # Set the VideoPostHelper instance
     videopost_helper = oc.VideoPostHelper(doc)
     # Set render setting
@@ -76,11 +53,13 @@ def example_02_aovs():
     videopost: c4d.documents.BaseVideoPost = oc.VideoPostHelper(doc).videopost
     # Set Octane AOVHelper instance
     aov_helper = oc.AOVHelper(videopost)
+    
     # Create a Octane aov item id can find from octane_id.py
     # If #name is None, defulat to type.
     diff_aov = aov_helper.create_aov_shader(aov_type = RNDAOV_DIFFUSE)
     # Add the DIFFUSE aov just created to the Octane aov system
     aov_helper.add_aov(diff_aov)
+    
     # Add some aovs
     aov_helper.add_aov(aov_helper.create_aov_shader(aov_type = RNDAOV_POST,aov_name = 'POST'))
     aov_helper.add_aov(aov_helper.create_aov_shader(RNDAOV_DIF_D))
@@ -90,17 +69,22 @@ def example_02_aovs():
     aov_helper.add_aov(aov_helper.create_aov_shader(RNDAOV_WIRE))
     aov_helper.add_aov(aov_helper.create_aov_shader(RNDAOV_OBJECT_LAYER_COLOR))
     aov_helper.add_aov(aov_helper.create_aov_shader(RNDAOV_VOLUME))
+    
     # Remove last aov: volume
     aov_helper.remove_last_aov()
+    
     # Remove specified aov: wire
     aov_helper.remove_aov_type(aov_type = RNDAOV_WIRE)
+    
     # Add 2 custom aovs with id 1 and 2
     aov_helper.add_custom_aov(customID = 1)
     aov_helper.add_custom_aov(customID = 2)
+    
     # Get the custom aov with id 2
     custom2 = aov_helper.get_custom_aov(customID = 2)
     if custom2:
         print(f'We find a Custom AOV with id 2 Named{custom2.GetName()}')
+        
     # Print current aov info
     aov_helper.print_aov()
 
@@ -116,7 +100,7 @@ def example_03_materials_A():
     # Add a float texture to roughness port
     MyMaterial.AddFloat(parentNode = c4d.OCT_MATERIAL_ROUGHNESS_LINK)
     # Add a node tree to Albedo port, and set path and props
-    url: maxon.Url = GetFileAssetUrl(maxon.Id("file_ed38c13fd1ae85ae"))    
+    url: maxon.Url = node_helper.get_asset_str(maxon.Id("file_ed38c13fd1ae85ae"))    
     MyMaterial.AddTextureTree(texturePath = url, nodeName = 'Albedo', isFloat = False, gamma = 2.2,
                            invert = False, parentNode = c4d.OCT_MATERIAL_DIFFUSE_LINK)
     # Insert the material
@@ -172,10 +156,10 @@ def example_04_scenes():
     
     ### == Light == ###
     # Add a rig of hdr and rgb backdrop
-    hdr_url: maxon.Url = GetFileAssetUrl(maxon.Id("file_d21cf4cfdec8c636"))
+    hdr_url: maxon.Url = node_helper.get_asset_str(maxon.Id("file_d21cf4cfdec8c636"))
     scene_helper.add_dome_rig(texture_path = hdr_url, rgb = c4d.Vector(0,0,0))
     # Add a light object and and some modify tags
-    gobo_url: maxon.Url = GetFileAssetUrl(maxon.Id("file_66b116a34a150e7e"))    
+    gobo_url: maxon.Url = node_helper.get_asset_str(maxon.Id("file_66b116a34a150e7e"))    
     mylight = scene_helper.add_light(power = 5, light_name = 'My Light', texture_path = gobo_url, distribution_path = None, visibility= False)
     scene_helper.add_light_modifier(light = mylight, target = True, gsg_link = True, rand_color = True)
     
