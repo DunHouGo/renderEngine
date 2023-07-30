@@ -20,7 +20,13 @@ All the boghma plugins and boghma library is FREE.
   - __get_texture_tag__ : Get texture tag for given seclection tag.
   - __select_all_materials__ : Select all the materials (with undo).
   - __deselect_all_materials__ : Deselect all the materials (with undo).
-
+  - __get_asset_url__ : Returns the asset URL for the given file asset ID.
+  - __get_asset_str__ : Returns the asset str for the given file asset ID.
+  - __iter_node__ : Provides a non-recursive iterator for all descendants of a node.
+  - __generate_random_color__ : Generate a random color with factor. 
+  - __get_tex_folder__ : Get tex folder next the the document. (NEW@ v1.0.3)
+  - __get_texture_path__ : Get texture path in disk. (NEW@ v1.0.3)
+  - 
 ### NodeHelper Class/method highlighted:
 
   - __GetAvailableShaders__ : Get all available nodes of current node space.
@@ -31,6 +37,7 @@ All the boghma plugins and boghma library is FREE.
   - __deselect__ : Deselect the node.
   - __add_shader__ : Add a shader.
   - __remove_shader__ : Remove the given shader.
+  - __AddConnectShader__ : Add shader and connect with given ports and nodes.
   - __AddPort__ : Expose the given Expose on the material.
   - __RemovePort__ : Hide the given Expose on the material.
   - __GetTrueNode__ : Get the Node of given port.

@@ -77,6 +77,7 @@ To use this library, you need to download the source or download Boghma Plugin M
 
   - __Create__ : Create an Redshift Basic(classic) material of given name.
   - __CreateStandardSurface__ : Create an Redshift Standard Surface material of given name.
+  - __CreateRSMaterial__ : Creates a new Redshift Material with a NAME.
   - __ExposeUsefulPorts__ : Expose some useful port on material.
   - __InsertMaterial__ : Insert the material to the document.
   - __Refresh__ : Refresh thumbnail.

@@ -124,6 +124,7 @@ def example_02_aovs():
     
     # End record undo
     aov_helper.doc.EndUndo()
+
 #---------------------------------------------------------
 # Example 03
 # MaterialHelper

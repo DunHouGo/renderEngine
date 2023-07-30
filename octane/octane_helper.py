@@ -145,6 +145,9 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
     if not actmat:
         doc = c4d.documents.GetActiveDocument()
         actmat = doc.GetActiveMaterial()
+    else:
+        doc = actmat.GetDocument()
+
     doc.AddUndo(c4d.UNDOTYPE_BITS,actmat)
     actmat.SetBit(c4d.BIT_ACTIVE)
     if not actmat:
@@ -1393,6 +1396,7 @@ class SceneHelper:
         # Unfold the null if it is fold
         if null.GetNBit(c4d.NBIT_OM1_FOLD) == False:
             null.ChangeNBit(c4d.NBIT_OM1_FOLD, c4d.NBITCONTROL_TOGGLE)
+        return hdr_dome
 
     def add_light(self, power: float = 4.0, light_name: str = 'Octane Light', texture_path: str = None, distribution_path: str = None, visibility: bool = False):
         """
@@ -1489,6 +1493,7 @@ class SceneHelper:
         light[c4d.DAYLIGHTTAG_POWER] = power
         # Sun Expression
         sun_exp = c4d.BaseTag(5678) # Sun Expression
+        sun_exp[c4d.EXPRESSION_ENABLE] = False
         light.InsertTag(sun_exp)
         # Octane Sun tag
         octane_sun = c4d.BaseTag(ID_OCTANE_DAYLIGHT_TAG) # Sun
@@ -1625,6 +1630,71 @@ class SceneHelper:
             self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, atag)
                         
         return atag
+
+    # NEW
+    def set_tag_texture(self, tag: c4d.BaseTag = None, slot: int = None, tex_path: str = None):
+        if not isinstance(tag, c4d.BaseTag):
+            raise ValueError("Only accept c4d.BaseTag")
+        if not isinstance(slot, int):
+            raise ValueError("Only accept int for slot")        
+
+        image_ndoe: c4d.BaseList2D = tag[slot]
+        if image_ndoe is not None:
+            # imageTex
+            if isinstance(image_ndoe, c4d.BaseShader):
+                if image_ndoe.CheckType(ID_OCTANE_IMAGE_TEXTURE):
+                    self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, image_ndoe)
+                    image_ndoe[c4d.IMAGETEXTURE_FILE] = str(tex_path)                    
+                elif image_ndoe.CheckType(c4d.Xbitmap):
+                    self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, image_ndoe)
+                    image_ndoe[c4d.BITMAPSHADER_FILENAME] = str(tex_path)
+            else: return False
+        else:
+            new_node = c4d.BaseShader(ID_OCTANE_IMAGE_TEXTURE)
+            new_node[c4d.IMAGETEXTURE_FILE] = str(tex_path)
+            tag.InsertShader(new_node)
+            self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, new_node)
+            tag[slot] = new_node            
+
+    # NEW
+    def set_tag_color(self, tag: c4d.BaseTag = None, slot: int = None, rgb: c4d.Vector = c4d.Vector(1,1,1)):
+        if not isinstance(tag, c4d.BaseTag):
+            raise ValueError("Only accept c4d.BaseTag")
+        if not isinstance(slot, int):
+            raise ValueError("Only accept int for slot")        
+        if not isinstance(rgb, c4d.Vector):
+            raise ValueError("Only accept c4d.Vector for rgb")
+        
+        image_ndoe: c4d.BaseList2D = tag[slot]
+        if image_ndoe is not None:
+            # imageTex
+            if isinstance(image_ndoe, c4d.BaseShader):
+                if image_ndoe.CheckType(ID_OCTANE_RGBSPECTRUM):
+                    self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, image_ndoe)
+                    image_ndoe[c4d.RGBSPECTRUMSHADER_COLOR] = rgb
+                else: return False
+        else:
+            new_node = c4d.BaseShader(ID_OCTANE_RGBSPECTRUM)
+            new_node[c4d.RGBSPECTRUMSHADER_COLOR] = rgb
+            tag.InsertShader(new_node)
+            self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, new_node)
+            tag[slot] = new_node
+
+    # NEW
+    def get_tag(self, node: c4d.BaseObject) -> c4d.BaseTag:
+        if not isinstance(node, c4d.BaseObject):
+            raise ValueError("Only accept c4d.BaseObject")
+        if node.CheckType(c4d.Olight) and node[c4d.LIGHT_TYPE] != 3: # Infinite Sun
+            tag = node.GetTag(ID_OCTANE_LIGHT_TAG)
+        elif node.CheckType(c4d.Osky):
+            tag = node.GetTag(ID_OCTANE_ENVIRONMENT_TAG)
+        elif node.CheckType(c4d.Olight) and node[c4d.LIGHT_TYPE] == 3:
+            tag = node.GetTag(ID_OCTANE_DAYLIGHT_TAG)
+        elif node.CheckType(c4d.Ocamera):
+            tag = node.GetTag(ID_OCTANE_CAMERATAG)
+        else:
+            tag = node.GetTag(ID_OCTANE_OBJECTTAG)
+        return tag
 
     ### Object ###
 

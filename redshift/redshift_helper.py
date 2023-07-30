@@ -419,7 +419,8 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
     if not actmat:
         doc = c4d.documents.GetActiveDocument()
         actmat = doc.GetActiveMaterial()
-    doc = actmat.GetDocument()
+    else:
+        doc = actmat.GetDocument()
     doc.AddUndo(c4d.UNDOTYPE_BITS,actmat)
     actmat.SetBit(c4d.BIT_ACTIVE)
     if not actmat:
@@ -932,17 +933,44 @@ class MaterialHelper:
             raise Exception("Failed to create Redshift Standard Surface Material")
 
         with RSMaterialTransaction(standardMaterial) as transaction:
-            oldrs = standardMaterial.helper.GetRootBRDF()
-            output = standardMaterial.helper.GetOutput()
-            standardMaterial.helper.remove_shader(oldrs)
-            standard_surface = standardMaterial.AddShader("com.redshift3d.redshift4c4d.nodes.core.standardmaterial")
-            standardMaterial.helper.AddConnection(standard_surface,PortStr.standard_outcolor, output, PortStr.Output_Surface)
             # ports
+            standardMaterial.helper.SetName(standardMaterial.helper.GetRootBRDF(),'Standard Surface')
             standardMaterial.ExposeUsefulPorts()
 
 
         return standardMaterial
+
+    # 创建RS Material
+    @staticmethod
+    def CreateRSMaterial(name):
+        """
+        Creates a new Redshift Material with a NAME.
+
+        Args:
+            name (str): Name of the Material
+
+        Returns:
+            Material: Redshift Material instance
+        """    
+        standardMaterial = MaterialHelper.Create(name)
+        if standardMaterial is None or standardMaterial.material is None:
+            raise Exception("Failed to create Redshift Standard Surface Material")
+
+        with RSMaterialTransaction(standardMaterial) as transaction:
+            oldrs = standardMaterial.helper.GetRootBRDF()
+
+            output_inport = standardMaterial.helper.GetPort(standardMaterial.helper.GetOutput(), PortStr.Output_Surface)
+            standardMaterial.helper.remove_shader(oldrs)
+            rsMaterial = standardMaterial.AddRSMaterial(target=output_inport)
+            standardMaterial.helper.SetName(rsMaterial,'RS Material')
+            standardMaterial.helper.SetShaderValue(rsMaterial,'com.redshift3d.redshift4c4d.nodes.core.material.refl_roughness',0.2)
+            # ports
+            #standardMaterial.ExposeUsefulPorts()
+        standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),'com.redshift3d.redshift4c4d.nodes.core.material.transl_color')
+        standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),'com.redshift3d.redshift4c4d.nodes.core.material.transl_weight')
+        return standardMaterial
  
+
     # 暴露常用接口
     def ExposeUsefulPorts(self):
         if self.graph is None:
@@ -2029,7 +2057,8 @@ class SceneHelper:
         # Unfold the null if it is fold
         if null.GetNBit(c4d.NBIT_OM1_FOLD) == False:
             null.ChangeNBit(c4d.NBIT_OM1_FOLD, c4d.NBITCONTROL_TOGGLE)
-
+        return hdr_dome
+        
     def add_light(self, light_name: str = None, texture_path: str = None, intensity: float = 1.0, exposure: float = 0.0) -> c4d.BaseObject :        
         
         light = c4d.BaseObject(ID_REDSHIFT_LIGHT)
@@ -2259,7 +2288,9 @@ class SceneHelper:
         return proxy
 
     def auto_proxy(self, node : c4d.BaseObject , filepath: str = None, remove_objects: bool = False):
-
+        if not isinstance(node,c4d.BaseObject):
+            raise ValueError("must be a BaseObject.")
+        
         # Find the Redshift Proxy Export plugin
         plug = c4d.plugins.FindPlugin(redshift.Frsproxyexport, c4d.PLUGINTYPE_SCENESAVER)
         if plug is None:
@@ -2311,7 +2342,7 @@ class SceneHelper:
                 os.makedirs(proxy_path)
             filepath = os.path.join(self.doc.GetDocumentPath(), "_Proxy", node.GetName())
         self.doc.SetSelection(ex_node)
-        print(filepath)
+
         c4d.documents.SaveDocument(self.doc, filepath, c4d.SAVEDOCUMENTFLAGS_DONTADDTORECENTLIST, redshift.Frsproxyexport) 
         self.doc.AddUndo(c4d.UNDOTYPE_DELETEOBJ, ex_node)   
         ex_node.Remove()
@@ -2365,7 +2396,7 @@ class SceneHelper:
         bakeset = c4d.BaseObject(ID_REDSHIFT_BAKESET)
         bakeset[c4d.REDSHIFT_BAKESET_WIDTH] = resolution
         bakeset[c4d.REDSHIFT_BAKESET_HEIGHT] = resolution
-        bakeset[10007] = data
+        bakeset[c4d.REDSHIFT_BAKESET_OBJECTS] = data
         self.doc.InsertObject(bakeset)
         self.doc.AddUndo(c4d.UNDOTYPE_BITS,bakeset)
         bakeset.SetBit(c4d.BIT_ACTIVE)

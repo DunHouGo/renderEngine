@@ -164,7 +164,7 @@ if rs.IsNodeBased():
 
             # TexPath
             # 贴图路径
-            url: maxon.Url = GetFileAssetUrl(maxon.Id("file_5b6a5fe03176444c"))
+            url: maxon.Url = node_helper.get_asset_str(maxon.Id("file_5b6a5fe03176444c"))
             tar = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.base_color')
             
             # Add a Texture node and set a tex to it , change color space to RAW

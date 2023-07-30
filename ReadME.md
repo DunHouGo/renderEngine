@@ -14,6 +14,7 @@ To use this library, you have two options:
 - Redshift and Arnold material helper only support NodeGragh, so the Cinema 4D before R26 is not support.
 - AddChild() and AddTextureTree() may return a not auto-layout node network now.
 - GetID() is broken, wait Maxon fix it, GetParamDataTypeID() can not get vector id.
+- Arnold mask tag SetPrameter has a refresh bug.
 
 
 # Examples
@@ -92,8 +93,23 @@ To use this library, you have two options:
   - re-write redshift **MaterialHelper** with AddConnectShader.
   - re-name some redshift_helper basic functions to match arnold_helper.
 - ### 1.0.0
-- renderEngine version 1.0.0 (update@2023.07.17)
-
+  - renderEngine version 1.0.0 (update@2023.07.16)
+- ### 1.0.1
+- AovManager for arnold now have a condition. (update@2023.07.17)
+- fix some typing mistakes.
+- add **setup_cryptomatte** to arnold AOVHelper.
+- add **CreateCryptomatte** to arnold MaterialHelper.
+- ### 1.0.2
+- AovManager for arnold now have a condition. (update@2023.07.25)
+- fix some typing mistakes.
+- add **CreateRSMaterial** to redshift MaterialHelper.
+- update **CreateStandardSurface** for redshift MaterialHelper.
+- ### 1.0.3
+- add **set_tag_texture** to octane SceneHelper.(update@2023.07.27)
+- add **set_tag_color** to octane SceneHelper.
+- add **get_tag** to octane SceneHelper.
+- add **get_tex_folder** to node_helper.
+- add **get_texture_path** to node_helper.
 
 
 ---

@@ -118,7 +118,10 @@ Due to otoy use a custom userarea for the node editor, and don't support python.
   - __add_object_tag__ : Add an object tag to the given object.
   - __add_objects_tag__ : Add object tags to the given objects(enumerate id).
   - __add_custom_aov_tag__ : Add an object tag of given custom aov id to the given object.
-  - __add_camera_tag__ :Add an camera tag to the given camera.
+  - __add_camera_tag__ : Add an camera tag to the given camera.
+  - __set_tag_texture__ : Set Texture path of given tag and slot. (NEW@ v1.0.3)
+  - __set_tag_color__ : Set color of given tag and slot. (NEW@ v1.0.3)
+  - __get_tag__ : Get tag of given object. (NEW@ v1.0.3)
   - __add_scatter__ : Add a scatter object of given generator_node and scatter_nodes.
   - __add_vdb__ : Add a vdb loader object with the given path to the scene.
 

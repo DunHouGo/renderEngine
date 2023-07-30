@@ -91,7 +91,8 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
     if not actmat:
         doc = c4d.documents.GetActiveDocument()
         actmat = doc.GetActiveMaterial()
-    doc = actmat.GetDocument()
+    else:
+        doc = actmat.GetDocument()
     doc.AddUndo(c4d.UNDOTYPE_BITS,actmat)
     actmat.SetBit(c4d.BIT_ACTIVE)
     if not actmat:
@@ -109,18 +110,32 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
             c4d.CallCommand(16297) # Scroll To Selection
 
 # 打开材质编辑器
-def AovManager(document: c4d.documents.BaseDocument = None, driverType: str|c4d.BaseObject = None) -> None:
+def AovManager(document: c4d.documents.BaseDocument = None, driverType: str|c4d.BaseObject|None = None) -> None:
     """
     Open aov Manager.
     """
     if not document:
         document = c4d.documents.GetActiveDocument()
     if isinstance(driverType,c4d.BaseObject):
-        c4d.CallButton(driver, c4d.C4DAI_DRIVER_SETUP_AOVS)
+        the_driver = driverType
     if isinstance(driverType, str):
         aov_helper = AOVHelper(VideoPostHelper(document).videopost)
-        driver = aov_helper.get_driver(driverType)
-        c4d.CallButton(driver, c4d.C4DAI_DRIVER_SETUP_AOVS)
+        the_driver = aov_helper.get_driver(driverType)
+
+    if driverType is None:
+        aov_helper = AOVHelper(VideoPostHelper(document).videopost)
+        drivers = node_helper.get_nodes(document,[ARNOLD_DRIVER])
+        if not drivers:
+            the_driver: c4d.BaseObject = aov_helper.create_aov_driver(isDisplay=True)
+        # 只有一个driver
+        if len(drivers) == 1:
+            the_driver = drivers[0]
+        # 有多个driver
+        elif len(drivers) > 1:
+            the_driver = aov_helper.get_dispaly_driver()
+    c4d.CallButton(the_driver, c4d.C4DAI_DRIVER_SETUP_AOVS)
+
+        
 
 # 打开贴图管理器
 def TextureManager() -> None:
@@ -289,8 +304,9 @@ class AOVHelper:
             raise RuntimeError(f"Can't get the {self.vpname} VideoPost")
         if not isinstance(aov_name, str):
             raise ValueError(f"The {aov_name} need a string")
-        if aov_name not in CDTOA_AOVTYPES:
-            raise ValueError(f"The {aov_name} is not an Arnold basic aov type")
+        
+        # if aov_name not in CDTOA_AOVTYPES:
+        #     raise ValueError(f"The {aov_name} is not an Arnold basic aov type")
             
         # create AOV object
         aov = c4d.BaseObject(ARNOLD_AOV)
@@ -342,6 +358,7 @@ class AOVHelper:
                 driver[C4DAIP_DRIVER_EXR_COMPRESSION] = 9 # dwab
                 driver[C4DAIP_DRIVER_EXR_HALF_PRECISION] = 1
                 driver[C4DAIP_DRIVER_EXR_PRESERVE_LAYER_NAME] = 1
+                driver[c4d.C4DAI_DRIVER_MERGE_AOVS] = True
             # PNG    
             elif driver_type == C4DAIN_DRIVER_PNG:
                 driver[C4DAIP_DRIVER_PNG_FORMAT] = 1 # 16bit
@@ -487,6 +504,21 @@ class AOVHelper:
         
         aov = self.get_aov(driver,aov_type)
         aov.Remove()        
+
+    # 设置Cryptomatte ==> ok
+    def setup_cryptomatte(self, driver: c4d.BaseObject=None):
+        if driver is None:
+            driver = self.create_aov_driver(isDisplay=False,denoise=False)
+            driver.SetName('Cryptomatte_driver')
+        if driver.CheckType(ARNOLD_DRIVER):
+            driver = driver
+        self.add_aov(driver,self.create_aov_shader("crypto_asset"))
+        self.add_aov(driver,self.create_aov_shader("crypto_object"))
+        self.add_aov(driver,self.create_aov_shader("crypto_material"))
+        MaterialHelper.CreateCryptomatte().InsertMaterial()
+
+
+            
 
 # Link
 class ArnoldShaderLinkCustomData:
@@ -798,7 +830,21 @@ class MaterialHelper:
             
         # Return a redshift node material
         return MaterialHelper(material)
-            
+
+    # 创建Cryptomatte
+    @staticmethod                                               
+    def CreateCryptomatte():
+        arnoldMaterial = MaterialHelper.Create('Cryptomatte')
+        if arnoldMaterial is None or arnoldMaterial.material is None:
+            raise Exception("Failed to create Arnold Standard Surface Material")
+        with ARMaterialTransaction(arnoldMaterial) as transaction:
+            crypto = arnoldMaterial.helper.add_shader("com.autodesk.arnold.shader.cryptomatte")
+            crypto_out = arnoldMaterial.helper.GetPort(crypto)
+            end_node = arnoldMaterial.helper.GetOutput()
+            end_shader_in = arnoldMaterial.helper.GetPort(end_node,'shader')
+            crypto_out.Connect(end_shader_in)
+        return arnoldMaterial
+    
     # 创建Standard Surface
     @staticmethod                                               
     def CreateStandardSurface(name: str = 'Standard Surface'):
@@ -817,9 +863,7 @@ class MaterialHelper:
 
         with ARMaterialTransaction(arnoldMaterial) as transaction:
             standard_surface = arnoldMaterial.helper.add_shader("com.autodesk.arnold.shader.standard_surface")
-            print(standard_surface)
             surface_out = arnoldMaterial.helper.GetPort(standard_surface,'output')
-            print(surface_out)
             end_node = arnoldMaterial.helper.GetOutput()
             end_shader_in = arnoldMaterial.helper.GetPort(end_node,'shader')
             surface_out.Connect(end_shader_in)
@@ -1730,7 +1774,7 @@ class SceneHelper:
         light[C4DAIP_SKYDOME_LIGHT_EXPOSURE] = exposure
         light[C4DAIP_SKYDOME_LIGHT_CAMERA] = seen_by_cam
         # set the color value
-        SetShaderLink(light, C4DAIP_SKYDOME_LIGHT_COLOR , rgb)
+        SetShaderLink(light, C4DAIP_DOME_LIGHT_COLOR , rgb)
         return light
 
     def add_dome_rig(self, texture_path: str, rgb: c4d.Vector = c4d.Vector(0,0,0)):
@@ -1822,7 +1866,7 @@ class SceneHelper:
         
         return gobo
     
-    def add_sun(self, power: float = 1.0, light_name: str = 'Arnold Sun', mix_sky: bool = False):
+    def add_sun(self, light_name: str = 'Arnold Sun'):
         # 新建灯光
         light = c4d.BaseObject(ARNOLD_LIGHT)
         light [c4d.C4DAI_LIGHT_TYPE] = C4DAIN_DISTANT_LIGHT
@@ -1871,14 +1915,14 @@ class SceneHelper:
     ### Tag ###
 
     def add_mask_tag(self, node : c4d.BaseObject, mask_name: str = None) -> c4d.BaseTag:
-        mask_tag = c4d.BaseTag(ARNOLD_OBJECTMASK_TAG) # arnold mask tag
-        node.InsertTag(mask_tag)
-        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,mask_tag)
-        if mask_name:
-            mask_tag[c4d.C4DAI_OBJECTMASK_TAG_AOV_NAME_MODE] = 0
-            mask_tag[c4d.C4DAI_OBJECTMASK_TAG_AOV_NAME] = mask_name
-            mask_tag[c4d.C4DAI_OBJECTMASK_TAG_AOV_TYPE] = 0            
-        return mask_tag    
+        tag = c4d.BaseTag(ARNOLD_OBJECTMASK_TAG) # arnold mask tag
+        tag[c4d.C4DAI_OBJECTMASK_TAG_AOV_TYPE] = 0
+        tag[c4d.C4DAI_OBJECTMASK_TAG_AOV_NAME_MODE] = 0
+        tag[c4d.C4DAI_OBJECTMASK_TAG_AOV_NAME] = mask_name
+        node.InsertTag(tag)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,tag)
+        tag.SetParameter(c4d.C4DAI_OBJECTMASK_TAG_AOV_TYPE, 0, c4d.DESCFLAGS_SET_0)
+        return tag
         
     def add_object_tag(self, node : c4d.BaseObject) -> c4d.BaseTag:
         object_tag = c4d.BaseTag(ARNOLD_TAG) # arnold tag
@@ -1929,7 +1973,7 @@ class SceneHelper:
             Modifier[c4d.C4DAI_POINTS_SHAPE_MODE] = 1 # random
             
         if selectedtag :
-            Modifier[c4d.MG_POLY_SELECTION] = selectedtag.GetName()            
+            Modifier[c4d.C4DAI_SCATTER_SELECTION] = selectedtag.GetName()            
         
         self.doc.InsertObject(Modifier)
         self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,Modifier)

@@ -29,7 +29,6 @@ from typing import Union
 from typing import Optional
 import os
 import random
-from pprint import pprint
 
 # redshift
 RS_NODESPACE = "com.redshift3d.redshift4c4d.class.nodespace"
@@ -294,7 +293,22 @@ class NodeGraghHelper(object):
                 input_ports: list[str|maxon.GraphNode]=None, connect_inNodes: list[maxon.GraphNode]=None,
                 output_ports: list[str|maxon.GraphNode]=None, connect_outNodes: list[maxon.GraphNode]=None
                 ) -> maxon.GraphNode|None :
-        
+        """
+        Add shader and connect with given ports and nodes.
+
+        :param nodeID: the shader id, defaults to None
+        :type nodeID: str, optional
+        :param input_ports: the input port list, defaults to None
+        :type input_ports: list[str | maxon.GraphNode], optional
+        :param connect_inNodes: the node list connect to inputs, defaults to None
+        :type connect_inNodes: list[maxon.GraphNode], optional
+        :param output_ports: the output port list, defaults to None
+        :type output_ports: list[str | maxon.GraphNode], optional
+        :param connect_outNodes: the node list connect to outputs, defaults to None
+        :type connect_outNodes: list[maxon.GraphNode], optional
+        :return: the shader.
+        :rtype: maxon.GraphNode|None
+        """
         if self.graph is None:
             return None
         
@@ -1200,17 +1214,19 @@ def get_texture_tag(selectionTag : c4d.SelectionTag) -> c4d.TextureTag :
     return False
 
 # 选择所有材质
-def select_all_materials():
+def select_all_materials(doc=None):
     # Deselect All Mats
-    doc = c4d.documents.GetActiveDocument()
+    if not doc:
+        doc = c4d.documents.GetActiveDocument()
     for m in doc.GetActiveMaterials() :
         doc.AddUndo(c4d.UNDOTYPE_BITS, m)
         m.SetBit(c4d.BIT_ACTIVE)
 
 # 取消选择所有材质
-def deselect_all_materials():
+def deselect_all_materials(doc=None):
     # Deselect All Mats
-    doc = c4d.documents.GetActiveDocument()
+    if not doc:
+        doc = c4d.documents.GetActiveDocument()
     for m in doc.GetActiveMaterials() :
         doc.AddUndo(c4d.UNDOTYPE_BITS, m)
         m.DelBit(c4d.BIT_ACTIVE)
@@ -1350,6 +1366,9 @@ def iter_node(node, include_node=False, include_siblings=False) -> list[c4d.GeLi
 
 # 生成随机颜色
 def generate_random_color(pastel_factor = 0.5):
+    """
+    Generate a random color with factor. 
+    """
     def _color_distance(c1,c2):
         return sum([abs(x[0]-x[1]) for x in zip(c1,c2)])
     #_ 在指定饱和度生成随机颜色 v1.0
@@ -1367,5 +1386,45 @@ def generate_random_color(pastel_factor = 0.5):
             max_distance = best_distance
             best_color = color
     return best_color
+
+# NEW
+def get_tex_folder(doc: c4d.documents.BaseDocument = None) -> str :
+    """
+    Get the local tex folder in the expolorer.
+
+    Returns:
+        string : tex folder path
+    """
+    if doc is None:
+        doc = c4d.documents.GetActiveDocument()
+    tex_folder = os.path.join(doc.GetDocumentPath(),"tex") # Tex Folder
+    if not os.path.exists(tex_folder):
+        os.makedirs(tex_folder)
+    return tex_folder
+
+def get_texture_path(doc: c4d.documents.BaseDocument = None, file_name: str = None) -> str|bool:
+    """
+    Get the tex path.
+
+    Returns:
+        string : tex path | Flase
+    """
+    if doc is None:
+        doc = c4d.documents.GetActiveDocument()        
+    if file_name is None:
+        return False
+    if file_name == '':
+        return False
+    if os.path.exists(file_name):
+        return file_name
+    if os.path.exists(os.path.join(get_tex_folder(doc),file_name)):
+        return os.path.join(get_tex_folder(doc),file_name)
+    else:
+        # Gets global texture paths
+        paths = c4d.GetGlobalTexturePaths()
+        for path, enabled in paths:
+            if os.path.exists(os.path.join(path,file_name)):
+                return os.path.join(path,file_name)
+    return False
 
 # todo
