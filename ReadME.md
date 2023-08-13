@@ -6,13 +6,14 @@ All the boghma plugins and boghma library is FREE.
 
 ## Installation
 To use this library, you have two options:
-1. Download the source and import it to your Cinema 4D.
-2. (**Not Ready Now**) You can also download [Boghma Plugin Manager](https://www.boghma.com/) and install any plugin, the boghma lib will auto installed.
 
+1. (**Recommend**) You can also download [Boghma Plugin Manager](https://github.com/DunHouGo/Boghma-Plugin-HUB) and install any plugin, the boghma lib will auto installed.
+2. Download the source and import it to your Cinema 4D.
+   
 # Limit
 - Due to Otoy use a custom userarea for the node editor, and don't support python. We can not get the selection of the node edtor, so it is not possible to interact with node editor. 
 - Redshift and Arnold material helper only support NodeGragh, so the Cinema 4D before R26 is not support.
-- AddChild() and AddTextureTree() may return a not auto-layout node network now.
+- AddChild() and AddTextureTree() may return a not auto-layout node network now(Modify material).
 - GetID() is broken, wait Maxon fix it, GetParamDataTypeID() can not get vector id.
 - Arnold mask tag SetPrameter has a refresh bug.
 
