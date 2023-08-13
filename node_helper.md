@@ -58,3 +58,6 @@ All the boghma plugins and boghma library is FREE.
   - __RemoveConnection__ : Remove the connection of the given port on a node.
   - __FoldPreview__ : Toggle folding state of the shader previews.
   - __GetNodes__ : Get all Nodes of given shader. (NEW@ v0.1.1)
+  - __CheckPreNode__ : Returns True if the given shader is connected to the pre shader.
+  - __CheckNextNode__ : Returns True if the given shader is connected to the Next shader.
+  - ...

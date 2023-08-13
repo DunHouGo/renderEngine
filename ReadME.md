@@ -95,21 +95,36 @@ To use this library, you have two options:
 - ### 1.0.0
   - renderEngine version 1.0.0 (update@2023.07.16)
 - ### 1.0.1
-- AovManager for arnold now have a condition. (update@2023.07.17)
-- fix some typing mistakes.
-- add **setup_cryptomatte** to arnold AOVHelper.
-- add **CreateCryptomatte** to arnold MaterialHelper.
+  - AovManager for arnold now have a condition. (update@2023.07.17)
+  - fix some typing mistakes.
+  - add **setup_cryptomatte** to arnold AOVHelper.
+  - add **CreateCryptomatte** to arnold MaterialHelper.
 - ### 1.0.2
-- AovManager for arnold now have a condition. (update@2023.07.25)
-- fix some typing mistakes.
-- add **CreateRSMaterial** to redshift MaterialHelper.
-- update **CreateStandardSurface** for redshift MaterialHelper.
+  - AovManager for arnold now have a condition. (update@2023.07.25)
+  - fix some typing mistakes.
+  - add **CreateRSMaterial** to redshift MaterialHelper.
+  - update **CreateStandardSurface** for redshift MaterialHelper.
 - ### 1.0.3
-- add **set_tag_texture** to octane SceneHelper.(update@2023.07.27)
-- add **set_tag_color** to octane SceneHelper.
-- add **get_tag** to octane SceneHelper.
-- add **get_tex_folder** to node_helper.
-- add **get_texture_path** to node_helper.
+  - add **set_tag_texture** to octane SceneHelper.(update@2023.07.27)
+  - add **set_tag_color** to octane SceneHelper.
+  - add **get_tag** to octane SceneHelper.
+  - add **get_tex_folder** to node_helper.
+  - add **get_texture_path** to node_helper.
+- ### 1.0.3
+  - rename **Node** functions to Capitalize.
+  - add **IsNode** and **IsPort**to node_helper.
+  - add **GetPreNode** and **GetPreNodes** to node_helper.
+  - add **GetNextNode** and **GetNextNodes** to node_helper.
+  - add **GetPreNodePorts** and **GetNextNodePorts** to node_helper.
+  - add **GetAllConnectedPorts** and **OnSameNode** to node_helper.
+  - add **IsNodeConnected** and **IsPortConnected** to node_helper.
+  - re-write **RemoveConnection** in node_helper
+  - add **IsConnected** to node_helper.
+  - add **InsertShader** to node_helper.
+  - util functions in node_helper remove transaction.
+  - add **GetConnectedNodeName** to node_helper.
+  - add **GetConnectedNodeType** to node_helper.
+
 
 
 ---

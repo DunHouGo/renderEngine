@@ -1198,12 +1198,12 @@ class MaterialHelper(NodeHelper):
             self.doc.SetActiveMaterial(self.material)            
     
     # 创建材质 ==> ok
-    def SetupTextures(self):
+    def SetupTextures(self, texture: str = None):
         """
         Setup a pbr material with given or selected texture.
         """
         texpack = node_helper.TexPack()
-        data_list = texpack.get_texture_data()
+        data_list = texpack.get_texture_data(texture)
         tex_data = data_list[0]
         mat_name = data_list[1]
         

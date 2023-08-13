@@ -130,10 +130,285 @@ class NodeGraghHelper(object):
                 
                 self.root: maxon.GraphNode = self.graph.GetRoot()
                 
-
     def __str__(self):
         return (f"{self.__class__.__name__}:(Material Name:{self.material.GetName()}) @nodespaceId: {self.nodespaceId}")
 
+    #=============================================
+    # Util
+    #=============================================
+
+    # 获取资产ID 只有node有asset id ==> ok
+    def GetAssetId(self, node: maxon.GraphNode) -> maxon.Id:
+        """
+        Returns the asset id of the given node.
+
+        :param node: the shader node
+        :type node: maxon.GraphNode
+        :return: maxon Id
+        :rtype: maxon.Id
+        """
+        res = node.GetValue("net.maxon.node.attribute.assetid")        
+        assetId = ("%r"%res)[1:].split(",")[0]
+                    
+        return assetId  
+
+    # 获取ShaderID ==> ok
+    def GetShaderId(self, node: maxon.GraphNode) -> maxon.Id:
+        """
+        Returns the node id(No prefix) of the given node.
+
+        :param node: the shader node
+        :type node: maxon.GraphNode
+        :return: maxon Id
+        :rtype:  maxon.Id
+        """
+        if node is None:
+            return None
+        
+        assetId: str = self.GetAssetId(node)
+        
+        if self.nodespaceId == RS_NODESPACE:
+            if assetId.startswith(RS_SHADER_PREFIX):
+                return assetId[len(RS_SHADER_PREFIX):]
+        elif self.nodespaceId == AR_NODESPACE:
+            if assetId.startswith(AR_SHADER_PREFIX):
+                return assetId[len(AR_SHADER_PREFIX):]
+        return None
+
+    # 获取节点名 ==> ok
+    def GetName(self, node: maxon.GraphNode) -> Optional[str]:
+        """
+        Retrieve the displayed name of a node.
+
+        :param node: The node to retrieve the name from.
+        :type node: maxon.GraphNode
+        :return: The node name, or None if the Node name can't be retrieved.
+        :rtype: Optional[str]
+        """
+        if node is None:
+            return None
+
+        nodeName = node.GetValue(maxon.NODE.BASE.NAME)
+
+        if nodeName is None:
+            nodeName = node.GetValue(maxon.EffectiveName)
+
+        if nodeName is None:
+            nodeName = str(node)
+            
+        return nodeName
+
+    # 设置节点名 ==> ok
+    def SetName(self, node: maxon.GraphNode, name: str) -> None:
+        """
+        Set the name of the shader.
+
+        :param node: The shader node.
+        :type node: maxon.GraphNode
+        :param name: name str
+        :type name: str
+        :return: True if suceess, False otherwise.
+        :rtype: bool
+        """
+        if node is None:
+            return None
+        
+        shadername = maxon.String(name)
+        node.SetValue(maxon.NODE.BASE.NAME, shadername)
+        node.SetValue(maxon.EffectiveName, shadername)
+
+    # 选择 ==> ok
+    def Select(self, node: maxon.GraphNode) -> maxon.GraphNode:
+        """
+        Select a port or node.
+
+        :param node: the node to be select.
+        :type node: maxon.GraphNode
+
+        :return: the origin node
+        :rtype: maxon.GraphNode
+        """
+        if not isinstance(node, maxon.GraphNode):
+            raise ValueError('Expected a maxon.GraphNode, got {}'.format(type(node)))
+        
+        maxon.GraphModelHelper.SelectNode(node)
+        return node
+
+    # 取消选择 ==> ok
+    def Deselect(self,node: maxon.GraphNode) -> maxon.GraphNode:
+        """
+        Deselect a port or node.
+
+        :param node: the node to be deselect.
+        :type node: maxon.GraphNode
+
+        :return: the origin node
+        :rtype: maxon.GraphNode
+        """
+        if not isinstance(node, maxon.GraphNode):
+            raise ValueError('Expected a maxon.GraphNode, got {}'.format(type(node)))
+
+        maxon.GraphModelHelper.DeselectNode(node)
+        return node
+
+    # 获取Output Node ==> ok
+    def GetOutput(self):
+        """
+        Returns the Output node.
+        """
+        if self.graph is None:
+            return None
+        if self.nodespaceId == RS_NODESPACE:
+            output_id = 'com.redshift3d.redshift4c4d.node.output'
+        if self.nodespaceId == AR_NODESPACE:
+            output_id = 'com.autodesk.arnold.material'
+            
+        # Attempt to find the BSDF node contained in the default graph setup.
+        result: list[maxon.GraphNode] = []
+        maxon.GraphModelHelper.FindNodesByAssetId(
+            self.graph, output_id, True, result)
+        if len(result) < 1:
+            raise RuntimeError("Could not find BSDF node in material.")
+        bsdfNode: maxon.GraphNode = result[0]
+        
+        return bsdfNode
+    
+    # 获取 BRDF (Material) Node ==> ok
+    def GetRootBRDF(self):
+        """
+        Returns the shader connect to redshift output (maxon.frameworks.graph.GraphNode)
+        """
+        if self.graph is None:
+            return None
+
+        endNode = self.GetOutput()
+        if endNode is None:
+            print("[Error] End node is not found in Node Material: %s" % self.material.GetName())
+            return None
+        
+        predecessor = list()
+        maxon.GraphModelHelper.GetDirectPredecessors(endNode, maxon.NODE_KIND.NODE, predecessor)
+        rootshader = predecessor[-1] 
+        if rootshader is None and not rootshader.IsValid() :
+            raise ValueError("Cannot retrieve the inputs list of the bsdfNode node")
+        #print(predecessor)
+        return rootshader  
+
+    # 切换预览
+    def FoldPreview(self, nodes: list[maxon.GraphNode] ,state: bool = False):
+
+        if self.graph is None:
+            return 
+        for graph_node in nodes:
+            graph_node.SetValue(maxon.NODE.BASE.DISPLAYPREVIEW  , maxon.Bool(state))
+
+    
+    # 获取属性 ==> ok
+    def GetShaderValue(self, node: maxon.GraphNode, paramId: Union[maxon.Id,str]) -> maxon.Data:
+        """
+        Returns the value stored in the given shader parameter.
+
+        :param node: the shader node
+        :type node: maxon.GraphNode
+        :param paramId: the param id
+        :type paramId: maxon.Id
+        :return: the data
+        :rtype: maxon.Data
+        """
+        if node is None or paramId is None:
+            return None
+        # standard data type
+        port: maxon.GraphNode = node.GetInputs().FindChild(paramId)
+        if not self.IsPortValid(port):
+            print("[Error] Input port '%s' is not found on shader '%r'" % (paramId, node))
+            return None
+
+        return port.GetDefaultValue()
+    
+    # 设置属性 ==> ok
+    def SetShaderValue(self, node: maxon.GraphNode, paramId: Union[maxon.Id,str], value) -> None:
+        """
+        Sets the value stored in the given shader parameter.
+
+        :param node: the shader ndoe
+        :type node: maxon.GraphNode
+        :param paramId: the param id
+        :type paramId: maxon.Id
+        :param value: the value
+        :type value: Any
+        :return: None
+        :rtype: None
+        """
+        if node is None or paramId is None:
+            return None
+        # standard data type
+        port: maxon.GraphNode = node.GetInputs().FindChild(paramId)
+        if not self.IsPortValid(port):
+            print("[WARNING] Input port '%s' is not found on shader '%r'" % (paramId, node))
+            return None
+    
+        port.SetDefaultValue(value)
+
+    # 获取所有Shader ==> ok
+    def GetAllShaders(self) -> list[maxon.GraphNode]:
+        """
+
+        Get all shaders from the graph.
+
+        :return: the list of all shader node in the material
+        :rtype: list[maxon.GraphNode]
+        """
+        if self.graph is None:
+            return []
+
+        shaders_list: list = []
+        
+        # 创建shader list
+        def _IterGraghNode(node, shaders_list: list):
+
+            if node.GetKind() != maxon.NODE_KIND.NODE:
+                return
+
+            if self.GetAssetId(node) == "net.maxon.node.group":
+                for node in self.root.GetChildren():
+                    _IterGraghNode(node, shaders_list)
+                return
+
+            shaders_list.append(node)
+            
+        root = self.graph.GetRoot()
+        
+        for node in root.GetChildren():   
+            _IterGraghNode(node, shaders_list) 
+            
+        return shaders_list
+
+    # New ==> ok
+    def IsConnected(self, NodeorPort: maxon.GraphNode = None, port: Union[maxon.GraphNode,str] = None) -> bool:
+        """
+        Get a port is connected to another port.
+
+        :param port: the port to check
+        :type port: maxon.GraphNode
+        :return: True if is connected
+        :rtype: bool
+        """
+        if self.graph is None:
+            return None
+
+        if NodeorPort is None or port is None:
+            return False
+        if not isinstance(NodeorPort,maxon.GraphNode) and not isinstance(port,maxon.GraphNode):
+            return False
+
+        # node 1 is port
+        if isinstance(NodeorPort,maxon.GraphNode) and self.IsPort(NodeorPort):
+        
+            return maxon.GraphModelHelper.IsConnected(NodeorPort,port)
+    
+    #=============================================
+    # Node
+    #=============================================
 
     # 当前NodeSpace下所有可用的shader ==> ok
     def GetAvailableShaders(self) -> list[maxon.Id]:
@@ -169,38 +444,6 @@ class NodeGraghHelper(object):
                 if str(item.GetId()).startswith("com.autodesk.arnold.")  # Only AR ones
             ]
 
-    # 选择的线 ==> ok
-    def GetActiveWires(self, callback: callable = None) -> Union[list[maxon.Wires], maxon.Wires, None]:        
-        """Gets the active wires list (with callback) ."""
-        
-        with self.graph.BeginTransaction() as transaction:
-            result = maxon.GraphModelHelper.GetSelectedConnections(self.graph, callback)
-            transaction.Commit()
-            
-        if len(result) == 0:
-            return None
-        
-        if len(result) == 1:
-            return result[0]
-          
-        return result
-        
-    # 选择的端口 ==> ok
-    def GetActivePorts(self, callback: callable = None) -> Union[list[maxon.GraphNode], maxon.GraphNode, None]:
-        """Gets the active port list (with callback) ."""
- 
-        with self.graph.BeginTransaction() as transaction:
-            result = maxon.GraphModelHelper.GetSelectedNodes(self.graph, maxon.NODE_KIND.PORT_MASK, callback)
-            transaction.Commit()
-            
-        if len(result) == 0:
-            return None
-        
-        if len(result) == 1:
-            return result[0]
-        
-        return result
-    
     # 选择的节点 ==> ok
     def GetActiveNodes(self, callback: callable = None) -> Union[list[maxon.GraphNode], maxon.GraphNode, None]:
         """Gets the active node list (with callback) ."""
@@ -217,42 +460,8 @@ class NodeGraghHelper(object):
         
         return result
    
-    # 选择
-    def select(self,node: maxon.GraphNode):
-        """
-        Select a port or node.
-        This function is used as a callback parameter of NodesGraphModelInterface.GetChildren.
-        Args:
-            node: (maxon.GraphNode): The node to be selected.
-
-        Returns:
-            bool: **True** if the iteration over nodes should continue, otherwise **False**
-        """
-        if not isinstance(node, maxon.GraphNode):
-            raise ValueError('Expected a maxon.GraphNode, got {}'.format(type(node)))
-        with self.graph.BeginTransaction() as transaction:
-            maxon.GraphModelHelper.SelectNode(node)
-            transaction.Commit()
-    
-    # 取消选择
-    def deselect(self,node: maxon.GraphNode):
-        """
-        Deselect a port or node.
-        This function is used as a callback parameter of NodesGraphModelInterface.GetChildren.
-        Args:
-            node: (maxon.GraphNode): The node to be selected.
-
-        Returns:
-            bool: **True** if the iteration over nodes should continue, otherwise **False**
-        """
-        if not isinstance(node, maxon.GraphNode):
-            raise ValueError('Expected a maxon.GraphNode, got {}'.format(type(node)))
-        with self.graph.BeginTransaction() as transaction:
-            maxon.GraphModelHelper.DeselectNode(node)
-            transaction.Commit()
-    
-    # 创建Shader
-    def add_shader(self, nodeId: Union[str, maxon.Id]) -> maxon.GraphNode:
+    # 创建Shader ==> ok
+    def AddShader(self, nodeId: Union[str, maxon.Id]) -> maxon.GraphNode:
         """
         Adds a new shader to the graph.
         
@@ -270,29 +479,11 @@ class NodeGraghHelper(object):
 
         return shader 
     
-    # 删除Shader
-    def remove_shader(self, shader: maxon.GraphNode):
-        """
-        Removes the given shader from the graph.
-
-        Parameters
-        ----------
-        shader : maxon.frameworks.graph.GraphNode
-            The shader node.
-        """
-        if self.graph is None:
-            return
-
-        if shader is None:
-            return
-
-        shader.Remove()
-
-    # 创建Shader 可以提供链接
+    # 创建Shader 可以提供链接 ==> ok
     def AddConnectShader(self, nodeID: str=None, 
-                input_ports: list[str|maxon.GraphNode]=None, connect_inNodes: list[maxon.GraphNode]=None,
-                output_ports: list[str|maxon.GraphNode]=None, connect_outNodes: list[maxon.GraphNode]=None
-                ) -> maxon.GraphNode|None :
+                input_ports: list[Union[str,maxon.GraphNode]]=None, connect_inNodes: list[maxon.GraphNode]=None,
+                output_ports: list[Union[str,maxon.GraphNode]]=None, connect_outNodes: list[maxon.GraphNode]=None
+                ) -> Union[maxon.GraphNode,None] :
         """
         Add shader and connect with given ports and nodes.
 
@@ -316,18 +507,18 @@ class NodeGraghHelper(object):
         if not shader:
             return None
         
-        if isinstance(input_ports,maxon.GraphNode) and not isinstance(input_ports,list):
+        if (isinstance(input_ports,maxon.GraphNode) or isinstance(input_ports,str)) and not isinstance(input_ports,list):
             input_ports = [input_ports]
         
-        if isinstance(output_ports,maxon.GraphNode) and not isinstance(output_ports,list):
+        if (isinstance(output_ports,maxon.GraphNode) or isinstance(output_ports,str)) and not isinstance(output_ports,list):
             output_ports = [output_ports]
             
         if isinstance(connect_inNodes,maxon.GraphNode) and not isinstance(connect_inNodes,list):
             connect_inNodes = [connect_inNodes]
         
         if isinstance(connect_outNodes,maxon.GraphNode) and not isinstance(connect_outNodes,list):
-            connect_outNodes = [connect_outNodes]  
-
+            connect_outNodes = [connect_outNodes]
+        
         if input_ports is not None:
             if connect_inNodes is not None:
                 if len(connect_inNodes) > len(input_ports):
@@ -346,11 +537,213 @@ class NodeGraghHelper(object):
                     output_ports = output_ports[:len(connect_outNodes)]
                 for i, output_port in enumerate(output_ports):
                     output: maxon.GraphNode = self.GetPort(shader,output_port)
+                    print(output , connect_outNodes[i])
                     output.Connect(connect_outNodes[i])
 
         return shader
 
-    # NEW 新建（暴露端口）
+    # 在Wire中插入Shader （New） ==> ok
+    def InsertShader(self, nodeID: Union[str,maxon.Id], wire: maxon.Wires, 
+                     input_port: list[Union[str,maxon.GraphNode]],
+                     output_port: list[Union[str,maxon.GraphNode]]) -> maxon.GraphNode:
+        """
+        Insert a shder into a wire, and keep connect.
+
+        :param nodeID: the node id
+        :type nodeID: str | maxon.Id
+        :param wire: the wire to insert the shader
+        :type wire: maxon.Wires
+        :param input_port: the input port of the insert node
+        :type input_port: list[str | maxon.GraphNode]
+        :param output_port: the output port of the insert node
+        :type output_port: list[str | maxon.GraphNode]
+        :return: the node
+        :rtype: maxon.GraphNode
+        """
+        if not wire:
+            wire: maxon.Wires = self.GetActiveWires() # last select wire
+        pre_port: maxon.GraphNode = wire[0]
+        #pre_node: maxon.GraphNode = self.GetTrueNode(pre_port)
+        next_port: maxon.GraphNode = wire[1]
+        #next_node: maxon.GraphNode = self.GetTrueNode(next_port)
+        
+        # Remove old wire
+        self.RemoveConnection(next_port,pre_port)
+        # add our new shader and wires
+        #print(input_port,pre_port,output_port,next_port)
+        return self.AddConnectShader(nodeID,input_port,pre_port,output_port,next_port)
+
+    # 删除Shader ==> ok
+    def RemoveShader(self, shader: maxon.GraphNode):
+        """
+        Removes the given shader from the graph.
+
+        ----------
+        :param shader: The node to be remove.
+        :type shader: maxon.GraphNode
+        shader : maxon.frameworks.graph.GraphNode
+            The shader node.
+        """
+        if self.graph is None:
+            return
+
+        if shader is None or not isinstance(shader, maxon.GraphNode):
+            return
+
+        shader.Remove()
+
+    # 是否是shader ==> ok
+    def IsNode(self, node: maxon.GraphNode) -> bool:
+        """
+        Check if a node is a node.
+
+        :param node: the GraghNode to check
+        :type node: maxon.GraphNode
+        :return: True if is node
+        :rtype: bool
+        """
+        if self.graph is None:
+            return None
+        if not isinstance(node,maxon.GraphNode) :
+            return False
+        if node.GetKind() == maxon.NODE_KIND.NODE and node.IsValid():
+            return True
+        return False
+
+    # 获取节点  ==> ok
+    def GetNodes(self, shader: Union[maxon.GraphNode, str]) -> list[maxon.GraphNode]:
+        """
+        Get all Nodes of given shader.
+
+        Parameters
+        ----------
+        :param shader: the shader
+        :type shader: maxon.GraphNode | str
+        :return: the return nodes
+        :rtype: list[maxon.GraphNode]
+        """
+        if self.graph is None:
+            return None
+        if not shader:
+            return None
+        
+        result: list[maxon.GraphNode] = []
+        
+        if isinstance(shader, maxon.GraphNode):
+            asset_id = self.GetAssetId(shader)
+            
+        if isinstance(shader, str):
+            asset_id = shader
+        maxon.GraphModelHelper.FindNodesByAssetId(
+            self.graph, asset_id, True, result)
+        return result
+
+    # New ==> ok
+    def GetPreNode(self, node: maxon.GraphNode) -> list[maxon.GraphNode]:
+        """
+        Returns True if the given shader is connected to the pre shader.
+
+        :param node: the shader to check
+        :type node: maxon.GraphNode
+        
+        :return: Return the true node list which is direct connect before to the node.
+        :rtype: list[maxon.GraphNode]
+        """
+        result = list()
+        maxon.GraphModelHelper.GetDirectPredecessors(node, maxon.NODE_KIND.NODE, result)
+        return result
+
+    # New ==> ok
+    def GetNextNode(self, node: maxon.GraphNode) -> list[maxon.GraphNode]:
+        """
+        Returns True if the given shader is connected to the next shader.
+
+        :param node: the shader to check
+        :type node: maxon.GraphNode
+
+        :return: Return the true node list which is direct connect after to the node.
+        :rtype: list[maxon.GraphNode]
+        """
+        result = list()
+        maxon.GraphModelHelper.GetDirectSuccessors(node, maxon.NODE_KIND.NODE, result)
+        return result
+
+    # New ==> ok
+    def GetPreNodes(self, node: maxon.GraphNode, result) -> list:
+        """Get all connected node for #node(before).
+        """
+        # Bail when the passed node is not a true node.
+        if node.GetKind() != maxon.NODE_KIND.NODE:
+            return
+        
+        for inPort in node.GetInputs().GetChildren():
+            # Get the connected output ports and their wires.
+            for outPort, wires in inPort.GetConnections(maxon.PORT_DIR.INPUT, None, maxon.Wires.All(), maxon.WIRE_MODE.ALL):
+                pre_node: maxon.GraphNode = self.GetTrueNode(outPort)
+                if pre_node not in result:
+                    result.append(pre_node)
+                self.GetPreNodes(pre_node,result)
+        
+    # New ==> ok
+    def GetNextNodes(self, node: maxon.GraphNode, result) -> list:
+        """Get all connected node for #node(before).
+        """
+        # Bail when the passed node is not a true node.
+        if node.GetKind() != maxon.NODE_KIND.NODE:
+            return
+        
+        for outPort in node.GetOutputs().GetChildren():
+            # Get the connected output ports and their wires.
+            for outPort, wires in outPort.GetConnections(maxon.PORT_DIR.OUTPUT, None, maxon.Wires.All(), maxon.WIRE_MODE.ALL):
+                pre_node: maxon.GraphNode = self.GetTrueNode(outPort)
+                if pre_node not in result:
+                    result.append(pre_node)
+                self.GetNextNodes(pre_node,result)
+
+    # New ==> ok
+    def IsNodeConnected(self, node: maxon.GraphNode) -> bool:
+        """
+        Check if the node is connect to another port.
+
+        :param port: the node to check
+        :type node: maxon.GraphNode
+        :return: True if is connected.
+        :rtype: bool
+        """
+        if self.graph is None:
+            return None
+        if not self.IsNode(node):
+            return None
+        
+        all_ports = self.GetAllConnectedPorts(node)
+
+        for the_port in all_ports:
+            if maxon.GraphModelHelper.IsConnected(node, the_port):
+                return True
+        return False
+  
+
+    #=============================================
+    # Port
+    #=============================================
+
+    # 选择的端口 ==> ok
+    def GetActivePorts(self, callback: callable = None) -> Union[list[maxon.GraphNode], maxon.GraphNode, None]:
+        """Gets the active port list (with callback) ."""
+ 
+        with self.graph.BeginTransaction() as transaction:
+            result = maxon.GraphModelHelper.GetSelectedNodes(self.graph, maxon.NODE_KIND.PORT_MASK, callback)
+            transaction.Commit()
+            
+        if len(result) == 0:
+            return None
+        
+        if len(result) == 1:
+            return result[0]
+        
+        return result
+    
+    # NEW 新建（暴露端口） ==> ok
     def AddPort(self, node: maxon.GraphNode, port :Union[str, maxon.GraphNode]) -> maxon.GraphNode:
         """
         Add a 'true' port in the gragh ui.
@@ -375,13 +768,11 @@ class NodeGraghHelper(object):
             true_port = self.GetPort(node, port)
         if isinstance(port, maxon.GraphNode):
             true_port = port
-            
-        with self.graph.BeginTransaction() as transaction:
-            true_port.SetValue(maxon.NODE.ATTRIBUTE.HIDEPORTINNODEGRAPH, maxon.Bool(False))
-            transaction.Commit()
+        
+        true_port.SetValue(maxon.NODE.ATTRIBUTE.HIDEPORTINNODEGRAPH, maxon.Bool(False))
         return true_port
 
-    # NEW 删除（隐藏端口）
+    # NEW 删除（隐藏端口） ==> ok
     def RemovePort(self, node: maxon.GraphNode, port :Union[str, maxon.GraphNode]) -> maxon.GraphNode:
         """
         Hide a 'true' port in the gragh ui.
@@ -407,36 +798,14 @@ class NodeGraghHelper(object):
         if isinstance(port, str):
             true_port = self.GetPort(node, port)
         if isinstance(port, maxon.GraphNode):
-            true_port = port
-            
-        with self.graph.BeginTransaction() as transaction:
-            true_port.SetValue(maxon.NODE.ATTRIBUTE.HIDEPORTINNODEGRAPH, maxon.Bool(True))
-            transaction.Commit()
+            true_port = port            
+
+        true_port.SetValue(maxon.NODE.ATTRIBUTE.HIDEPORTINNODEGRAPH, maxon.Bool(True))
+
         return true_port
-    
-    # 获取端口所在节点
-    def GetTrueNode(self, port: maxon.GraphNode) -> maxon.GraphNode:
-        """
-        Get the actually node host the given port.
-        
-        Parameters
-        ----------
-        :param port: the port
-        :type port: maxon.GraphNode
-        :return: the true node
-        :rtype: maxon.GraphNode
-        """
-        if self.graph is None:
-            return None
-        if not port:
-            return None
-
-        trueNode = port.GetAncestor(maxon.NODE_KIND.NODE)
-
-        return trueNode
-    
-    # 获取节点上端口
-    def GetPort(self, shader: maxon.GraphNode, port_id :str = None) -> maxon.GraphNode:
+ 
+    # 获取节点上端口 ==> ok
+    def GetPort(self, shader: maxon.GraphNode, port_id :str = None) -> Union[maxon.GraphNode,bool]:
         """
         Get a port from a Shader node.if port id is None,try to find out port.
 
@@ -485,78 +854,28 @@ class NodeGraghHelper(object):
                     port = shader.GetOutputs().FindChild(port_id)
             return port
 
-    # 获取节点 NEW(2023.07.02) 
-    def GetNodes(self, shader: maxon.GraphNode | str) -> list[maxon.GraphNode]:
+    # 获取端口所在节点 ==> ok
+    def GetTrueNode(self, port: maxon.GraphNode) -> maxon.GraphNode:
         """
-        Get all Nodes of given shader.
-
+        Get the actually node host the given port.
+        
         Parameters
         ----------
-        :param shader: the shader
-        :type shader: maxon.GraphNode | str
-        :return: the return nodes
-        :rtype: list[maxon.GraphNode]
+        :param port: the port
+        :type port: maxon.GraphNode
+        :return: the true node
+        :rtype: maxon.GraphNode
         """
         if self.graph is None:
             return None
-        if not shader:
+        if not port:
             return None
-        
-        result: list[maxon.GraphNode] = []
-        
-        if isinstance(shader, maxon.GraphNode):
-            asset_id = self.GetAssetId(shader)
-            
-        if isinstance(shader, str):
-            asset_id = shader
-        maxon.GraphModelHelper.FindNodesByAssetId(
-            self.graph, asset_id, True, result)
-        return result
 
-    # 获取Output Node ==> ok
-    def GetOutput(self):
-        """
-        Returns the Output node.
-        """
-        if self.graph is None:
-            return None
-        if self.nodespaceId == RS_NODESPACE:
-            output_id = 'com.redshift3d.redshift4c4d.node.output'
-        if self.nodespaceId == AR_NODESPACE:
-            output_id = 'com.autodesk.arnold.material'
-            
-        # Attempt to find the BSDF node contained in the default graph setup.
-        result: list[maxon.GraphNode] = []
-        maxon.GraphModelHelper.FindNodesByAssetId(
-            self.graph, output_id, True, result)
-        if len(result) < 1:
-            raise RuntimeError("Could not find BSDF node in material.")
-        bsdfNode: maxon.GraphNode = result[0]
+        trueNode = port.GetAncestor(maxon.NODE_KIND.NODE)
 
-        return bsdfNode
+        return trueNode
     
-    # 获取 BRDF (Material) Node ==> ok
-    def GetRootBRDF(self):
-        """
-        Returns the shader connect to redshift output (maxon.frameworks.graph.GraphNode)
-        """
-        if self.graph is None:
-            return None
-
-        endNode = self.GetOutput()
-        if endNode is None:
-            print("[Error] End node is not found in Node Material: %s" % self.material.GetName())
-            return None
-        
-        predecessor = list()
-        maxon.GraphModelHelper.GetDirectPredecessors(endNode, maxon.NODE_KIND.NODE, predecessor)
-        rootshader = predecessor[-1] 
-        if rootshader is None and not rootshader.IsValid() :
-            raise ValueError("Cannot retrieve the inputs list of the bsdfNode node")
-        #print(predecessor)
-        return rootshader  
-
-    # 端口合法
+    # 端口合法 ==> ok
     def IsPortValid(self, port: maxon.GraphNode) -> bool:
         """
         Checks if the port is valid.
@@ -571,217 +890,139 @@ class NodeGraghHelper(object):
         except Exception as e:
             return False
 
-    # 获取port数据类型
-    def GetParamDataTypeID(self, node: maxon.GraphNode, paramId: maxon.Id) -> maxon.DataType:
+    # New ==> ok
+    def IsPort(self, port: maxon.GraphNode) -> bool:
         """
-        Returns the data type id of the given port.
+        Check if a node is a port.
 
-        :param node: the shader node
-        :type node: maxon.GraphNode
-        :param paramId: the param id
-        :type paramId: maxon.Id
-        :return: the data type
-        :rtype: maxon.DataType
-        """
-        if node is None or paramId is None:
-            return None
-
-        if isinstance(paramId, str):
-            port: maxon.GraphNode = node.GetInputs().FindChild(paramId)
-        if isinstance(paramId, maxon.GraphNode):
-            port = paramId
-            
-        if not self.IsPortValid(port):
-            return None
-
-        return port.GetDefaultValue().GetType().GetId()
-    
-    # 获取port数据类型
-    def GetParamDataType(self, node: maxon.GraphNode, paramId: maxon.Id) -> maxon.DataType:
-        """
-        Returns the data type id of the given port.
-
-        :param node: the shader node
-        :type node: maxon.GraphNode
-        :param paramId: the param id
-        :type paramId: maxon.Id
-        :return: the data type
-        :rtype: maxon.DataType
-        """
-        if node is None or paramId is None:
-            return None
-
-        if isinstance(paramId, str):
-            port: maxon.GraphNode = node.GetInputs().FindChild(paramId)
-        if isinstance(paramId, maxon.GraphNode):
-            port = paramId
-            
-        if not self.IsPortValid(port):
-            return None
-
-        return port.GetDefaultValue().GetType()
-    
-    # 获取属性
-    def GetShaderValue(self, node: maxon.GraphNode, paramId: maxon.Id) -> maxon.Data:
-        """
-        Returns the value stored in the given shader parameter.
-
-        :param node: the shader node
-        :type node: maxon.GraphNode
-        :param paramId: the param id
-        :type paramId: maxon.Id
-        :return: the data
-        :rtype: maxon.Data
-        """
-        if node is None or paramId is None:
-            return None
-        # standard data type
-        port: maxon.GraphNode = node.GetInputs().FindChild(paramId)
-        if not self.IsPortValid(port):
-            print("[Error] Input port '%s' is not found on shader '%r'" % (paramId, node))
-            return None
-
-        return port.GetDefaultValue()
-    
-    # 设置属性
-    def SetShaderValue(self, node: maxon.GraphNode, paramId: maxon.Id, value) -> None:
-        """
-        Sets the value stored in the given shader parameter.
-
-        :param node: the shader ndoe
-        :type node: maxon.GraphNode
-        :param paramId: the param id
-        :type paramId: maxon.Id
-        :param value: the value
-        :type value: Any
-        :return: None
-        :rtype: None
-        """
-        if node is None or paramId is None:
-            return None
-        # standard data type
-        port: maxon.GraphNode = node.GetInputs().FindChild(paramId)
-        if not self.IsPortValid(port):
-            print("[WARNING] Input port '%s' is not found on shader '%r'" % (paramId, node))
-            return None
-    
-        port.SetDefaultValue(value)
-
-    # 获取节点名 ==> ok
-    def GetName(self, node: maxon.GraphNode) -> Optional[str]:
-        """
-        Retrieve the displayed name of a node.
-
-        :param node: The node to retrieve the name from.
-        :type node: maxon.GraphNode
-        :return: The node name, or None if the Node name can't be retrieved.
-        :rtype: Optional[str]
-        """
-        if node is None:
-            return None
-
-        nodeName = node.GetValue(maxon.NODE.BASE.NAME)
-
-        if nodeName is None:
-            nodeName = node.GetValue(maxon.EffectiveName)
-
-        if nodeName is None:
-            nodeName = str(node)
-            
-        return nodeName
-
-    # 设置节点名 ==> ok
-    def SetName(self, node: maxon.GraphNode, name: str) -> bool:
-        """
-        Set the name of the shader.
-
-        :param node: The shader node.
-        :type node: maxon.GraphNode
-        :param name: name str
-        :type name: str
-        :return: True if suceess, False otherwise.
+        :param port: the GraghNode to check
+        :type port: maxon.GraphNode
+        :return: True if is port
         :rtype: bool
         """
-        if node is None:
+        if self.graph is None:
             return None
-        
-        shadername = maxon.String(name)
-        if node.SetValue(maxon.NODE.BASE.NAME, shadername) or node.SetValue(maxon.EffectiveName, shadername):
+        if not isinstance(port,maxon.GraphNode) :
+            return False
+        if (port.GetKind() == maxon.NODE_KIND.INPORT or port.GetKind() == maxon.NODE_KIND.OUTPORT) and port.IsValid():
             return True
-
-    # 获取资产ID 只有node有asset id ==> ok
-    def GetAssetId(self, node: maxon.GraphNode) -> maxon.Id:
-        """
-        Returns the asset id of the given node.
-
-        :param node: the shader node
-        :type node: maxon.GraphNode
-        :return: maxon Id
-        :rtype: maxon.Id
-        """
-        res = node.GetValue("net.maxon.node.attribute.assetid")        
-        assetId = ("%r"%res)[1:].split(",")[0]
-                    
-        return assetId  
-
-    # 获取ShaderID ==> ok
-    def GetShaderId(self, node: maxon.GraphNode) -> maxon.Id:
-        """
-        Returns the  node id of the given node.
-
-        :param node: the shader node
-        :type node: maxon.GraphNode
-        :return: maxon Id
-        :rtype:  maxon.Id
-        """
-        if node is None:
-            return None
-        
-        assetId: str = self.GetAssetId(node)
-        
-        if self.nodespaceId == RS_NODESPACE:
-            if assetId.startswith(RS_SHADER_PREFIX):
-                return assetId[len(RS_SHADER_PREFIX):]
-        elif self.nodespaceId == AR_NODESPACE:
-            if assetId.startswith(AR_SHADER_PREFIX):
-                return assetId[len(AR_SHADER_PREFIX):]
-        return None
+        return False
     
-    # 获取所有Shader
-    def GetAllShaders(self) -> list[maxon.GraphNode]:
+    # New ==> ok
+    def OnSameNode(self, port_1: maxon.GraphNode ,port_2: maxon.GraphNode) -> bool:
+        if self.graph is None:
+            return None
+        if not self.IsPort(port_1) or not self.IsPort(port_2):
+            return False
+        if self.GetTrueNode(port_1) == self.GetTrueNode(port_2):
+            return True
+        return False
+    
+    # New ==> ok
+    def GetAllConnectedPorts(self, except_node: maxon.GraphNode = None) -> list[maxon.GraphNode]:
         """
+        Get all ports with something connected, if except_node is passed,
+        the port on the except_node will be except.
 
-        Get all shaders from the graph.
-
-        :return: the list of all shader node in the material
-        :rtype: list[maxon.GraphNode]
+        :param except_node: except_node, defaults to None
+        :type except_node: maxon.GraphNode, optional
+        :return: list of the ports
+        :rtype: list
         """
         if self.graph is None:
-            return []
+            return None
+        all_ports = []
+        wirs = self.GetAllConnections()
+        for wir in wirs:
+            if except_node:
+                if not self.GetTrueNode(wir[1]) == except_node:
+                    all_ports.append(wir[1])
+                if not self.GetTrueNode(wir[-1]) == except_node:
+                    all_ports.append(wir[-1])
+            else:
+                all_ports.append(wir[1])
+                all_ports.append(wir[-1])
+        return all_ports
+    
+    # New ==> ok
+    def IsPortConnected(self, port: maxon.GraphNode) -> bool:
+        """
+        Check if the port is connect to another port.
 
-        shaders_list: list = []
+        :param port: the port to check
+        :type port: maxon.GraphNode
+        :return: True if is connected.
+        :rtype: bool
+        """
+        if self.graph is None:
+            return None
+        if not self.IsPort(port):
+            return None
         
-        # 创建shader list
-        def _IterGraghNode(node, shaders_list: list):
+        all_ports = []
+        wirs = self.GetAllConnections()
+        for wir in wirs:
+            if not self.OnSameNode(port, wir[1]):
+                all_ports.append(wir[1])
+            if not self.OnSameNode(port, wir[-1]):
+                all_ports.append(wir[-1])
 
-            if node.GetKind() != maxon.NODE_KIND.NODE:
-                return
+        for the_port in all_ports:
+            if maxon.GraphModelHelper.IsConnected(port, the_port):
+                return True
+        return False
 
-            if self.GetAssetId(node) == "net.maxon.node.group":
-                for node in self.root.GetChildren():
-                    _IterGraghNode(node, shaders_list)
-                return
-
-            shaders_list.append(node)
-            
-        root = self.graph.GetRoot()
+    # New ==> ok        
+    def GetPreNodePorts(self, node: maxon.GraphNode, result) -> list:
+        """Get all connected node's port for #node(before).
+        """
+        # Bail when the passed node is not a true node.
+        if node.GetKind() != maxon.NODE_KIND.NODE:
+            return
         
-        for node in root.GetChildren():   
-            _IterGraghNode(node, shaders_list) 
-            
-        return shaders_list
+        for inPort in node.GetInputs().GetChildren():
+            # Get the connected output ports and their wires.
+            for outPort, wires in inPort.GetConnections(maxon.PORT_DIR.INPUT, None, maxon.Wires.All(), maxon.WIRE_MODE.ALL):
+                otherNode: maxon.GraphNode = self.GetTrueNode(outPort)
+                result.append((outPort, inPort))
+                self.GetPreNodePorts(otherNode,result)
 
-    # 获取所有连接线
+    # New ==> ok
+    def GetNextNodePorts(self, node: maxon.GraphNode, result) -> list:
+        """Get all connected node's port for #node(before).
+        """
+        # Bail when the passed node is not a true node.
+        if node.GetKind() != maxon.NODE_KIND.NODE:
+            return
+        
+        for inPort in node.GetOutputs().GetChildren():
+            # Get the connected output ports and their wires.
+            for outPort, wires in inPort.GetConnections(maxon.PORT_DIR.OUTPUT, None, maxon.Wires.All(), maxon.WIRE_MODE.ALL):
+                otherNode: maxon.GraphNode = self.GetTrueNode(outPort)
+                result.append((inPort, outPort))
+                self.GetNextNodePorts(otherNode,result)
+
+    #=============================================
+    # Wire
+    #=============================================
+
+    # 选择的线 ==> ok
+    def GetActiveWires(self, callback: callable = None) -> Union[list[maxon.Wires], maxon.Wires, None]:        
+        """Gets the active wires list (with callback) ."""
+        
+        with self.graph.BeginTransaction() as transaction:
+            result = maxon.GraphModelHelper.GetSelectedConnections(self.graph, callback)
+            transaction.Commit()
+            
+        if len(result) == 0:
+            return None
+        
+        if len(result) == 1:
+            return result[0]
+          
+        return result
+        
+    # 获取所有连接线 ==> ok
     def GetAllConnections(self) -> list[list[maxon.GraphNode]]:
         """
         Returns the list of connections within this shader graph.
@@ -805,8 +1046,8 @@ class NodeGraghHelper(object):
 
         return connections
     
-    # 添加连接线
-    def AddConnection(self, soure_node: maxon.GraphNode, outPort: maxon.GraphNode|str, target_node: maxon.GraphNode, inPort: maxon.GraphNode|str) -> list[maxon.GraphNode,maxon.Id]:
+    # 添加连接线 ==> ok
+    def AddConnection(self, soure_node: maxon.GraphNode, outPort: Union[maxon.GraphNode,str], target_node: maxon.GraphNode, inPort: maxon.GraphNode|str) -> list[maxon.GraphNode,maxon.Id]:
         """
         Connects the given shaders with given port.
 
@@ -827,34 +1068,36 @@ class NodeGraghHelper(object):
         if self.graph is None:
             return None
 
-        if soure_node is None or target_node is None:
-            return None
+        if isinstance(outPort,maxon.GraphNode) and isinstance(inPort,maxon.GraphNode):
+            return outPort.Connect(inPort)            
+        
+        if soure_node is not None and target_node is not None:
 
-        if outPort is None or outPort == "":
-            outPort = "output"
+            if outPort is None or outPort == "":
+                outPort = "output"
 
-        if isinstance(outPort, str):
-            outPort_name = outPort
-            outPort = soure_node.GetOutputs().FindChild(outPort_name)
-            if not self.IsPortValid(outPort):
-                print("[WARNING] Output port '%s' is not found on shader '%r'" % (outPort_name, soure_node))
-                outPort = None
+            if isinstance(outPort, str):
+                outPort_name = outPort
+                outPort = soure_node.GetOutputs().FindChild(outPort_name)
+                if not self.IsPortValid(outPort):
+                    print("[WARNING] Output port '%s' is not found on shader '%r'" % (outPort_name, soure_node))
+                    outPort = None
 
-        if isinstance(inPort, str):
-            inPort_name = inPort
-            inPort = target_node.GetInputs().FindChild(inPort_name)
-            if not self.IsPortValid(inPort):
-                print("[WARNING] Input port '%s' is not found on shader '%r'" % (inPort_name, target_node))
-                inPort = None
+            if isinstance(inPort, str):
+                inPort_name = inPort
+                inPort = target_node.GetInputs().FindChild(inPort_name)
+                if not self.IsPortValid(inPort):
+                    print("[WARNING] Input port '%s' is not found on shader '%r'" % (inPort_name, target_node))
+                    inPort = None
 
-        if outPort is None or inPort is None:
-            return None
+            if outPort is None or inPort is None:
+                return None
 
-        outPort.Connect(inPort)
-        return [soure_node, outPort, target_node, inPort]
+            outPort.Connect(inPort)
+            return [soure_node, outPort, target_node, inPort]
 
-    # 删除连接线
-    def RemoveConnection(self, target_node: maxon.GraphNode, inPort: maxon.GraphNode):
+    # 删除连接线 ==> ok
+    def RemoveConnection(self, port: maxon.GraphNode, another_port: Optional[Union[maxon.GraphNode,str]] = None):
         """
 
         Disconnects the given shader input.
@@ -869,43 +1112,79 @@ class NodeGraghHelper(object):
         if self.graph is None:
             return None
 
-        if target_node is None:
+        if port is None:
+            return None
+        
+        # 两个输入都是port 
+        # {maxon.NODE_KIND.INPORT = 8 , maxon.NODE_KIND.OUTPORT = 16}
+        if another_port is not None:
+            if isinstance(another_port, maxon.GraphNode) and isinstance(port, maxon.GraphNode):
+                if port.GetKind() == maxon.NODE_KIND.INPORT and another_port.GetKind() == maxon.NODE_KIND.OUTPORT:
+                    maxon.GraphModelHelper.RemoveConnection(another_port, port)
+                if port.GetKind() == maxon.NODE_KIND.OUTPORT and another_port.GetKind() == maxon.NODE_KIND.INPORT:
+                    maxon.GraphModelHelper.RemoveConnection(port, another_port)
+        else:
+            mask = maxon.Wires(maxon.WIRE_MODE.NORMAL)
+            if isinstance(port, maxon.GraphNode) and port.GetKind() == maxon.NODE_KIND.OUTPORT:
+                port.RemoveConnections(maxon.PORT_DIR.OUTPUT, mask)                
+            if isinstance(port, maxon.GraphNode) and port.GetKind() == maxon.NODE_KIND.INPORT:
+                port.RemoveConnections(maxon.PORT_DIR.INPUT, mask)
+  
+    #=============================================
+    # to be Fix
+    #=============================================
+    # port.GetDefaultValue() can't get the vector value
+
+    # FIXME 获取port数据类型
+    def GetParamDataTypeID(self, node: maxon.GraphNode, paramId: Union[maxon.Id,str]) -> maxon.DataType:
+        """
+        Returns the data type id of the given port.
+
+        :param node: the shader node
+        :type node: maxon.GraphNode
+        :param paramId: the param id
+        :type paramId: maxon.Id
+        :return: the data type
+        :rtype: maxon.DataType
+        """
+        if node is None or paramId is None:
             return None
 
-        if isinstance(inPort, str):
-            inPort_name = inPort
-            inPort = target_node.GetInputs().FindChild(inPort_name)
-            if not self.IsPortValid(inPort):
-                print("[Error] Input port '%s' is not found on shader '%r'" % (inPort_name, target_node))
-                inPort = None
-
-        if inPort is None:
+        if isinstance(paramId, str):
+            port: maxon.GraphNode = node.GetInputs().FindChild(paramId)
+        if isinstance(paramId, maxon.GraphNode):
+            port = paramId
+            
+        if not self.IsPortValid(port):
             return None
 
-        mask = maxon.Wires(maxon.WIRE_MODE.NORMAL)
-        inPort.RemoveConnections(maxon.PORT_DIR.INPUT, mask)  
-
-    # 切换预览
-    def FoldPreview(self, nodes: list[maxon.GraphNode] ,state: bool = False):
-
-        if self.graph is None:
-            return 
-
+        return port.GetDefaultValue().GetType().GetId()
+    
+    # FIXME 获取port数据类型
+    def GetParamDataType(self, node: maxon.GraphNode, paramId: Union[maxon.Id,str]) -> maxon.DataType:
         """
-        callback = []
-        res = maxon.GraphModelHelper.FindNodesByName(graph,
-                                                nodeName="RS Standard",
-                                                kind = maxon.NODE_KIND.NODE,
-                                                direction = maxon.PORT_DIR.BEGIN,
-                                                exactName = True,
-                                                callback = callback)
-        """
+        Returns the data type id of the given port.
 
-        #res = graph_node.GetValue(mid)
-        with self.graph.BeginTransaction() as transaction:
-            for graph_node in nodes:
-                graph_node.SetValue(maxon.NODE.BASE.DISPLAYPREVIEW  , maxon.Bool(state))
-            transaction.Commit()
+        :param node: the shader node
+        :type node: maxon.GraphNode
+        :param paramId: the param id
+        :type paramId: maxon.Id
+        :return: the data type
+        :rtype: maxon.DataType
+        """
+        if node is None or paramId is None:
+            return None
+
+        if isinstance(paramId, str):
+            port: maxon.GraphNode = node.GetInputs().FindChild(paramId)
+        if isinstance(paramId, maxon.GraphNode):
+            port = paramId
+            
+        if not self.IsPortValid(port):
+            return None
+
+        return port.GetDefaultValue().GetType()
+    
 
     # todo
 
@@ -1084,7 +1363,7 @@ def get_all_nodes(doc: c4d.documents.BaseDocument) -> list[c4d.BaseObject] :
     return result
 
 # 根据[类型]获取对象
-def get_nodes(doc: c4d.documents.BaseDocument, TRACKED_TYPES : list[int]) -> list[c4d.BaseObject] | bool :
+def get_nodes(doc: c4d.documents.BaseDocument, TRACKED_TYPES : list[int]) -> Union[list[c4d.BaseObject], bool] :
     """
     Walks an object tree and yields all nodes that are of a type which is contained in TRACKED_TYPES.
     Args:
@@ -1232,7 +1511,7 @@ def deselect_all_materials(doc=None):
         m.DelBit(c4d.BIT_ACTIVE)
 
 # 获取资产url
-def get_asset_url(aid: maxon.Id|str) -> maxon.Url:
+def get_asset_url(aid: Union[maxon.Id,str]) -> maxon.Url:
     """Returns the asset URL for the given file asset ID.
     """
     # Bail when the asset ID is invalid.
@@ -1258,7 +1537,7 @@ def get_asset_url(aid: maxon.Id|str) -> maxon.Url:
     return maxon.AssetInterface.GetAssetUrl(asset, True)
 
 # 获取资产str
-def get_asset_str(aid: maxon.Id|str) -> str:
+def get_asset_str(aid: Union[maxon.Id,str]) -> str:
     """Returns the asset str for the given file asset ID.
     """
     return str(get_asset_url(aid))
@@ -1402,7 +1681,7 @@ def get_tex_folder(doc: c4d.documents.BaseDocument = None) -> str :
         os.makedirs(tex_folder)
     return tex_folder
 
-def get_texture_path(doc: c4d.documents.BaseDocument = None, file_name: str = None) -> str|bool:
+def get_texture_path(doc: c4d.documents.BaseDocument = None, file_name: str = None) -> Union[str,bool]:
     """
     Get the tex path.
 

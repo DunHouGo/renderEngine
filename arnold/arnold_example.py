@@ -166,7 +166,7 @@ if ar.IsNodeBased():
             arnoldMaterial.helper.SetName(standard_surface,'My BRDF Shader')
             
             # Create two noise and get their out port
-            noise1 = arnoldMaterial.helper.add_shader('com.autodesk.arnold.shader.c4d_noise')
+            noise1 = arnoldMaterial.helper.AddShader('com.autodesk.arnold.shader.c4d_noise')
             n1_port =  arnoldMaterial.helper.GetPort(noise1,'output')
             noise2 = arnoldMaterial.AddMaxonNoise()
             n2_port =  arnoldMaterial.helper.GetPort(noise2,'output')

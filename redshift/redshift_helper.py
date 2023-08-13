@@ -935,7 +935,13 @@ class MaterialHelper:
         with RSMaterialTransaction(standardMaterial) as transaction:
             # ports
             standardMaterial.helper.SetName(standardMaterial.helper.GetRootBRDF(),'Standard Surface')
-            standardMaterial.ExposeUsefulPorts()
+            #standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),)
+            standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color")
+            standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_weight")
+            standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_weight")
+            standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_color")
+            standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color")
+            #standardMaterial.ExposeUsefulPorts()
 
 
         return standardMaterial
@@ -960,14 +966,15 @@ class MaterialHelper:
             oldrs = standardMaterial.helper.GetRootBRDF()
 
             output_inport = standardMaterial.helper.GetPort(standardMaterial.helper.GetOutput(), PortStr.Output_Surface)
-            standardMaterial.helper.remove_shader(oldrs)
+            standardMaterial.helper.RemoveShader(oldrs)
             rsMaterial = standardMaterial.AddRSMaterial(target=output_inport)
             standardMaterial.helper.SetName(rsMaterial,'RS Material')
             standardMaterial.helper.SetShaderValue(rsMaterial,'com.redshift3d.redshift4c4d.nodes.core.material.refl_roughness',0.2)
+
             # ports
             #standardMaterial.ExposeUsefulPorts()
-        standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),'com.redshift3d.redshift4c4d.nodes.core.material.transl_color')
-        standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),'com.redshift3d.redshift4c4d.nodes.core.material.transl_weight')
+            standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),'com.redshift3d.redshift4c4d.nodes.core.material.transl_color')
+            standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),'com.redshift3d.redshift4c4d.nodes.core.material.transl_weight')
         return standardMaterial
  
 
@@ -1033,12 +1040,12 @@ class MaterialHelper:
                 self.material[c4d.MATERIAL_PREVIEWSIZE] = 0 # default
 
     # 创建PBR材质 ==> ok
-    def SetupTextures(self):
+    def SetupTextures(self, texture: str = None):
         """
         Setup a pbr material with given or selected texture.
         """
         texpack = node_helper.TexPack()
-        data_list = texpack.get_texture_data()
+        data_list = texpack.get_texture_data(texture)
         tex_data = data_list[0]
         mat_name = data_list[1]
         
@@ -1150,7 +1157,7 @@ class MaterialHelper:
         if self.graph is None:
             return None        
 
-        shader = self.helper.add_shader(nodeId)
+        shader = self.helper.AddShader(nodeId)
         
         self.helper.AddConnection(shader, outport_id, targret_shader, target_port)
         return shader
