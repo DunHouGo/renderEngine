@@ -111,7 +111,7 @@ To use this library, you have two options:
   - add **get_tag** to octane SceneHelper.
   - add **get_tex_folder** to node_helper.
   - add **get_texture_path** to node_helper.
-- ### 1.0.3
+- ### 1.0.4
   - rename **Node** functions to Capitalize.
   - add **IsNode** and **IsPort**to node_helper.
   - add **GetPreNode** and **GetPreNodes** to node_helper.
