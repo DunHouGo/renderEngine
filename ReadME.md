@@ -113,7 +113,7 @@ To use this library, you have two options:
   - add **get_texture_path** to node_helper.
 - ### 1.0.4
   - rename **Node** functions to Capitalize.
-  - add **IsNode** and **IsPort**to node_helper.
+  - add **IsNode** and **IsPort** to node_helper.
   - add **GetPreNode** and **GetPreNodes** to node_helper.
   - add **GetNextNode** and **GetNextNodes** to node_helper.
   - add **GetPreNodePorts** and **GetNextNodePorts** to node_helper.
@@ -126,7 +126,8 @@ To use this library, you have two options:
   - add **GetConnectedNodeName** to node_helper.
   - add **GetConnectedNodeType** to node_helper.
 
-
+- ### 1.0.5
+- fix symbols | to Union in octane_helper to balance incompatible with sdk berfore 2023.2.0.
 
 ---
 - __coming soon...__

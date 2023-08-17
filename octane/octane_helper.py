@@ -327,14 +327,14 @@ class AOVHelper:
         return new_data
     
     # aov data
-    def get_aov_data(self) -> list[c4d.BaseContainer] | None:
+    def get_aov_data(self) -> Union[list[c4d.BaseContainer], None]:
         """
         Get all aov data in a list of BaseContainer.
         
         Parameters
         ----------        
         :return: the data list
-        :rtype: list[c4d.BaseContainer] | None
+        :rtype: Union[list[c4d.BaseContainer], None]
         """
 
         if self.vp is None:
@@ -650,14 +650,14 @@ class AOVHelper:
             self.add_aov(i)  
 
     # 获取custom aov（id） ==> ok
-    def get_custom_aov(self, customID: int = 1) -> c4d.BaseList2D | None:
+    def get_custom_aov(self, customID: int = 1) -> Union[c4d.BaseList2D, None]:
         """
         Get the custom aov shader of given id.
 
         :param customID: the custom id, defaults to 1
         :type customID: int, optional
         :return: the aov shader
-        :rtype: c4d.BaseList2D | None
+        :rtype: Union[c4d.BaseList2D, None]
         """
         est_aovs = self.get_aov(RNDAOV_CUSTOM)
         for aov in est_aovs:
@@ -666,14 +666,14 @@ class AOVHelper:
         else: return None
 
     # 添加custom aov（id） ==> ok
-    def add_custom_aov(self, customID: int = 1) -> c4d.BaseList2D | None:
+    def add_custom_aov(self, customID: int = 1) -> Union[c4d.BaseList2D, None]:
         """
         Add the custom aov shader of given id if it not existed.
 
         :param customID: the custom id, defaults to 1
         :type customID: int, optional
         :return: the aov shader
-        :rtype: c4d.BaseList2D | None
+        :rtype: Union[c4d.BaseList2D, None]
         """
         if self.get_custom_aov(customID) is None:
             aov = self.create_aov_shader(RNDAOV_CUSTOM)            
@@ -682,14 +682,14 @@ class AOVHelper:
             return aov
 
     # 获取light aov（id） ==> ok
-    def get_light_aov(self, lightID: int = 1) -> c4d.BaseList2D | None:
+    def get_light_aov(self, lightID: int = 1) -> Union[c4d.BaseList2D, None]:
         """
         Get the light aov shader of given id.
 
         :param lightID: the light id, defaults to 1
         :type lightID: int, optional
         :return: the aov shader
-        :rtype: c4d.BaseList2D | None
+        :rtype: Union[c4d.BaseList2D, None]
         """
         est_aovs = self.get_aov(RNDAOV_LIGHT)
         for aov in est_aovs:
@@ -698,14 +698,14 @@ class AOVHelper:
         else: return None
 
     # 添加light aov（id） ==> ok
-    def add_light_aov(self, lightID: int = 1) -> c4d.BaseList2D | None:
+    def add_light_aov(self, lightID: int = 1) -> Union[c4d.BaseList2D, None]:
         """
         Add the light aov shader of given id if it not existed.
 
         :param lightID: the light id, defaults to 1
         :type lightID: int, optional
         :return: the aov shader
-        :rtype: c4d.BaseList2D | None
+        :rtype: Union[c4d.BaseList2D, None]
         """
         if self.get_custom_aov(lightID) is None:
             aov = self.create_aov_shader(RNDAOV_LIGHT)            
@@ -1510,7 +1510,7 @@ class SceneHelper:
         self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,light)
         return light
 
-    def add_light_modifier(self, light: c4d.BaseObject, target: c4d.BaseObject|bool = None, gsg_link: bool = False, rand_color: bool = False, seed: int = 0):
+    def add_light_modifier(self, light: c4d.BaseObject, target: Union[c4d.BaseObject,bool] = None, gsg_link: bool = False, rand_color: bool = False, seed: int = 0):
         """
         Add some modify tagsto given Octane light tag.
 
