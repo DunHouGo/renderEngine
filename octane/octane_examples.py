@@ -13,7 +13,7 @@ except:
     from renderEngine.octane.octane_id import *
 from renderEngine import node_helper
 reload(node_helper)
-
+tex_helper = node_helper.TextureHelper()
 ###  ==========  Author INFO  ==========  ###
 
 __author__ = "DunHouGo"
@@ -100,7 +100,7 @@ def example_03_materials_A():
     # Add a float texture to roughness port
     MyMaterial.AddFloat(parentNode = c4d.OCT_MATERIAL_ROUGHNESS_LINK)
     # Add a node tree to Albedo port, and set path and props
-    url: maxon.Url = node_helper.get_asset_str(maxon.Id("file_ed38c13fd1ae85ae"))    
+    url: maxon.Url = tex_helper.GetAssetStr("file_ed38c13fd1ae85ae")  
     MyMaterial.AddTextureTree(texturePath = url, nodeName = 'Albedo', isFloat = False, gamma = 2.2,
                            invert = False, parentNode = c4d.OCT_MATERIAL_DIFFUSE_LINK)
     # Insert the material
@@ -129,22 +129,31 @@ def example_03_materials_B():
     # Setup a pbr material with given or selected texture.
     # We select a albedo texture of Megascans texture package here
     # But you can select almost any texture package here
-    MyMaterial.SetupTextures()
-    # Add a Transform node to all the Image nodes.
-    MyMaterial.UniTransform()
-    # Insert the material
-    MyMaterial.InsertMaterial()
-    # Set the material active
-    MyMaterial.SetActive()
-    # Open the Node Editor
-    oc.OpenNodeEditor()
-    # Get all shader in the material
-    node_list = MyMaterial.GetAllNodes()
-    # Print the info
-    print(f'We create an Octane PBR Material with name {MyMaterial.material.GetName()}')
-    print('#-----Shader-----#')
-    pprint(node_list)
-    print('#----- End -----#')
+    texpack = node_helper.TextureHelper()
+    
+    # 用户任意选择一张贴图, 最好不要选择albedo，而是选择Normal这种
+    texture = c4d.storage.LoadDialog(type=c4d.FILESELECTTYPE_IMAGES, title='Select a texture',flags=c4d.FILESELECT_LOAD)
+    if texture:
+        texture_data = texpack.PBRFromTexture(texture)
+        tex_data = texture_data[0]
+        mat_name = texture_data[1]
+        
+        MyMaterial.SetupTextures(tex_data,mat_name)
+        # Add a Transform node to all the Image nodes.
+        MyMaterial.UniTransform()
+        # Insert the material
+        MyMaterial.InsertMaterial()
+        # Set the material active
+        MyMaterial.SetActive()
+        # Open the Node Editor
+        oc.OpenNodeEditor()
+        # Get all shader in the material
+        node_list = MyMaterial.GetAllNodes()
+        # Print the info
+        print(f'We create an Octane PBR Material with name {MyMaterial.material.GetName()}')
+        print('#-----Shader-----#')
+        pprint(node_list)
+        print('#----- End -----#')
 
 #---------------------------------------------------------
 # Example 04
@@ -156,10 +165,10 @@ def example_04_scenes():
     
     ### == Light == ###
     # Add a rig of hdr and rgb backdrop
-    hdr_url: maxon.Url = node_helper.get_asset_str(maxon.Id("file_d21cf4cfdec8c636"))
+    hdr_url: maxon.Url = tex_helper.GetAssetStr("file_d21cf4cfdec8c636")
     scene_helper.add_dome_rig(texture_path = hdr_url, rgb = c4d.Vector(0,0,0))
     # Add a light object and and some modify tags
-    gobo_url: maxon.Url = node_helper.get_asset_str(maxon.Id("file_66b116a34a150e7e"))    
+    gobo_url: maxon.Url = tex_helper.GetAssetStr("file_66b116a34a150e7e") 
     mylight = scene_helper.add_light(power = 5, light_name = 'My Light', texture_path = gobo_url, distribution_path = None, visibility= False)
     scene_helper.add_light_modifier(light = mylight, target = True, gsg_link = True, rand_color = True)
     

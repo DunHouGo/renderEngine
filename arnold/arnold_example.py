@@ -39,6 +39,7 @@ except:
 from renderEngine import node_helper
 reload(node_helper)
 
+tex_helper = node_helper.TextureHelper()
 
 #=============================================
 #                  Examples
@@ -178,13 +179,13 @@ if ar.IsNodeBased():
             arnoldMaterial.AddMathAdd([n1_port,n2_port], spc_rough)
             
             # # TexPath   
-            url: maxon.Url = node_helper.get_asset_url(maxon.Id("file_5b6a5fe03176444c"))
+            url: maxon.Url = tex_helper.GetAssetUrl("file_5b6a5fe03176444c")
             base_color = arnoldMaterial.helper.GetPort(standard_surface,'base_color')
             spc_color = arnoldMaterial.helper.GetPort(standard_surface,'specular_color')
             
             # Add a Texture node and set a tex to it , change color space to RAW
             # 添加一个Texture shader , 设置贴图路径,并将色彩空间设置为RAW
-            tex_node = arnoldMaterial.AddTexture(shadername = 'YourTex', filepath = node_helper.get_asset_url(maxon.Id("file_2e316c303b15a330")), raw = True,target_port = spc_color)
+            tex_node = arnoldMaterial.AddTexture(shadername = 'YourTex', filepath = tex_helper.GetAssetUrl("file_2e316c303b15a330"), raw = True,target_port = spc_color)
             arnoldMaterial.helper.SetName(tex_node,'Specular')
             
             # Add a texture tree to base color
@@ -192,11 +193,11 @@ if ar.IsNodeBased():
             arnoldMaterial.AddTextureTree(shadername = 'YourTex',filepath = url, raw=False,target_port = base_color)
             # Add a Displace tree
             # 将置换节点树 
-            arnoldMaterial.AddDisplacementTree(shadername = 'My Disp Tex',filepath=node_helper.get_asset_url(maxon.Id("file_6b69a957ef516e44")))
+            arnoldMaterial.AddDisplacementTree(shadername = 'My Disp Tex',filepath=tex_helper.GetAssetUrl("file_6b69a957ef516e44"))
 
             # Add a Bump tree
             # 将凹凸节点树
-            arnoldMaterial.AddNormalTree(filepath=node_helper.get_asset_url(maxon.Id("file_2ceb1d8bb35c56ba")))
+            arnoldMaterial.AddNormalTree(filepath=tex_helper.GetAssetUrl("file_2ceb1d8bb35c56ba"))
 
         # 将Standard Surface材质引入当前Document
         arnoldMaterial.InsertMaterial()
@@ -247,7 +248,15 @@ if ar.IsNodeBased():
     #---------------------------------------------------------
     def PBRMaterial():
         arnoldMaterial =  ar.MaterialHelper.CreateStandardSurface("PBR Example")
-        arnoldMaterial.SetupTextures()
+        
+        # 用户任意选择一张贴图, 最好不要选择albedo，而是选择Normal这种
+        texture = c4d.storage.LoadDialog(type=c4d.FILESELECTTYPE_IMAGES, title='Select a texture',flags=c4d.FILESELECT_LOAD)
+        if texture:
+            texture_data = tex_helper.PBRFromTexture(texture)
+            tex_data = texture_data[0]
+            mat_name = texture_data[1]
+            
+            arnoldMaterial.SetupTextures(tex_data,mat_name)
         # 将Standard Surface材质引入当前Document
         arnoldMaterial.InsertMaterial()
         # 将Standard Surface材质设置为激活材质
@@ -267,16 +276,16 @@ def example_04_scenes():
     
     ### == Light == ###
     # Add a rig of hdr and rgb backdrop
-    hdr_url: str =  node_helper.get_asset_str(maxon.Id("file_d21cf4cfdec8c636"))
+    hdr_url: str =  tex_helper.GetAssetStr(maxon.Id("file_d21cf4cfdec8c636"))
     scene_helper.add_dome_rig(texture_path = hdr_url, rgb = c4d.Vector(0,0,0))
     
     # Add a light object and and some modify tags
-    gobo_url: maxon.Url = node_helper.get_asset_url(maxon.Id("file_66b116a34a150e7e"))    
+    gobo_url: maxon.Url = tex_helper.GetAssetUrl("file_66b116a34a150e7e")
     gobo_light = scene_helper.add_gobo(texture_path = str(gobo_url), intensity=2, exposure=0)
     scene_helper.add_light_modifier(light = gobo_light, gsg_link = True, rand_color = True)
     
     # Add a IES light
-    ies_url: str = node_helper.get_asset_str("file_6f300f2ba077da4a")
+    ies_url: str = tex_helper.GetAssetStr("file_6f300f2ba077da4a")
     ies = scene_helper.add_ies(texture_path = ies_url, intensity=1, exposure=0)
     
     ### == Tag == ###

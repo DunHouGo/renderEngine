@@ -127,7 +127,34 @@ To use this library, you have two options:
   - add **GetConnectedNodeType** to node_helper.
 
 - ### 1.0.5
-- fix symbols | to Union in octane_helper to balance incompatible with sdk berfore 2023.2.0.
+  - fix symbols | to Union in octane_helper to balance incompatible with sdk berfore 2023.2.0.
+
+- ### 1.1.0
+  - change symbols | to Union in all the helpers(to balance incompatible with sdk berfore 2023.2.0.).
+  - rename **TePack** to **TextureHelper** in node_helper.
+  - add some functions to **TextureHelper**.
+    - ShowAssetInBrowser
+    - GetAsset
+    - GetAssetId
+    - GetAssetUrl
+    - GetAssetStr
+    - GetAssetName
+    - IsAsset
+    - IsVaildPath
+    - GetRootTexFolder
+    - GetTexturesSize
+    - GetTextureList
+    - GetAllTexturePaths
+    - CollectAssetTexture
+    - CollectLocalTexture
+    - PBRFromTexture
+    - PBRFromPath
+  - fix the **SetupTexture** for each helper and example, and extract the texture data and name parameter.
+  - fix the octane_id map to avoid this issue when user not installed Octane.
+  - add a bump_mode option to **AddBump** and **AddBumpTree** to redshift_helper.
+  - remove **get_asset_url** and **get_asset_str** from node_helper.
+  - remove **get_tex_folder** and **get_texture_path** from node_helper.
+
 
 ---
 - __coming soon...__

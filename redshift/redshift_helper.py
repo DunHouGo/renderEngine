@@ -32,7 +32,7 @@ import redshift
 import os
 import random
 from dataclasses import dataclass
-from typing import Union
+from typing import Union,Optional
 from importlib import reload
 # import renderEngine.redshift
 # reload(renderEngine.redshift)
@@ -543,7 +543,7 @@ class AOVHelper:
                 return REDSHIFT_AOVS_NAME[REDSHIFT_AOVS.index(i)]
 
     # 获取aov名称 ==> ok
-    def get_name(self, aov: int|c4d.redshift.RSAOV = None) -> str:
+    def get_name(self, aov: Union[int,c4d.redshift.RSAOV] = None) -> str:
         """
         Get the name of given aov.
         """
@@ -558,7 +558,7 @@ class AOVHelper:
             return self.get_aov(aov).GetParameter(c4d.REDSHIFT_AOV_NAME)
 
     # 设置aov名称 ==> ok
-    def set_name(self, aov: int|c4d.redshift.RSAOV = None, name: str = None) -> str:
+    def set_name(self, aov: Union[int,c4d.redshift.RSAOV] = None, name: str = None) -> str:
         """
         Set the name of given aov.
         """
@@ -598,7 +598,7 @@ class AOVHelper:
         return aov_list
     
     # 获取指定类型的aov shader ==> ok
-    def get_aov(self, aov_type: c4d.BaseList2D) -> c4d.redshift.RSAOV | None:
+    def get_aov(self, aov_type: c4d.BaseList2D) -> Union[c4d.redshift.RSAOV , None]:
         """
         Get the aov of given type.
 
@@ -690,7 +690,7 @@ class AOVHelper:
         aov_shader.SetParameter(aov_id, aov_attrib)
     
     # 更新aov属性 ==> ok
-    def update_aov(self, aov_type: int|c4d.redshift.RSAOV, aov_id : int, aov_attrib) -> c4d.redshift.RSAOV:
+    def update_aov(self, aov_type: Union[int, c4d.redshift.RSAOV], aov_id : int, aov_attrib) -> c4d.redshift.RSAOV:
         if self.vp is None:
             raise RuntimeError(f"Can't get the {self.vpname} VideoPost")
         
@@ -1040,20 +1040,21 @@ class MaterialHelper:
                 self.material[c4d.MATERIAL_PREVIEWSIZE] = 0 # default
 
     # 创建PBR材质 ==> ok
-    def SetupTextures(self, texture: str = None):
+    def SetupTextures(self, tex_data: dict = None, mat_name: Optional[str] = None):
         """
         Setup a pbr material with given or selected texture.
         """
-        texpack = node_helper.TexPack()
-        data_list = texpack.get_texture_data(texture)
-        tex_data = data_list[0]
-        mat_name = data_list[1]
+        # texpack = node_helper.TexPack()
+        # data_list = texpack.get_pbr_set(texture)
+        # tex_data = texture_data[0]
+        # mat_name = texture_data[1]
+        # from pprint import pprint
+        # pprint(tex_data)
         
         isSpecularWorkflow = False
         if 'Specular' in list(tex_data.keys()):
             isSpecularWorkflow = True            
-        
-        # redshiftMaterial =  MaterialHelper.CreateStandardSurface(mat_name)
+
         redshiftMaterial = self
         # modification has to be done within a transaction
         with RSMaterialTransaction(redshiftMaterial) as transaction:
@@ -1072,8 +1073,6 @@ class MaterialHelper:
             specularPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color')
             roughnessPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_roughness')
             metalnessPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.metalness')
-            # bumpPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.bump_input')
-            # displacementPort = redshiftMaterial.helper.GetPort(output_node,'com.redshift3d.redshift4c4d.node.output.displacement')
             opacityPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.opacity_color')
             reflectionPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color')
 
@@ -1097,17 +1096,17 @@ class MaterialHelper:
                         isglossinessPort.SetDefaultValue(True)
 
                     elif "Roughness" in tex_data:
-                        roughnessNode = self.AddTextureTree(filepath=tex_data['Roughness'], shadername="Roughness", target_port=roughnessPort)
+                        roughnessNode = self.AddTextureTree(filepath=tex_data['Roughness'], shadername="Roughness", scaleramp=True, target_port=roughnessPort)
 
                 else:
                     if "Metalness" in tex_data:
                         aoNode = self.AddTexture(filepath=tex_data['Metalness'], shadername="Metalness",target_port=metalnessPort)
 
                     if "Roughness" in tex_data:
-                        roughnessNode = self.AddTextureTree(filepath=tex_data['Roughness'], shadername="Roughness", target_port=roughnessPort)
+                        roughnessNode = self.AddTextureTree(filepath=tex_data['Roughness'], shadername="Roughness", scaleramp=True, target_port=roughnessPort)
 
                     elif "Glossiness" in tex_data:
-                        self.AddTextureTree(filepath=tex_data['Glossiness'], shadername="Glossiness", target_port=roughnessPort)
+                        self.AddTextureTree(filepath=tex_data['Glossiness'], shadername="Glossiness", scaleramp=True, target_port=roughnessPort)
                         isglossinessPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
                         isglossinessPort.SetDefaultValue(True)                    
 
@@ -1115,7 +1114,7 @@ class MaterialHelper:
                     self.AddBumpTree(filepath=tex_data['Normal'], shadername="Normal")
                 
                 if "Bump" in tex_data and "Normal" not in tex_data:  
-                    self.AddBumpTree(filepath=tex_data['Bump'], shadername="Bump")
+                    self.AddBumpTree(filepath=tex_data['Bump'], shadername="Bump",bump_mode=0)
                 
                 if "Displacement" in tex_data:
                     self.AddDisplacementTree(filepath=tex_data['Displacement'], shadername="Displacement")
@@ -1164,7 +1163,7 @@ class MaterialHelper:
     
     ### Material ###
     
-    def AddStandardMaterial(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddStandardMaterial(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Standard Material shader to the graph.
 
@@ -1177,7 +1176,7 @@ class MaterialHelper:
             connect_outNodes = target
             )
     
-    def AddRSMaterial(self,  inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddRSMaterial(self,  inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new RSMaterial shader to the graph.
 
@@ -1191,7 +1190,7 @@ class MaterialHelper:
             connect_outNodes = target
             )
     
-    def AddMaterialBlender(self,  inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddMaterialBlender(self,  inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Material Blender shader to the graph.
 
@@ -1207,7 +1206,7 @@ class MaterialHelper:
             connect_outNodes = target
             )
     
-    def AddMaterialLayer(self,  inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddMaterialLayer(self,  inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Material Layer shader to the graph.
 
@@ -1223,7 +1222,7 @@ class MaterialHelper:
             connect_outNodes = target
             )
 
-    def AddIncandescent(self,  inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddIncandescent(self,  inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Incandescent Material shader to the graph.
 
@@ -1236,7 +1235,7 @@ class MaterialHelper:
             connect_outNodes = target
             )
     
-    def AddSprite(self,  inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddSprite(self,  inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Sprite Material shader to the graph.
 
@@ -1252,7 +1251,7 @@ class MaterialHelper:
     ### Color ###
 
     # 创建Color Constant ==> OK
-    def AddColorConstant(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddColorConstant(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Color Constant shader to the graph.
 
@@ -1266,7 +1265,7 @@ class MaterialHelper:
             )
     
     # 创建Color Splitter ==> OK
-    def AddColorSplitter(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddColorSplitter(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Color Splitter shader to the graph.
 
@@ -1284,7 +1283,7 @@ class MaterialHelper:
             )
   
     # 创建Color Composite ==> OK
-    def AddColorComposite(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddColorComposite(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Color Composite shader to the graph.
 
@@ -1298,7 +1297,7 @@ class MaterialHelper:
             )
     
     # 创建Color Layer ==> OK
-    def AddColorLayer(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddColorLayer(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Color Layer shader to the graph.
 
@@ -1314,7 +1313,7 @@ class MaterialHelper:
             )
      
     # 创建Color Change Range ==> OK
-    def AddColorChangeRange(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddColorChangeRange(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Color Change Range shader to the graph.
 
@@ -1328,7 +1327,7 @@ class MaterialHelper:
             )
     
     # 创建color correct ==> OK
-    def AddColorCorrect(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddColorCorrect(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new color correct shader to the graph.
 
@@ -1344,7 +1343,7 @@ class MaterialHelper:
     ### Operator ###
 
     # 创建Math Mix(Float64) ==> OK
-    def AddMathMix(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddMathMix(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Math Mix shader to the graph.
 
@@ -1360,7 +1359,7 @@ class MaterialHelper:
             )
     
     # 创建Vector Mix(Vector64) ==> OK
-    def AddVectorMix(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddVectorMix(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Vector Mix shader to the graph.
 
@@ -1376,7 +1375,7 @@ class MaterialHelper:
             )
    
     # 创建Color Mix(ColorAlpha64) ==> OK
-    def AddColorMix(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddColorMix(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Color Mix shader to the graph.
 
@@ -1392,7 +1391,7 @@ class MaterialHelper:
             )
    
     # 创建Math Add(Float64) ==> OK
-    def AddMathAdd(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddMathAdd(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Math Add shader to the graph.
 
@@ -1407,7 +1406,7 @@ class MaterialHelper:
             )
     
     # 创建Vector Add(Vector64) ==> OK
-    def AddVectorAdd(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddVectorAdd(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Vector Add shader to the graph.
 
@@ -1422,7 +1421,7 @@ class MaterialHelper:
             )
 
     # 创建Math Sub(Float64) ==> OK
-    def AddMathSub(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddMathSub(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Math Sub shader to the graph.
 
@@ -1437,7 +1436,7 @@ class MaterialHelper:
             )
 
     # 创建Vector Sub(Vector64) ==> OK
-    def AddVectorSub(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddVectorSub(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Vector Sub shader to the graph.
 
@@ -1452,7 +1451,7 @@ class MaterialHelper:
             )
 
     # 创建Color Sub(ColorAlpha64) ==> OK
-    def AddColorSub(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddColorSub(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Color Sub shader to the graph.
 
@@ -1467,7 +1466,7 @@ class MaterialHelper:
             )
 
     # 创建Math Mul(Float64) ==> OK
-    def AddMathMul(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddMathMul(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Math Mul shader to the graph.
 
@@ -1482,7 +1481,7 @@ class MaterialHelper:
             )
     
     # 创建Vector Mul(Vector64) ==> OK
-    def AddVectorMul(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddVectorMul(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Vector Mul shader to the graph.
 
@@ -1497,7 +1496,7 @@ class MaterialHelper:
             )
 
     # 创建Math Div(Float64) ==> OK
-    def AddMathDiv(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddMathDiv(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Math Div shader to the graph.
 
@@ -1512,7 +1511,7 @@ class MaterialHelper:
             )
 
     # 创建Vector Div(Vector64) ==> OK
-    def AddVectorDiv(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddVectorDiv(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Vector Div shader to the graph.
 
@@ -1529,7 +1528,7 @@ class MaterialHelper:
     ### Bump ###
 
     # 创建Bump ==> OK
-    def AddBump(self, input_port: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> maxon.GraphNode :
+    def AddBump(self, input_port: maxon.GraphNode = None, target_port: maxon.GraphNode = None, bump_mode: int = 1) -> maxon.GraphNode :
         """
         Adds a new Bump shader to the graph.
 
@@ -1538,6 +1537,8 @@ class MaterialHelper:
             return None
         nodeId = "bumpmap"
         shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core." + nodeId, maxon.DataDictionary())
+        type_port = self.helper.GetPort(shader, 'com.redshift3d.redshift4c4d.nodes.core.bumpmap.inputtype')
+        type_port.SetDefaultValue(bump_mode)
 
         if input_port:
             if isinstance(input_port, maxon.GraphNode):
@@ -1559,7 +1560,7 @@ class MaterialHelper:
         return shader
     
     # 创建Bump Blender ==> OK
-    def AddBumpBlender(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddBumpBlender(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new bump blender shader to the graph.
 
@@ -1615,7 +1616,7 @@ class MaterialHelper:
         return shader
 
     # 创建displacement Blender ==> OK
-    def AddDisplacementBlender(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddDisplacementBlender(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new displacement blender shader to the graph.
 
@@ -1636,7 +1637,7 @@ class MaterialHelper:
             )
 
     # 创建Round Corners ==> OK
-    def AddRoundCorner(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddRoundCorner(self, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Round Corners shader to the graph.
 
@@ -1652,7 +1653,7 @@ class MaterialHelper:
     ### State ###
 
     # 创建Fresnel ==> OK
-    def AddFresnel(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddFresnel(self, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Fresnel shader to the graph.
 
@@ -1666,7 +1667,7 @@ class MaterialHelper:
             )
 
     # 创建AO ==> OK
-    def AddAO(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddAO(self, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new AO shader to the graph.
 
@@ -1680,7 +1681,7 @@ class MaterialHelper:
             )
 
     # 创建Curvature ==> OK
-    def AddCurvature(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddCurvature(self, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Curvature shader to the graph.
 
@@ -1694,7 +1695,7 @@ class MaterialHelper:
             )
 
     # 创建Flakes ==> OK
-    def AddFlakes(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddFlakes(self, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Flakes shader to the graph.
 
@@ -1708,7 +1709,7 @@ class MaterialHelper:
             )
 
     # 创建Point Attribute ==> OK
-    def AddPointAttribute(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddPointAttribute(self, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Point Attribute shader to the graph.
 
@@ -1723,7 +1724,7 @@ class MaterialHelper:
             )
 
     # 创建Vertex Attribute ==> OK
-    def AddVertexAttribute(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddVertexAttribute(self, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Vertex Attribute shader to the graph.
 
@@ -1740,7 +1741,7 @@ class MaterialHelper:
     ### Texture ###
     
     # 创建ramp ==> OK
-    def AddRamp(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddRamp(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new ramp shader to the graph.
 
@@ -1754,7 +1755,7 @@ class MaterialHelper:
             )
 
     # 创建scalar ramp ==> OK
-    def AddScalarRamp(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddScalarRamp(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new scalar ramp shader to the graph.        
 
@@ -1768,7 +1769,7 @@ class MaterialHelper:
             )
 
     # 创建TriPlanar ==> OK
-    def AddTriPlanar(self, inputs: list[str|maxon.GraphNode] = None, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddTriPlanar(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new TriPlanar shader to the graph.
 
@@ -1782,7 +1783,7 @@ class MaterialHelper:
             )
 
     # 创建maxon noise ==> OK
-    def AddMaxonNoise(self, target: list[str|maxon.GraphNode] = None) -> maxon.GraphNode :
+    def AddMaxonNoise(self, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new maxonnoise shader to the graph.
 
@@ -1889,7 +1890,7 @@ class MaterialHelper:
         self.AddDisplacement(input_port=tex_out)
 
     # NEW
-    def AddBumpTree(self, shadername :str = 'Bump', filepath: str = None) -> list[maxon.GraphNode] :
+    def AddBumpTree(self, shadername :str = 'Bump', filepath: str = None, bump_mode: int = 1) -> list[maxon.GraphNode] :
         """
         Adds a bump tree (tex + bump) to the graph.
         """
@@ -1900,7 +1901,7 @@ class MaterialHelper:
         tex_node = self.AddTexture(shadername, filepath, True)
         tex_out = self.helper.GetPort(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor")
         #tex_out = self.GetPort(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor")
-        self.AddBump(input_port=tex_out)
+        self.AddBump(input_port=tex_out, bump_mode=bump_mode)
    
     # 连接到Output Surface接口
     def AddtoOutput(self, soure_node, outPort):
@@ -1985,7 +1986,7 @@ class SceneHelper:
 
     ### Light ###        
 
-    def add_hdr_dome(self, color_space: str = 'linear sRGB', texture_path: str = None, intensity: float = 1.0, exposure: float = 0.0, seen_by_cam: bool = True) -> c4d.BaseObject :
+    def add_hdr_dome(self, color_space: str = '', texture_path: str = None, intensity: float = 1.0, exposure: float = 0.0, seen_by_cam: bool = True) -> c4d.BaseObject :
         """
         Add a texture (hdr) dome light to the scene.
 
@@ -2009,7 +2010,7 @@ class SceneHelper:
         if texture_path:
             light[c4d.REDSHIFT_LIGHT_DOME_TEX0,c4d.REDSHIFT_FILE_PATH] = texture_path
         light[c4d.REDSHIFT_LIGHT_DOME_TEX0,c4d.REDSHIFT_FILE_COLORSPACE] = color_space
-        light[c4d.REDSHIFT_LIGHT_DOME_BACKGROUND_ENABLE] = seen_by_cam 
+        light[c4d.REDSHIFT_LIGHT_DOME_BACKGROUND_ENABLE] = seen_by_cam
         
         return light
 

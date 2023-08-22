@@ -39,7 +39,7 @@ except:
 from renderEngine import node_helper
 reload(node_helper)
 
-
+tex_helper = node_helper.TextureHelper()
 #=============================================
 #                  Examples
 #=============================================
@@ -164,7 +164,7 @@ if rs.IsNodeBased():
 
             # TexPath
             # 贴图路径
-            url: maxon.Url = node_helper.get_asset_str(maxon.Id("file_5b6a5fe03176444c"))
+            url: maxon.Url = tex_helper.GetAssetUrl("file_5b6a5fe03176444c")
             tar = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.base_color')
             
             # Add a Texture node and set a tex to it , change color space to RAW
@@ -239,14 +239,23 @@ if rs.IsNodeBased():
     #---------------------------------------------------------
     def PBRMaterial():
         redshiftMaterial =  rs.MaterialHelper.CreateStandardSurface("PBR Example")
-        redshiftMaterial.SetupTextures()
-        # 将Standard Surface材质引入当前Document
-        redshiftMaterial.InsertMaterial()
-        # 将Standard Surface材质设置为激活材质
-        redshiftMaterial.SetActive()
-        redshiftMaterial.FastPreview()
-        rs.OpenNodeEditor(redshiftMaterial.material)
-        return redshiftMaterial.material
+        texpack = node_helper.TextureHelper()
+        
+        # 用户任意选择一张贴图, 最好不要选择albedo，而是选择Normal这种
+        texture = c4d.storage.LoadDialog(type=c4d.FILESELECTTYPE_IMAGES, title='Select a texture',flags=c4d.FILESELECT_LOAD)
+        if texture:
+            texture_data = texpack.PBRFromTexture(texture)
+            tex_data = texture_data[0]
+            mat_name = texture_data[1]
+            
+            redshiftMaterial.SetupTextures(tex_data,mat_name)
+            # 将Standard Surface材质引入当前Document
+            redshiftMaterial.InsertMaterial()
+            # 将Standard Surface材质设置为激活材质
+            redshiftMaterial.SetActive()
+            redshiftMaterial.FastPreview()
+            rs.OpenNodeEditor(redshiftMaterial.material)
+            return redshiftMaterial.material
     #---------------------------------------------------------
     # Example 05
     # 自定义生成ID
@@ -277,15 +286,15 @@ def example_04_scenes():
     
     ### == Light == ###
     # Add a rig of hdr and rgb backdrop
-    hdr_url: str =  node_helper.get_asset_str(maxon.Id("file_d21cf4cfdec8c636"))
+    hdr_url: str =  tex_helper.GetAssetStr("file_d21cf4cfdec8c636")
     scene_helper.add_dome_rig(texture_path = hdr_url, rgb = c4d.Vector(0,0,0))
     
     # Add a light object and and some modify tags
-    gobo_url: maxon.Url = node_helper.get_asset_str(maxon.Id("file_66b116a34a150e7e"))    
+    gobo_url: maxon.Url = tex_helper.GetAssetStr("file_66b116a34a150e7e")
     mylight = scene_helper.add_light(light_name = 'My Light', texture_path = gobo_url, intensity=2, exposure=0)
     scene_helper.add_light_modifier(light = mylight, target = True, gsg_link = True, rand_color = True)
     # Add a IES light
-    ies_url: str = node_helper.get_asset_str("file_6f300f2ba077da4a")
+    ies_url: str = tex_helper.GetAssetStr("file_6f300f2ba077da4a")
     ies = scene_helper.add_ies(light_name = 'My IES', texture_path = ies_url, intensity=1, exposure=0)
     
     ### == Tag == ###

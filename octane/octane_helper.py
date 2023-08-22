@@ -47,7 +47,7 @@ except:
 
 from renderEngine import node_helper
 reload(node_helper)
-
+tex_helper = node_helper.TextureHelper()
 
 ###  ==========  Import from disk  ==========  ###
 """"
@@ -1198,15 +1198,10 @@ class MaterialHelper(NodeHelper):
             self.doc.SetActiveMaterial(self.material)            
     
     # 创建材质 ==> ok
-    def SetupTextures(self, texture: str = None):
+    def SetupTextures(self, tex_data: dict = None, mat_name: Optional[str] = None):
         """
         Setup a pbr material with given or selected texture.
-        """
-        texpack = node_helper.TexPack()
-        data_list = texpack.get_texture_data(texture)
-        tex_data = data_list[0]
-        mat_name = data_list[1]
-        
+        """        
         isSpecularWorkflow = False
         if 'Specular' in list(tex_data.keys()):
             isSpecularWorkflow = True            
