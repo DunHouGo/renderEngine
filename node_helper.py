@@ -1317,7 +1317,7 @@ class TextureHelper:
             # show assets (even in multiple locations)
             maxon.AssetManagerInterface.RevealAsset([asset])
 
-    def GetAsset(self, asset_id: str|maxon.Url|maxon.Id) -> maxon.AssetDescription:
+    def GetAsset(self, asset_id: Union[str,maxon.Url,maxon.Id]) -> maxon.AssetDescription:
         """
         Get the description for asset.        
         """
@@ -1340,13 +1340,13 @@ class TextureHelper:
         if isinstance(asset, maxon.AssetDescription):
             return True
 
-    def GetTextureList(self, doc: c4d.documents.BaseDocument) -> list[str|maxon.Url]:
+    def GetTextureList(self, doc: c4d.documents.BaseDocument) -> list[Union[str,maxon.Url]]:
         textures = list()
         c4d.documents.GetAllAssetsNew(doc, False, "", c4d.ASSETDATA_FLAG_TEXTURESONLY, textures)
         self.all_textures = textures
         return textures
     
-    def GetAssetId(self, asset_path: str|maxon.Url|maxon.Id) -> maxon.Id:
+    def GetAssetId(self, asset_path: Union[str,maxon.Url,maxon.Id]) -> maxon.Id:
         if isinstance(asset_path, maxon.Id):
             if not asset_path.IsEmpty():
                 return asset_path
@@ -1360,7 +1360,7 @@ class TextureHelper:
                 return asset_id
         return None
 
-    def IsVaildPath(self, asset: str|maxon.Url|maxon.Id) -> bool:
+    def IsVaildPath(self, asset: Union[str,maxon.Url,maxon.Id]) -> bool:
         
         if isinstance(asset, str):
             if asset is None:
@@ -1399,7 +1399,7 @@ class TextureHelper:
                  
         return False
 
-    def GetAssetUrl(self, aid: maxon.Id|str) -> maxon.Url:
+    def GetAssetUrl(self, aid: Union[maxon.Id,str]) -> maxon.Url:
         """Returns the asset URL for the given file asset ID.
         """
         # Bail when the asset ID is invalid.
@@ -1420,12 +1420,12 @@ class TextureHelper:
         # scheme for the latest version of that asset.
         return maxon.AssetInterface.GetAssetUrl(asset, True)
 
-    def GetAssetStr(self, aid: maxon.Id|str) -> str:
+    def GetAssetStr(self, aid: Union[maxon.Id,str]) -> str:
         """Returns the asset str for the given file asset ID.
         """
         return str(self.GetAssetUrl(aid))
 
-    def GetAssetName(self, aid: maxon.Id|str) -> str:
+    def GetAssetName(self, aid: Union[maxon.Id,str]) -> str:
         """Returns the asset Name for the given file asset ID.
         """
         return self.GetAssetUrl(aid).GetName()
