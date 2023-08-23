@@ -51,7 +51,7 @@ tex_helper = node_helper.TextureHelper()
 #---------------------------------------------------------
 def example_01_videopost():
     # Get the RenderEngine id.
-    render_engine: int = rs.GetRenderEngine(doc)
+    render_engine: int = node_helper.GetRenderEngine(doc)
     print(f'Current render engine ID : {render_engine}.')
     # Get the current render version.
     render_version: str = rs.GetVersion()

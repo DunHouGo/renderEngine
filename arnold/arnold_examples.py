@@ -51,7 +51,7 @@ tex_helper = node_helper.TextureHelper()
 #---------------------------------------------------------
 def example_01_videopost():
     # Get the RenderEngine id.
-    print(f'Current render engine ID : {ar.GetRenderEngine(doc)}.')
+    print(f'Current render engine ID : {node_helper.GetRenderEngine(doc)}.')
     # Get the current render version.
     print(f'Current render engine version : {ar.GetVersion()}.')
     # Get the arnold core version.

@@ -87,6 +87,14 @@ Root (maxon.NODE_KIND.NODE)
             PortI (maxon.NODE_KIND.OUTPORT)
 """
 
+# 获取渲染器
+def GetRenderEngine(document: c4d.documents.BaseDocument = None) -> int :
+    """
+    Return current render engine ID.
+    """
+    if not document:
+        document = c4d.documents.GetActiveDocument()
+    return document.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]
 
 class NodeGraghHelper(object):
     

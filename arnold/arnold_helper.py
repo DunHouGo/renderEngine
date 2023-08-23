@@ -32,15 +32,6 @@ def IsNodeBased():
     """
     return not GetPreference()[c4d.PARNOLD_MATERIAL_SYSTEM]
 
-# 获取渲染器
-def GetRenderEngine(document: c4d.documents.BaseDocument = None) -> int :
-    """
-    Return current render engine ID.
-    """
-    if not document:
-        document = c4d.documents.GetActiveDocument()
-    return document.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]
-
 # 获取渲染器版本
 def GetVersion(document: c4d.documents.BaseDocument = None) -> str :
     """
@@ -99,7 +90,7 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
     if not actmat:
         raise ValueError("Failed to retrieve a Material.")
         
-    if GetRenderEngine() == ARNOLD_RENDERER:
+    if node_helper.GetRenderEngine() == ARNOLD_RENDERER:
         if IsNodeBased():
             c4d.CallCommand(465002211) # Node Editor...
             c4d.CallCommand(465002360) # Material

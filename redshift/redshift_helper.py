@@ -382,15 +382,6 @@ def SetMaterialPreview(preview_mode: int = 1):
 
     prefsset[c4d.PREFS_REDSHIFT_MATPREVIEW_MODE] = preview_mode
 
-# 获取渲染器
-def GetRenderEngine(document: c4d.documents.BaseDocument = None) -> int :
-    """
-    Return current render engine ID.
-    """
-    if not document:
-        document = c4d.documents.GetActiveDocument()
-    return document.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]
-
 # 获取渲染器版本
 def GetVersion() -> str :
     """
@@ -426,10 +417,11 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
     if not actmat:
         raise ValueError("Failed to retrieve a Material.")
         
-    if GetRenderEngine() == ID_REDSHIFT_VIDEO_POST:
+    if node_helper.GetRenderEngine() == ID_REDSHIFT_VIDEO_POST:
         if IsNodeBased():
             c4d.CallCommand(465002211) # Node Editor...
             c4d.CallCommand(465002360) # Material
+
         else:
             c4d.CallCommand(1036229) # Redshift Shader Graph Editor
             # Only scroll to the material if material manager is opened
@@ -1044,12 +1036,6 @@ class MaterialHelper:
         """
         Setup a pbr material with given or selected texture.
         """
-        # texpack = node_helper.TexPack()
-        # data_list = texpack.get_pbr_set(texture)
-        # tex_data = texture_data[0]
-        # mat_name = texture_data[1]
-        # from pprint import pprint
-        # pprint(tex_data)
         
         isSpecularWorkflow = False
         if 'Specular' in list(tex_data.keys()):
@@ -1128,10 +1114,10 @@ class MaterialHelper:
                 elif "Transmission" in tex_data:
                     self.AddTexture(filepath=tex_data['Transmission'], shadername="Transmission", raw=True, target_port=reflectionPort)
 
-                self.material.SetName(mat_name)
-                
             except Exception as e:
                 raise RuntimeError ("Unable to setup texture")
+            
+            self.material.SetName(mat_name)
             
         # 将Standard Surface材质引入当前Document
         redshiftMaterial.InsertMaterial()

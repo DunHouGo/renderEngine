@@ -1257,6 +1257,7 @@ class MaterialHelper(NodeHelper):
             if "Displacement" in tex_data:
                 displacementNode = self.AddDisplacement(c4d.OCT_MATERIAL_DISPLACEMENT_LINK)
                 if displacementNode:
+                    displacementNode[c4d.DISPLACEMENT_LEVELOFDETAIL] = 11 # 2k
                     displacementSlotName = c4d.DISPLACEMENT_TEXTURE
                     displacementNode[displacementSlotName] = self.AddImageTexture(texturePath=tex_data['Displacement'], nodeName="Displacement")
 

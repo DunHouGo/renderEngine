@@ -154,6 +154,7 @@ To use this library, you have two options:
   - add a bump_mode option to **AddBump** and **AddBumpTree** to redshift_helper.
   - remove **get_asset_url** and **get_asset_str** from node_helper.
   - remove **get_tex_folder** and **get_texture_path** from node_helper.
+  - move **GetRenderEngine** to node_helper.
 
 
 ---
