@@ -503,15 +503,15 @@ class NodeGraghHelper(object):
         :param nodeID: the shader id, defaults to None
         :type nodeID: str, optional
         :param input_ports: the input port list, defaults to None
-        :type input_ports: list[str | maxon.GraphNode], optional
+        :type input_ports: list[Union[str,maxon.GraphNode]]
         :param connect_inNodes: the node list connect to inputs, defaults to None
         :type connect_inNodes: list[maxon.GraphNode], optional
         :param output_ports: the output port list, defaults to None
-        :type output_ports: list[str | maxon.GraphNode], optional
+        :type output_ports: list[Union[str,maxon.GraphNode]]
         :param connect_outNodes: the node list connect to outputs, defaults to None
         :type connect_outNodes: list[maxon.GraphNode], optional
         :return: the shader.
-        :rtype: maxon.GraphNode|None
+        :rtype:  Union[maxon.GraphNode,None]
         """
         if self.graph is None:
             return None
@@ -563,13 +563,13 @@ class NodeGraghHelper(object):
         Insert a shder into a wire, and keep connect.
 
         :param nodeID: the node id
-        :type nodeID: str | maxon.Id
+        :type nodeID: Union[str,maxon.Id]
         :param wire: the wire to insert the shader
         :type wire: maxon.Wires
         :param input_port: the input port of the insert node
-        :type input_port: list[str | maxon.GraphNode]
+        :type input_port: list[Union[str,maxon.GraphNode]]
         :param output_port: the output port of the insert node
-        :type output_port: list[str | maxon.GraphNode]
+        :type output_port: list[Union[str,maxon.GraphNode]]
         :return: the node
         :rtype: maxon.GraphNode
         """
@@ -631,7 +631,7 @@ class NodeGraghHelper(object):
         Parameters
         ----------
         :param shader: the shader
-        :type shader: maxon.GraphNode | str
+        :type shader: Union[maxon.GraphNode, str]
         :return: the return nodes
         :rtype: list[maxon.GraphNode]
         """
@@ -1060,7 +1060,7 @@ class NodeGraghHelper(object):
         return connections
     
     # 添加连接线 ==> ok
-    def AddConnection(self, soure_node: maxon.GraphNode, outPort: Union[maxon.GraphNode,str], target_node: maxon.GraphNode, inPort: maxon.GraphNode|str) -> list[maxon.GraphNode,maxon.Id]:
+    def AddConnection(self, soure_node: maxon.GraphNode, outPort: Union[maxon.GraphNode,str], target_node: maxon.GraphNode, inPort: Union[maxon.GraphNode,str]) -> list[maxon.GraphNode,maxon.Id]:
         """
         Connects the given shaders with given port.
 
