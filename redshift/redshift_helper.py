@@ -1538,7 +1538,6 @@ class MaterialHelper:
             if isinstance(target_port, maxon.GraphNode):
                 output.Connect(target_port)
 
-
         else:
             material = self.helper.GetRootBRDF()
             bump_port = self.helper.GetPort(material,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.bump_input")

@@ -25,8 +25,7 @@ __version__ = "2023.2.1"
 ###  ==========  Import Libs  ==========  ###
 import c4d
 import maxon
-from typing import Union
-from typing import Optional
+from typing import Union,Optional
 import os
 import random
 import itertools
@@ -301,7 +300,14 @@ class NodeGraghHelper(object):
         
         predecessor = list()
         maxon.GraphModelHelper.GetDirectPredecessors(endNode, maxon.NODE_KIND.NODE, predecessor)
-        rootshader = predecessor[-1] 
+        # print("brdf",predecessor)
+        if self.nodespaceId == RS_NODESPACE: 
+            rootshader = predecessor[0]
+        elif self.nodespaceId == AR_NODESPACE: 
+            rootshader = predecessor[-1]
+        # if len(predecessor)>=1:
+        #     rootshader = predecessor[0]
+        # rootshader = predecessor[-1] 
         if rootshader is None and not rootshader.IsValid() :
             raise ValueError("Cannot retrieve the inputs list of the bsdfNode node")
         #print(predecessor)
@@ -317,7 +323,7 @@ class NodeGraghHelper(object):
 
     
     # 获取属性 ==> ok
-    def GetShaderValue(self, node: maxon.GraphNode, paramId: Union[maxon.Id,str]) -> maxon.Data:
+    def GetShaderValue(self, node: maxon.GraphNode, paramId: Union[maxon.Id,str]=None) -> maxon.Data:
         """
         Returns the value stored in the given shader parameter.
 
@@ -331,7 +337,7 @@ class NodeGraghHelper(object):
         if node is None or paramId is None:
             return None
         # standard data type
-        port: maxon.GraphNode = node.GetInputs().FindChild(paramId)
+        port: maxon.GraphNode = self.GetPort(node,paramId)
         if not self.IsPortValid(port):
             print("[Error] Input port '%s' is not found on shader '%r'" % (paramId, node))
             return None
@@ -339,7 +345,7 @@ class NodeGraghHelper(object):
         return port.GetDefaultValue()
     
     # 设置属性 ==> ok
-    def SetShaderValue(self, node: maxon.GraphNode, paramId: Union[maxon.Id,str], value) -> None:
+    def SetShaderValue(self, node: maxon.GraphNode, paramId: Union[maxon.Id,str]=None, value=None) -> None:
         """
         Sets the value stored in the given shader parameter.
 
@@ -355,7 +361,8 @@ class NodeGraghHelper(object):
         if node is None or paramId is None:
             return None
         # standard data type
-        port: maxon.GraphNode = node.GetInputs().FindChild(paramId)
+        port: maxon.GraphNode = self.GetPort(node,paramId)
+        
         if not self.IsPortValid(port):
             print("[WARNING] Input port '%s' is not found on shader '%r'" % (paramId, node))
             return None
@@ -1231,6 +1238,8 @@ class TextureHelper:
             ],
             "Diffuse": [
                 "Base_Color",
+                "BaseColor",
+                "Basecolor",
                 "Base_color",
                 "base_color",
                 "basecolor",
@@ -1715,13 +1724,13 @@ class TextureHelper:
                 # 贴图组合
                 file = f"{c[0]}_{c[1]}{c[2]}"
                 # 如果list中有同名，判定找到贴图
-                if file in all_textures:                
+                if file in all_textures:
                     channels.append(str(channel))
                     textures.append(os.path.join(folder_path, file))
         # 将两个列表组合成一个字典：
         tex_data = dict(zip(channels, textures))
         return tex_data
-    
+
 ###  ==========  Func  ==========  ###
 # 获取所有对象
 def get_all_nodes(doc: c4d.documents.BaseDocument) -> list[c4d.BaseObject] :

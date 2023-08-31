@@ -156,6 +156,11 @@ To use this library, you have two options:
   - remove **get_tex_folder** and **get_texture_path** from node_helper.
   - move **GetRenderEngine** to node_helper.
 
+- ### 1.1.1
+  - fix **GetRootBRDF** in node_helper to fit redshift and arnold.
+  - fix a PBR bug in **PBRFromPath**.
+  - improve **SetShaderValue** and **GetShaderValue** in node_helper.
+
 
 ---
 - __coming soon...__

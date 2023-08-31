@@ -1338,6 +1338,13 @@ class MaterialHelper:
         tex_node = self.AddTexture(shadername, filepath, True)
         tex_out = self.helper.GetPort(tex_node, "output")
         brdf = self.helper.GetRootBRDF()
+        # print("brdf:",brdf)
+        # endNode = self.helper.GetOutput()
+        # predecessor = list()
+        # maxon.GraphModelHelper.GetDirectPredecessors(endNode, maxon.NODE_KIND.NODE, predecessor)
+        # print("predecessor",predecessor)
+        # if len(predecessor)>=1:
+        #     rootshader = predecessor[0]
         disp_port = self.helper.GetPort(brdf,'normal')
         self.AddBump2d(tex_out,disp_port)
         
@@ -1352,6 +1359,7 @@ class MaterialHelper:
         tex_node = self.AddTexture(shadername, filepath, True)
         tex_out = self.helper.GetPort(tex_node, "output")
         brdf = self.helper.GetRootBRDF()
+        # print("brdf:",brdf)
         disp_port = self.helper.GetPort(brdf,'normal')
         self.AddNormal(tex_out,disp_port)
         
@@ -1589,7 +1597,7 @@ class SceneHelper:
         # InExcludeData
         filter_data = c4d.InExcludeData()
         filter_data.InsertObject(gobo_material.material,1)
-        gobo[c4d.C4DAI_LIGHT_COMMON_FILTERS] = filter_data
+        gobo[C4DAI_LIGHT_COMMON_FILTERS] = filter_data
         
         return gobo
     
@@ -1638,7 +1646,26 @@ class SceneHelper:
                 random.seed(seed)
                 randcolor = node_helper.generate_random_color(1)
             light[c4d.ID_BASELIST_ICON_COLOR] = randcolor
-     
+
+    def add_light_texture(self, light: c4d.BaseObject = None,  texture_path: str = None) -> c4d.BaseObject :
+        """
+        Add textures to given light.
+
+        """
+        if light.CheckType(ARNOLD_LIGHT):        
+            # Texture
+            if texture_path:
+                shaderlink = ArnoldShaderLinkCustomData()
+                shaderlink.type = ArnoldShaderLinkCustomData.TYPE_TEXTURE
+                shaderlink.texture = texture_path
+                shaderlink.texture_color_space = "linear sRGB"
+                # print(type(shaderlink))
+                SetShaderLink(light, C4DAIP_QUAD_LIGHT_COLOR , shaderlink)
+
+                
+        return light
+      
+   
     ### Tag ###
 
     def add_mask_tag(self, node : c4d.BaseObject, mask_name: str = None) -> c4d.BaseTag:
