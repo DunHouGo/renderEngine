@@ -33,13 +33,20 @@ from pprint import pprint
 import shutil
 
 # The Asset BrowserID
-CID_ASSET_BROWSER = 1054225
+CID_ASSET_BROWSER: int = 1054225
+CID_NODE_EDITOR: int = 465002211
+
 # redshift
-RS_NODESPACE = "com.redshift3d.redshift4c4d.class.nodespace"
-RS_SHADER_PREFIX = "com.redshift3d.redshift4c4d.nodes.core."
+RS_NODESPACE: str = "com.redshift3d.redshift4c4d.class.nodespace"
+RS_SHADER_PREFIX: str = "com.redshift3d.redshift4c4d.nodes.core."
 # arnold
-AR_NODESPACE = "com.autodesk.arnold.nodespace" 
-AR_SHADER_PREFIX = "com.autodesk.arnold.shader."
+AR_NODESPACE: str = "com.autodesk.arnold.nodespace" 
+AR_SHADER_PREFIX: str = "com.autodesk.arnold.shader."
+
+# data types
+DATATYPE_INT: maxon.Id = maxon.Id("int64")
+DATATYPE_COL3: maxon.Id = maxon.Id("net.maxon.parametrictype.col<3,float64>")
+DATATYPE_FLOAT64: maxon.Id = maxon.Id("float64")
 
 ###  Notes  ###
 """
@@ -302,9 +309,13 @@ class NodeGraghHelper(object):
         maxon.GraphModelHelper.GetDirectPredecessors(endNode, maxon.NODE_KIND.NODE, predecessor)
         # print("brdf",predecessor)
         if self.nodespaceId == RS_NODESPACE: 
-            rootshader = predecessor[0]
+            standard_mat = "com.redshift3d.redshift4c4d.nodes.core.standardmaterial"
+            rootshader = [i for i in predecessor if self.GetAssetId(i) == standard_mat][0]
+
         elif self.nodespaceId == AR_NODESPACE: 
-            rootshader = predecessor[-1]
+            standard_mat = "com.autodesk.arnold.shader.standard_surface"
+            rootshader = [i for i in predecessor if self.GetAssetId(i) == standard_mat][0]
+            #rootshader = predecessor[-1]
         # if len(predecessor)>=1:
         #     rootshader = predecessor[0]
         # rootshader = predecessor[-1] 
@@ -746,6 +757,9 @@ class NodeGraghHelper(object):
     #=============================================
     # Port
     #=============================================
+    # New
+    def GetPortName(self, port: maxon.GraphNode) -> str:
+        return self.GetName(port).split(".")[-1]
 
     # 选择的端口 ==> ok
     def GetActivePorts(self, callback: callable = None) -> Union[list[maxon.GraphNode], maxon.GraphNode, None]:
@@ -1156,7 +1170,7 @@ class NodeGraghHelper(object):
     # port.GetDefaultValue() can't get the vector value
 
     # FIXME 获取port数据类型
-    def GetParamDataTypeID(self, node: maxon.GraphNode, paramId: Union[maxon.Id,str]) -> maxon.DataType:
+    def GetParamDataTypeID(self, node: maxon.GraphNode, paramId: Union[maxon.Id,str]) -> maxon.Id:
         """
         Returns the data type id of the given port.
 
@@ -1178,7 +1192,10 @@ class NodeGraghHelper(object):
         if not self.IsPortValid(port):
             return None
 
-        return port.GetDefaultValue().GetType().GetId()
+        if c4d.GetC4DVersion() >= 2024000:
+            return port.GetValue("value").GetType().GetId()
+        else:
+            return port.GetDefaultValue().GetType().GetId()
     
     # FIXME 获取port数据类型
     def GetParamDataType(self, node: maxon.GraphNode, paramId: Union[maxon.Id,str]) -> maxon.DataType:
@@ -1202,8 +1219,11 @@ class NodeGraghHelper(object):
             
         if not self.IsPortValid(port):
             return None
-
-        return port.GetDefaultValue().GetType()
+        
+        if c4d.GetC4DVersion() >= 2024000:
+            return port.GetValue("value").GetType()
+        else:
+            return port.GetDefaultValue().GetType()
     
 
     # todo

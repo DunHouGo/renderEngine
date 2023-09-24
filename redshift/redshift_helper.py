@@ -335,6 +335,7 @@ def StrtoMaxonID(ID_string):
     return realID
 
 ID_MATERIAL_MANAGER: int = 12159
+CID_NODE_EDITOR: int = 465002211
 
 #=============================================
 #              Common Fuctions
@@ -419,8 +420,9 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
         
     if node_helper.GetRenderEngine() == ID_REDSHIFT_VIDEO_POST:
         if IsNodeBased():
-            c4d.CallCommand(465002211) # Node Editor...
-            c4d.CallCommand(465002360) # Material
+            if not c4d.IsCommandChecked(CID_NODE_EDITOR):
+                c4d.CallCommand(CID_NODE_EDITOR) # Node Editor...
+                c4d.CallCommand(465002360) # Material
 
         else:
             c4d.CallCommand(1036229) # Redshift Shader Graph Editor
@@ -1875,7 +1877,7 @@ class MaterialHelper:
         self.AddDisplacement(input_port=tex_out)
 
     # NEW
-    def AddBumpTree(self, shadername :str = 'Bump', filepath: str = None, bump_mode: int = 1) -> list[maxon.GraphNode] :
+    def AddBumpTree(self, shadername :str = 'Bump', filepath: str = None, bump_mode: int = 1, target_port: maxon.GraphNode = None,) -> list[maxon.GraphNode] :
         """
         Adds a bump tree (tex + bump) to the graph.
         """
@@ -1886,7 +1888,7 @@ class MaterialHelper:
         tex_node = self.AddTexture(shadername, filepath, True)
         tex_out = self.helper.GetPort(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor")
         #tex_out = self.GetPort(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor")
-        self.AddBump(input_port=tex_out, bump_mode=bump_mode)
+        self.AddBump(input_port=tex_out, target_port=target_port, bump_mode=bump_mode)
    
     # 连接到Output Surface接口
     def AddtoOutput(self, soure_node, outPort):
@@ -1928,6 +1930,7 @@ class MaterialHelper:
 #=============================================
 
 # Transaction
+
 class RSMaterialTransaction:
     """
     A class used to represent a transaction in an Redshift Node Material.

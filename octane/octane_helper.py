@@ -1434,7 +1434,31 @@ class SceneHelper:
         self.doc.InsertObject(light)
         self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,light)
         return light
-   
+
+    # 获取特定shader ==> ok
+    def GetTexture(self, host: c4d.BaseList2D) -> Union[list[c4d.BaseList2D],c4d.BaseList2D]:
+        """
+        Get all nodes of given type of the material in a list.
+
+        Returns:
+            list[c4d.BaseList2D]: A List of all find nodes
+
+        """
+
+        # The list.
+        result: list = []
+
+        start_shader = host.GetFirstShader()
+        if not start_shader:
+            raise RuntimeError("No shader found")
+        
+        for obj in iterate(start_shader):
+            if obj.CheckType(ID_OCTANE_IMAGE_TEXTURE):
+                result.append(obj)
+
+        return result[0]
+
+
     def add_light_texture(self, light_tag: c4d.BaseTag = None,  texture_path: str = None, distribution_path: str = None) -> c4d.BaseTag :
         """
         Add textures to given Octane light tag.
@@ -1443,23 +1467,31 @@ class SceneHelper:
         if not light_tag.CheckType(ID_OCTANE_LIGHT_TAG):
             raise ValueError("This is not an Octane light tag")
         
-        # Texture
-        if texture_path:
-            imageTextureNode_tex = c4d.BaseList2D(ID_OCTANE_IMAGE_TEXTURE)
-            light_tag.InsertShader(imageTextureNode_tex)
-            self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,imageTextureNode_tex)
+        tex_shader = light_tag[c4d.LIGHTTAG_EFFIC_OR_TEX]
+        if not tex_shader:
+            # Texture
+            if texture_path:
+                imageTextureNode_tex = c4d.BaseList2D(ID_OCTANE_IMAGE_TEXTURE)
+                light_tag.InsertShader(imageTextureNode_tex)
+                self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,imageTextureNode_tex)
 
-            light_tag[c4d.LIGHTTAG_EFFIC_OR_TEX] = imageTextureNode_tex
-            imageTextureNode_tex[c4d.IMAGETEXTURE_FILE] = texture_path
-        
-        # Distribution
-        if distribution_path:
-            imageTextureNod_dis = c4d.BaseList2D(ID_OCTANE_IMAGE_TEXTURE)
-            light_tag.InsertShader(imageTextureNod_dis)
-            self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,imageTextureNod_dis)
-            light_tag[c4d.LIGHTTAG_DISTRIBUTION] = imageTextureNod_dis
-            imageTextureNod_dis[c4d.IMAGETEXTURE_FILE] = distribution_path        
-
+                light_tag[c4d.LIGHTTAG_EFFIC_OR_TEX] = imageTextureNode_tex
+                imageTextureNode_tex[c4d.IMAGETEXTURE_FILE] = texture_path
+            
+            # Distribution
+            if distribution_path:
+                imageTextureNod_dis = c4d.BaseList2D(ID_OCTANE_IMAGE_TEXTURE)
+                light_tag.InsertShader(imageTextureNod_dis)
+                self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,imageTextureNod_dis)
+                light_tag[c4d.LIGHTTAG_DISTRIBUTION] = imageTextureNod_dis
+                imageTextureNod_dis[c4d.IMAGETEXTURE_FILE] = distribution_path      
+                
+        else:
+            if tex_shader.CheckType(ID_OCTANE_IMAGE_TEXTURE):
+                tex_shader[c4d.IMAGETEXTURE_FILE] = texture_path
+            else:
+                tex_shader = self.GetTexture(light_tag)
+                tex_shader[c4d.IMAGETEXTURE_FILE] = texture_path
         return light_tag
         
     def add_ies(self, power: float = 100.0, light_name: str = 'Octane IES', ies_path: str = None, visibility: bool = False):
@@ -1748,5 +1780,71 @@ class SceneHelper:
         vdb_obj = self.doc.InsertObject(vdb)
         self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,vdb_obj)
         return vdb_obj
+
+    def iso_to_group(self, nodes : list[c4d.BaseObject]) -> c4d.documents.BaseDocument :
+        
+        if not nodes:
+            return
+        
+        if len(nodes) == 1:
+            nullm = nodes[0].GetMg()
+        else:
+            nullm = c4d.Matrix()
+            nullm.off = sum([ob.GetMg().off for ob in nodes])/ len(nodes)
+
+        doc = nodes[0].GetDocument()
+
+        null = c4d.BaseObject(c4d.Onull)
+        doc.InsertObject(null)
+        null.SetMg(nullm)
+        
+        for i in nodes:
+            mg = i.GetMg()
+            clone: c4d.BaseObject = i.GetClone()
+            clone.InsertUnder(null)
+            clone.SetMg(mg)
+            
+        null[c4d.ID_BASEOBJECT_REL_POSITION] = c4d.Vector(0, 0, 0)
+        
+        iso_doc = c4d.documents.IsolateObjects(doc,[null])   
+        null.Remove()
+        return iso_doc
+
+    def export_orbx(self, selectedFile:list[c4d.BaseObject],filePath: str = None):
+        if not filePath:
+            return
+        if not selectedFile:
+            return
+
+   
+        if len(selectedFile) == 1:
+            name = selectedFile[0].GetName()
+        elif len(selectedFile) > 1:        
+            name = c4d.gui.InputDialog("Set Name", selectedFile[0].GetName())
+        else:
+            raise RuntimeError("Selected object is not a valid object.")
+
+        #iso_doc = c4d.documents.IsolateObjects(theDoc,selectedFile)
+        iso_doc = self.iso_to_group(selectedFile)
+        
+        iso_rd = iso_doc.GetActiveRenderData()
+        iso_rd[c4d.RDATA_RENDERENGINE] = ID_OCTANE_VIDEO_POST
+        oc_vp = c4d.documents.BaseVideoPost(ID_OCTANE_VIDEO_POST)
+        iso_rd.InsertVideoPost(oc_vp, None)
+      
+        new_name = name + ".orbx"
+        path = os.path.join(filePath, new_name)
+        # Set
+        #oc_vp = ocHelper.VideoPostHelper(iso_doc).vp
+        oc_vp[c4d.VP_ORBX_SAVE] = True
+        oc_vp[c4d.VP_ORBX_WO_RENDER] = True
+        oc_vp[c4d.VP_ORBX_OPEN_IN_SA] = False
+        oc_vp[c4d.VP_ORBX_SAVEPATH] = path
+        
+        c4d.documents.InsertBaseDocument(iso_doc)
+        c4d.documents.SetActiveDocument(iso_doc)
+        c4d.CallButton(oc_vp, c4d.VP_ORBX_EXPORT_BTN)
+        c4d.documents.KillDocument(iso_doc)
+        c4d.EventAdd()
 
 # to be move on...

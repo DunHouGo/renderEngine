@@ -160,7 +160,16 @@ To use this library, you have two options:
   - fix **GetRootBRDF** in node_helper to fit redshift and arnold.
   - fix a PBR bug in **PBRFromPath**.
   - improve **SetShaderValue** and **GetShaderValue** in node_helper.
-
-
+  - 
+- ### 1.1.2
+  - fix **OpenNodeEditor** if it already opened.
+  - fix **AddBumpTree** add a target parameter.
+  - add **GetPortName** to node_helper.
+  - add **export_orbx** to octane_helper.
+  - add **iso_to_group** to octane_helper.
+  - add a material condition to **GetRootBRDF**.
+  - add **GetPortName** to node_helper.
+  - add condition to **GetParamDataTypeID** codes and return typing.
+  - add condition to **GetParamDataType** codes.
 ---
 - __coming soon...__

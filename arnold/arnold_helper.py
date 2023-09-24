@@ -14,6 +14,9 @@ except:
 from renderEngine import node_helper
 reload(node_helper)
 
+ID_MATERIAL_MANAGER: int = 12159
+CID_NODE_EDITOR: int = 465002211
+
 def GetPreference() -> c4d.BaseList2D:
     prefs = c4d.plugins.FindPlugin(ID_PREFERENCES_NODE)
     if not isinstance(prefs, c4d.BaseList2D):
@@ -92,8 +95,9 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
         
     if node_helper.GetRenderEngine() == ARNOLD_RENDERER:
         if IsNodeBased():
-            c4d.CallCommand(465002211) # Node Editor...
-            c4d.CallCommand(465002360) # Material
+            if not c4d.IsCommandChecked(CID_NODE_EDITOR):
+                c4d.CallCommand(CID_NODE_EDITOR) # Node Editor...
+                c4d.CallCommand(465002360) # Material
         else:
             c4d.CallCommand(1033989) # Arnold Shader Graph Editor
             # Only scroll to the material if material manager is opened
