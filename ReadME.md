@@ -171,5 +171,7 @@ To use this library, you have two options:
   - add **GetPortName** to node_helper.
   - add condition to **GetParamDataTypeID** codes and return typing.
   - add condition to **GetParamDataType** codes.
+  - fix **add_light_aov** to octane_helper.
+  - add a **remove_light_aov** to octane_helper.
 ---
 - __coming soon...__

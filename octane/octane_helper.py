@@ -393,8 +393,8 @@ class AOVHelper:
 
         start_shader = self.vp.GetFirstShader()
         if not start_shader:
-            raise RuntimeError("No shader found")
-        
+            #raise RuntimeError("No shader found")
+            return result
         for obj in iterate(start_shader):
             if obj[RNDAOV_TYPE] != aov_type:
                 continue
@@ -692,13 +692,14 @@ class AOVHelper:
         :rtype: Union[c4d.BaseList2D, None]
         """
         est_aovs = self.get_aov(RNDAOV_LIGHT)
+        if est_aovs is None: return None
         for aov in est_aovs:
             if aov[c4d.RNDAOV_LIGHT_ID] == lightID + 1: # start at 0
                 return aov
         else: return None
 
     # 添加light aov（id） ==> ok
-    def add_light_aov(self, lightID: int = 1) -> Union[c4d.BaseList2D, None]:
+    def add_light_aov(self, lightID: int = 1, lightName: str = None) -> Union[c4d.BaseList2D, None]:
         """
         Add the light aov shader of given id if it not existed.
 
@@ -707,11 +708,29 @@ class AOVHelper:
         :return: the aov shader
         :rtype: Union[c4d.BaseList2D, None]
         """
-        if self.get_custom_aov(lightID) is None:
-            aov = self.create_aov_shader(RNDAOV_LIGHT)            
+        if self.get_light_aov(lightID) is None:
+            aov = self.create_aov_shader(RNDAOV_LIGHT, lightName)            
             self.add_aov(aov)
             aov[c4d.RNDAOV_LIGHT_ID] = lightID + 1
             return aov
+
+    # 删除light aov（id） ==> ok
+    def remove_light_aov(self, lightID: int = 1) -> None:
+        """
+        Add the light aov shader of given id if it not existed.
+
+        :param lightID: the light id, defaults to 1
+        :type lightID: int, optional
+        :return: the aov shader
+        :rtype: Union[c4d.BaseList2D, None]
+        """
+        est_aovs = self.get_aov(RNDAOV_LIGHT)
+        if est_aovs is None: return None
+        for aov in est_aovs:
+            if aov[c4d.RNDAOV_LIGHT_ID] == lightID + 1: # start at 0
+                aov.Remove()                
+        self.remove_empty_aov()
+        return None
 
 ###  ==========  Material  ==========  ###
 
