@@ -617,7 +617,7 @@ class AOVHelper:
                     slot_shader.Remove()
                 
         self.vp[SET_RENDERAOV_IN_CNT] = 0      
-                       
+
     # 按照Type删除aov ==> ok
     def remove_aov_type(self, aov_type: int):
         """
@@ -728,7 +728,7 @@ class AOVHelper:
         if est_aovs is None: return None
         for aov in est_aovs:
             if aov[c4d.RNDAOV_LIGHT_ID] == lightID + 1: # start at 0
-                aov.Remove()                
+                aov.Remove()
         self.remove_empty_aov()
         return None
 
