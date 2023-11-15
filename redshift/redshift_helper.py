@@ -928,13 +928,14 @@ class MaterialHelper:
 
         with RSMaterialTransaction(standardMaterial) as transaction:
             # ports
-            standardMaterial.helper.SetName(standardMaterial.helper.GetRootBRDF(),'Standard Surface')
-            #standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),)
-            standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color")
-            standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_weight")
-            standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_weight")
-            standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_color")
-            standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color")
+            brdf: maxon.GraphNode = standardMaterial.helper.GetRootBRDF()
+            standardMaterial.helper.SetName(brdf,'Standard Surface')
+            #standardMaterial.helper.AddPort(brdf,)
+            standardMaterial.helper.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color")
+            standardMaterial.helper.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_weight")
+            standardMaterial.helper.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_weight")
+            standardMaterial.helper.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_color")
+            standardMaterial.helper.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color")
             #standardMaterial.ExposeUsefulPorts()
 
 
@@ -1071,7 +1072,7 @@ class MaterialHelper:
                     if "Diffuse" in tex_data:
                         albedoNode = self.AddTextureTree(filepath=tex_data['Diffuse'], shadername="Albedo", raw=False, color_mode=True, color_mutiplier=aoNode, target_port=albedoPort)
                 else:
-                    albedoNode = self.AddTextureTree(filepath=tex_data['Diffuse'], shadername="Albedo", raw=False, target_port=albedoPort)
+                    albedoNode = self.AddTextureTree(filepath=tex_data['Diffuse'], shadername="Albedo", raw=False, color_mode=True, target_port=albedoPort)
 
                 
                 if isSpecularWorkflow:
@@ -1237,6 +1238,20 @@ class MaterialHelper:
             )
     
     ### Color ###
+
+    # 创建Invert ==> OK
+    def AddInvert(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
+        """
+        Adds a new invert shader to the graph.
+
+        """
+        return self.helper.AddConnectShader(
+            nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathinv",
+            input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathinv.input'],
+            connect_inNodes = inputs,
+            output_ports=['com.redshift3d.redshift4c4d.nodes.core.rsmathinv.out'], 
+            connect_outNodes = target
+            )
 
     # 创建Color Constant ==> OK
     def AddColorConstant(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
@@ -1824,7 +1839,7 @@ class MaterialHelper:
     ### Tree ###
     # todo
     # NEW
-    def AddTextureTree(self, shadername :str = 'Texture', filepath: str = None, raw: bool = True, gamma: int = 1.0, triplaner_node: bool = False, color_mode: bool = False,scaleramp: bool = False,color_mutiplier: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> list[maxon.GraphNode] :
+    def AddTextureTree(self, shadername :str = 'Texture', filepath: str = None, raw: bool = True, gamma: int = 1.0, triplaner_node: bool = False, color_mode: bool = False,scaleramp: bool = True,color_mutiplier: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> list[maxon.GraphNode] :
         """
         Adds a texture tree (tex + color correction + ramp) to the graph.
         """
@@ -1955,7 +1970,7 @@ class RSMaterialTransaction:
         if self.transaction is not None:
             self.transaction.Commit(self.setting)
     
- 
+
 class SceneHelper:
     """
     Class for Redshift Secne Objects.
@@ -2397,5 +2412,3 @@ class SceneHelper:
         self.doc.AddUndo(c4d.UNDOTYPE_BITS,bakeset)
         bakeset.SetBit(c4d.BIT_ACTIVE)
         self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,bakeset)
-
-

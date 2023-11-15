@@ -173,5 +173,13 @@ To use this library, you have two options:
   - add condition to **GetParamDataType** codes.
   - fix **add_light_aov** to octane_helper.
   - add a **remove_light_aov** to octane_helper.
+
+- ### 1.1.3
+  - add a remove_wires argument to **AddConnectShader**.
+  - add a material condition to **GetRootBRDF**.
+  - add a keep_wire argument to **RemoveShader**.
+  - fix **GetPort** with redshift.
+  - add **GetConnectedPortsBefore** to node_helper.
+  - add **GetConnectedPortsAfter** to node_helper.
 ---
 - __coming soon...__

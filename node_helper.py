@@ -166,8 +166,10 @@ class NodeGraghHelper(object):
         :return: maxon Id
         :rtype: maxon.Id
         """
-        res = node.GetValue("net.maxon.node.attribute.assetid")        
-        assetId = ("%r"%res)[1:].split(",")[0]
+        res = node.GetValue("net.maxon.node.attribute.assetid")   
+        assetId = str(res)[1:].split(",")[0]
+        # assetId = ("%r"%res)[1:].split(",")[0]
+        # print("ID:",assetId)
                     
         return assetId  
 
@@ -184,6 +186,7 @@ class NodeGraghHelper(object):
         if node is None:
             return None
         
+        
         assetId: str = self.GetAssetId(node)
         
         if self.nodespaceId == RS_NODESPACE:
@@ -193,6 +196,10 @@ class NodeGraghHelper(object):
             if assetId.startswith(AR_SHADER_PREFIX):
                 return assetId[len(AR_SHADER_PREFIX):]
         return None
+
+    # 获取ShaderStr ==> ok
+    def GetShaderStr(self, node: maxon.GraphNode) -> str:
+        return node.GetId().ToString().split("@")[0]
 
     # 获取节点名 ==> ok
     def GetName(self, node: maxon.GraphNode) -> Optional[str]:
@@ -308,9 +315,13 @@ class NodeGraghHelper(object):
         predecessor = list()
         maxon.GraphModelHelper.GetDirectPredecessors(endNode, maxon.NODE_KIND.NODE, predecessor)
         # print("brdf",predecessor)
+        
         if self.nodespaceId == RS_NODESPACE: 
             standard_mat = "com.redshift3d.redshift4c4d.nodes.core.standardmaterial"
-            rootshader = [i for i in predecessor if self.GetAssetId(i) == standard_mat][0]
+            rs_mat = "com.redshift3d.redshift4c4d.nodes.core.material"
+            sprite = "com.redshift3d.redshift4c4d.nodes.core.sprite"
+            valid_mat = [standard_mat, rs_mat, sprite]
+            rootshader = [i for i in predecessor if self.GetAssetId(i) in valid_mat][0]
 
         elif self.nodespaceId == AR_NODESPACE: 
             standard_mat = "com.autodesk.arnold.shader.standard_surface"
@@ -332,7 +343,6 @@ class NodeGraghHelper(object):
         for graph_node in nodes:
             graph_node.SetValue(maxon.NODE.BASE.DISPLAYPREVIEW  , maxon.Bool(state))
 
-    
     # 获取属性 ==> ok
     def GetShaderValue(self, node: maxon.GraphNode, paramId: Union[maxon.Id,str]=None) -> maxon.Data:
         """
@@ -513,7 +523,8 @@ class NodeGraghHelper(object):
     # 创建Shader 可以提供链接 ==> ok
     def AddConnectShader(self, nodeID: str=None, 
                 input_ports: list[Union[str,maxon.GraphNode]]=None, connect_inNodes: list[maxon.GraphNode]=None,
-                output_ports: list[Union[str,maxon.GraphNode]]=None, connect_outNodes: list[maxon.GraphNode]=None
+                output_ports: list[Union[str,maxon.GraphNode]]=None, connect_outNodes: list[maxon.GraphNode]=None,
+                remove_wires: bool=True
                 ) -> Union[maxon.GraphNode,None] :
         """
         Add shader and connect with given ports and nodes.
@@ -550,6 +561,14 @@ class NodeGraghHelper(object):
         if isinstance(connect_outNodes,maxon.GraphNode) and not isinstance(connect_outNodes,list):
             connect_outNodes = [connect_outNodes]
         
+        if remove_wires:
+            try:
+                ports: list[maxon.GraphNode] = input_ports + output_ports + connect_inNodes + connect_outNodes
+                for port in ports:
+                    self.RemoveConnection(port)
+            except:
+                pass
+
         if input_ports is not None:
             if connect_inNodes is not None:
                 if len(connect_inNodes) > len(input_ports):
@@ -574,7 +593,7 @@ class NodeGraghHelper(object):
         return shader
 
     # 在Wire中插入Shader （New） ==> ok
-    def InsertShader(self, nodeID: Union[str,maxon.Id], wire: maxon.Wires, 
+    def InsertShader(self, nodeID: Union[str,maxon.Id], wireData: list[maxon.GraphNode,maxon.Wires], 
                      input_port: list[Union[str,maxon.GraphNode]],
                      output_port: list[Union[str,maxon.GraphNode]]) -> maxon.GraphNode:
         """
@@ -591,21 +610,21 @@ class NodeGraghHelper(object):
         :return: the node
         :rtype: maxon.GraphNode
         """
-        if not wire:
-            wire: maxon.Wires = self.GetActiveWires() # last select wire
-        pre_port: maxon.GraphNode = wire[0]
+        if not wireData:
+            wireData: list[maxon.GraphNode,maxon.Wires] = self.GetActiveWires() # last select wire
+        pre_port: maxon.GraphNode = wireData[0]
         #pre_node: maxon.GraphNode = self.GetTrueNode(pre_port)
-        next_port: maxon.GraphNode = wire[1]
+        next_port: maxon.GraphNode = wireData[1]
         #next_node: maxon.GraphNode = self.GetTrueNode(next_port)
-        
+        # print(input_port,pre_port,output_port,next_port)
         # Remove old wire
         self.RemoveConnection(next_port,pre_port)
         # add our new shader and wires
-        #print(input_port,pre_port,output_port,next_port)
+        # print(input_port,pre_port,output_port,next_port)
         return self.AddConnectShader(nodeID,input_port,pre_port,output_port,next_port)
 
     # 删除Shader ==> ok
-    def RemoveShader(self, shader: maxon.GraphNode):
+    def RemoveShader(self, shader: maxon.GraphNode, keep_wire: bool = True):
         """
         Removes the given shader from the graph.
 
@@ -620,8 +639,28 @@ class NodeGraghHelper(object):
 
         if shader is None or not isinstance(shader, maxon.GraphNode):
             return
-
-        shader.Remove()
+        if not keep_wire:
+            shader.Remove()
+        else:
+            before = []
+            after = []
+            self.GetNextNodePorts(shader, result=after, stop=True)
+            self.GetPreNodePorts(shader, result=before, stop=True)
+            if before:
+                if len(before) != len(after):
+                    input_port: maxon.GraphNode = before[0][0]
+                    output_port: maxon.GraphNode = after[0][1]
+                    shader.Remove()
+                    input_port.Connect(output_port)
+                    print(f"The {shader} has a different number of input and output ports, only keep first wire")
+                else:
+                    for i in range(len(after)):
+                        input_port: maxon.GraphNode = before[i][0]
+                        output_port: maxon.GraphNode = after[i][1]
+                        shader.Remove()
+                        input_port.Connect(output_port)
+            else:
+                shader.Remove()
 
     # 是否是shader ==> ok
     def IsNode(self, node: maxon.GraphNode) -> bool:
@@ -861,7 +900,7 @@ class NodeGraghHelper(object):
             if port_id == None:
                 out_ids = ['outcolor','output','out']
                 for out in out_ids:
-                    port_id = self.GetAssetId(shader) + out                
+                    port_id = f"{self.GetAssetId(shader)}.{out}"
                     port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
                     if port.IsNullValue():
                         port = shader.GetOutputs().FindChild(port_id)
@@ -1007,7 +1046,24 @@ class NodeGraghHelper(object):
         return False
 
     # New ==> ok        
-    def GetPreNodePorts(self, node: maxon.GraphNode, result) -> list:
+    def GetPreNodePorts(self, node: maxon.GraphNode, result: list, stop: bool = True) -> Union[list[maxon.GraphNode],None]:
+        """Get all connected node's port for #node(before).
+        """
+        # Bail when the passed node is not a true node.
+        if node.GetKind() != maxon.NODE_KIND.NODE:
+            return
+
+        for inPort in node.GetInputs().GetChildren():
+            # Get the connected output ports and their wires.
+            for outPort, wires in inPort.GetConnections(maxon.PORT_DIR.INPUT, None, maxon.Wires.All(), maxon.WIRE_MODE.ALL):
+                if not stop:
+                    otherNode: maxon.GraphNode = self.GetTrueNode(outPort)
+                result.append((outPort, inPort))
+                if not stop:
+                    self.GetPreNodePorts(otherNode,result)
+
+    # New ==> ok        
+    def GetConnectedPortsBefore(self, node: maxon.GraphNode) -> Union[list[maxon.GraphNode],None]:
         """Get all connected node's port for #node(before).
         """
         # Bail when the passed node is not a true node.
@@ -1017,24 +1073,34 @@ class NodeGraghHelper(object):
         for inPort in node.GetInputs().GetChildren():
             # Get the connected output ports and their wires.
             for outPort, wires in inPort.GetConnections(maxon.PORT_DIR.INPUT, None, maxon.Wires.All(), maxon.WIRE_MODE.ALL):
-                otherNode: maxon.GraphNode = self.GetTrueNode(outPort)
-                result.append((outPort, inPort))
-                self.GetPreNodePorts(otherNode,result)
+                return [outPort, inPort]
 
     # New ==> ok
-    def GetNextNodePorts(self, node: maxon.GraphNode, result) -> list:
-        """Get all connected node's port for #node(before).
+    def GetNextNodePorts(self, node: maxon.GraphNode, result: list, stop: bool = True) -> Union[list[maxon.GraphNode],None]:
+        """Get all connected node's port for #node(after).
         """
         # Bail when the passed node is not a true node.
         if node.GetKind() != maxon.NODE_KIND.NODE:
             return
-        
+
         for inPort in node.GetOutputs().GetChildren():
             # Get the connected output ports and their wires.
             for outPort, wires in inPort.GetConnections(maxon.PORT_DIR.OUTPUT, None, maxon.Wires.All(), maxon.WIRE_MODE.ALL):
-                otherNode: maxon.GraphNode = self.GetTrueNode(outPort)
+                if not stop:
+                    otherNode: maxon.GraphNode = self.GetTrueNode(outPort)
                 result.append((inPort, outPort))
-                self.GetNextNodePorts(otherNode,result)
+                if not stop:
+                    self.GetNextNodePorts(otherNode,result)
+
+    def GetConnectedPortsAfter(self, node: maxon.GraphNode) -> Union[list[maxon.GraphNode],None]:
+        # Bail when the passed node is not a true node.
+        if node.GetKind() != maxon.NODE_KIND.NODE:
+            return
+        for inPort in node.GetOutputs().GetChildren():
+            # Get the connected output ports and their wires.
+            for outPort, wires in inPort.GetConnections(maxon.PORT_DIR.OUTPUT, None, maxon.Wires.All(), maxon.WIRE_MODE.ALL):
+                return [inPort, outPort]
+
 
     #=============================================
     # Wire
