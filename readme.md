@@ -98,9 +98,9 @@ def HowToUse():
 ```
 
 # Examples
-- [__Material Example__](tests\01_material_basic.py)
-- [__AOV Example__](tests\02_aov_basic.py)
-- [__Scene Example__](tests\03_scene_basic.py)
+- [__Material Example__](./tests/01_material_basic.py)
+- [__AOV Example__](./tests/02_aov_basic.py)
+- [__Scene Example__](./tests/03_scene_basic.py)
 
 
 # Class Presentation
