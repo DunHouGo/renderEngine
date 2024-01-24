@@ -1,190 +1,128 @@
-# renderEngine
-This is a custom api for most popular render engine like Octane\Redshift\Arnold in Cinema 4D, which is also wiil contains in 'boghma' library.
+# Renderer
+> Older version called **renderEngine** had been move to versions folder, if you still intrested.
+
+Wrapper class for the maxon and c4d API of popular render engine for Cinema 4D.
+
+Intended for more user-friendly manipulation of node materials with the new maxon.GraphNode model.And also with Octane Node Material model.
+
+Provide helper class for convenient access AOV , Material , Scene Object(Object/Tag/Light/...) in Cinema 4D popular renderer.
+
+Happy Rendering and Scpriting!
+
+## Supported Renderer
+- Octane
+- Node Materials with the new GraphNode model
+- Redshift ( Only Node Material for Material Helper)
+- Arnold ( Only Node Material for Material Helper)
+- Waiting for more...
+
+## About Boghma
+
+Boghma is a open community for c4d developers, we are trying to make it easier for everyone to create plugins and share them.
+
+This library is also included in [Boghma](https://community.boghma.com/) python library.
+
+You can install our free plugin [Boghma Plugin Manager](https://github.com/DunHouGo/Boghma-Plugin-HUB) and install any plugin you want, this library will be automatically installed or updated.
+
+If you want to share your free plugins or libaray, please join us in [Join Us](https://flowus.cn/boghma/share/96035b74-6205-4e6c-b49c-65de7d1e2e62).
+
 ```
-All the boghma plugins and boghma library is FREE.
+All the boghma plugins and boghma library are personal FREE.
 ```
 
 ## Installation
-To use this library, you have two options:
 
-1. (**Recommend**) You can also download [Boghma Plugin Manager](https://github.com/DunHouGo/Boghma-Plugin-HUB) and install any plugin, the boghma lib will auto installed.
-2. Download the source and import it to your Cinema 4D.
+1. (**Recommend**) Download [Boghma Plugin Manager](https://github.com/DunHouGo/Boghma-Plugin-HUB) and install any plugin, the boghma lib will auto installed or updated.
+2. Download the source code and import it to your Cinema 4D.
    
 # Limit
-- Due to Otoy use a custom userarea for the node editor, and don't support python. We can not get the selection of the node edtor, so it is not possible to interact with node editor. 
-- Redshift and Arnold material helper only support NodeGragh, so the Cinema 4D before R26 is not support.
-- AddChild() and AddTextureTree() may return a not auto-layout node network now(Modify material).
-- GetID() is broken, wait Maxon fix it, GetParamDataTypeID() can not get vector id.
+- For some reasons, AddShader-like methods(maxon.GraphModelInterface.AddChild) will add the node in the center of the graph, if we call those methods on exsited material, it will return a mess graph, you can call Renderer.ArrangeAll() after.
+- Material(except Octane) helper only support material with the new GraphNode model(Node Material after R26)
+- Due to Octane use his Custom UserArea UI base on old layer system, and didn't support python, we can only modify Octane materials in material level, but can not interactive with selections in octane node editor.
+- Also Octane materials didn't have a "port" or "wire" context, we can not use all those methods as same as NodeGraghHelper.
 - Arnold mask tag SetPrameter has a refresh bug.
 
 
+# Quick Intro
+
+```python
+
+import c4d
+import maxon
+from Renderer import Redshift, EasyTransaction, TextureHelper
+from pprint import pprint
+
+# Create a TextureHelper instance
+# 创建一个 TextureHelper 实例
+tex_helper: TextureHelper = TextureHelper()
+
+# Get the url with given asset id
+# 获取给定资产ID的URL
+# "si-v1_fingerprints_02_15cm.png" with AssetId : file_fa9c42774dd05049
+disp: maxon.Url = tex_helper.GetAssetUrl("file_fa9c42774dd05049")
+
+def HowToUse():
+    """
+    How to reate a redshift material and modify the gragh with EasyTransaction.
+    """
+
+    # Create Redshift Node Material instance, if no material filled, we create a new STD material
+    # 创建一个Redshift节点材质实例,如果没有材质传入，创建新的STD材质
+    material: c4d.BaseMaterial = Redshift.Material("MyMaterial")
+
+    # Use EasyTransaction to modify the graph
+    # 使用EasyTransaction来修改材质
+    with EasyTransaction(material) as tr:
+    
+        # the attribute #tr is the instance of Redshift.MaterialHelper, 
+        # we got it with just apply to the #material to the EasyTransaction
+        # it will inherit from NodeGraghHelper class
+        # 属性tr是Redshift.MaterialHelper的实例，通过将材质赋予EasyTransaction获得，继承自NodeGraghHelper
+
+        # Use Redshift.MaterialHelper methods : add a texture + displacement to the Output node
+        # 使用Redshift.MaterialHelper中的方法: 添加图片+置换节点到Output节点
+        tr.AddDisplacementTree(filepath = disp, shadername = "DISP")
+
+        # Use NodeGraghHelper methods： get the Output(endNode)
+        # 使用NodeGraghHelper中的方法: 获取输出节点
+        output = tr.GetOutput()
+        print(f"{output = }")
+
+        # Insert the material to the document
+        # 导入材质(来自Redshift MaterialHelper)
+        tr.InsertMaterial()
+
+    # Auto apply GraphTransaction.Commit() to the graph
+    # 退出with后, 自动执行GraphTransaction.Commit()
+
+```
+
 # Examples
-- [__Octane Example__](./octane/octane_examples.py)
-- [__Redshift Example__](./redshift/redshift_examples.py)
-- [__Arnold Example__](./arnold/arnold_examples.py)
+- [__Material Example__](tests\01_material_basic.py)
+- [__AOV Example__](tests\02_aov_basic.py)
+- [__Scene Example__](tests\03_scene_basic.py)
 
 
 # Class Presentation
 
-## [node_helper](./node_helper.md)
-- __NodeGraghHelper__ : helper class for Cinema 4D NodeGragh.
-- __TexPack__ : helper class to get texture data.
-- __methods__ : helper functions.
-  - get_all_nodes
-  - get_nodes
-  - get_tags
-  - get_selection_tag
-  - get_materials
-  - get_texture_tag
-  - select_all_materials
-  - deselect_all_materials
-  - get_asset_url
-  - get_asset_str
-  - iter_node
-  - generate_random_color
-
-## [octane_helper](./octane/Octane.md)
-- __octane_id__ : unique ids for octane object, and name map of aovs.
-- __octane_helper__ : all the helper class and function.
-  - methods
-  - VideoPostHelper (class)
-  - AOVHelper (class)
-  - NodeHelper (class)
-  - MaterialHelper (class)
-  - SceneHelper (class)
-
-## [redshift_helper](./redshift/Redshift.md)
-- __redshift__ : unique ids for redshift object, and name map of aovs.
-- __redshift_helper__ : all the helper class and function.
-  - methods
-  - VideoPostHelper (class)
-  - AOVHelper (class)
-  - MaterialHelper (class)
-  - RSMaterialTransaction (class)
-  - SceneHelper (class)
-
-## [arnold_helper](./arnold/Arnold.md)
-- __arnold__ : unique ids for arnold object, and name map of aovs.
-- __arnold_helper__ : all the helper class and function.
-  - methods
-  - VideoPostHelper (class)
-  - AOVHelper (class)
-  - MaterialHelper (class)
-  - SceneHelper (class)
-  - ArnoldShaderLinkCustomData (class)
-  - ArnoldVColorCustomData (class)
-
-# Version & Updates
-- ### 0.1.0
-  - octane_helper and node_helper is beta now. (update@2023.06.30)
-- ### 0.1.1
-  - redshift_helper is beta now. (update@2023.07.04)
-  - add undo to octane_helper and fix some typing mistakes.
-  - add **get_asset_url** and **get_asset_str** to node_helper.
-  - fix some decision and add some desciption.
-- ### 0.1.2
-  - arnold_helper is beta now. (update@2023.07.12)
-  - add **iter_node** and **generate_random_color** to node_helper.
-  - **GetPort**(get outport mode) now working with arnold.
-  - fix some typing mistakes.
-- ### 0.1.3
-  - renderEngine is beta now. (update@2023.07.16)
-  - remove all the **AOVData** class and **read_aov** function(not used).
-  - add **AddConnectShader** to node_helper
-  - re-write redshift **MaterialHelper** with AddConnectShader.
-  - re-name some redshift_helper basic functions to match arnold_helper.
-- ### 1.0.0
-  - renderEngine version 1.0.0 (update@2023.07.16)
-- ### 1.0.1
-  - AovManager for arnold now have a condition. (update@2023.07.17)
-  - fix some typing mistakes.
-  - add **setup_cryptomatte** to arnold AOVHelper.
-  - add **CreateCryptomatte** to arnold MaterialHelper.
-- ### 1.0.2
-  - AovManager for arnold now have a condition. (update@2023.07.25)
-  - fix some typing mistakes.
-  - add **CreateRSMaterial** to redshift MaterialHelper.
-  - update **CreateStandardSurface** for redshift MaterialHelper.
-- ### 1.0.3
-  - add **set_tag_texture** to octane SceneHelper.(update@2023.07.27)
-  - add **set_tag_color** to octane SceneHelper.
-  - add **get_tag** to octane SceneHelper.
-  - add **get_tex_folder** to node_helper.
-  - add **get_texture_path** to node_helper.
-- ### 1.0.4
-  - rename **Node** functions to Capitalize.
-  - add **IsNode** and **IsPort** to node_helper.
-  - add **GetPreNode** and **GetPreNodes** to node_helper.
-  - add **GetNextNode** and **GetNextNodes** to node_helper.
-  - add **GetPreNodePorts** and **GetNextNodePorts** to node_helper.
-  - add **GetAllConnectedPorts** and **OnSameNode** to node_helper.
-  - add **IsNodeConnected** and **IsPortConnected** to node_helper.
-  - re-write **RemoveConnection** in node_helper
-  - add **IsConnected** to node_helper.
-  - add **InsertShader** to node_helper.
-  - util functions in node_helper remove transaction.
-  - add **GetConnectedNodeName** to node_helper.
-  - add **GetConnectedNodeType** to node_helper.
-
-- ### 1.0.5
-  - fix symbols | to Union in octane_helper to balance incompatible with sdk berfore 2023.2.0.
-
-- ### 1.1.0
-  - change symbols | to Union in all the helpers(to balance incompatible with sdk berfore 2023.2.0.).
-  - rename **TePack** to **TextureHelper** in node_helper.
-  - add some functions to **TextureHelper**.
-    - ShowAssetInBrowser
-    - GetAsset
-    - GetAssetId
-    - GetAssetUrl
-    - GetAssetStr
-    - GetAssetName
-    - IsAsset
-    - IsVaildPath
-    - GetRootTexFolder
-    - GetTexturesSize
-    - GetTextureList
-    - GetAllTexturePaths
-    - CollectAssetTexture
-    - CollectLocalTexture
-    - PBRFromTexture
-    - PBRFromPath
-  - fix the **SetupTexture** for each helper and example, and extract the texture data and name parameter.
-  - fix the octane_id map to avoid this issue when user not installed Octane.
-  - add a bump_mode option to **AddBump** and **AddBumpTree** to redshift_helper.
-  - remove **get_asset_url** and **get_asset_str** from node_helper.
-  - remove **get_tex_folder** and **get_texture_path** from node_helper.
-  - move **GetRenderEngine** to node_helper.
-
-- ### 1.1.1
-  - fix **GetRootBRDF** in node_helper to fit redshift and arnold.
-  - fix a PBR bug in **PBRFromPath**.
-  - improve **SetShaderValue** and **GetShaderValue** in node_helper.
-  - 
-- ### 1.1.2
-  - fix **OpenNodeEditor** if it already opened.
-  - fix **AddBumpTree** add a target parameter.
-  - add **GetPortName** to node_helper.
-  - add **export_orbx** to octane_helper.
-  - add **iso_to_group** to octane_helper.
-  - add a material condition to **GetRootBRDF**.
-  - add **GetPortName** to node_helper.
-  - add condition to **GetParamDataTypeID** codes and return typing.
-  - add condition to **GetParamDataType** codes.
-  - fix **add_light_aov** to octane_helper.
-  - add a **remove_light_aov** to octane_helper.
-
-- ### 1.1.3
-  - add a remove_wires argument to **AddConnectShader**.
-  - add a material condition to **GetRootBRDF**.
-  - add a keep_wire argument to **RemoveShader**.
-  - fix **GetPort** with redshift.
-  - add **GetConnectedPortsBefore** to node_helper.
-  - add **GetConnectedPortsAfter** to node_helper.
-
-- ### 1.1.4
-- add **AddUniTransform** to redshift_helper.
-- add **AddValue** to redshift_helper.
-
----
-- __coming soon...__
+Renderer
+- NodeGraghHelper
+- TextureHelper
+- EasyTransaction
+- Redshift
+  - AOV
+  - Material
+  - Scene
+- Octane
+  - AOV
+  - Material
+  - Scene
+- Arnold
+  - AOV
+  - Material
+  - Scene
+- utils
+  - NodeGraghHelper
+  - TextureHelper
+  - EasyTransaction
+- constants
