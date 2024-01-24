@@ -45,7 +45,7 @@ All the boghma plugins and boghma library are personal FREE.
 
 # Quick Intro
 
-'''python
+```python
 
 import c4d
 import maxon
@@ -63,7 +63,7 @@ disp: maxon.Url = tex_helper.GetAssetUrl("file_fa9c42774dd05049")
 
 def HowToUse():
     """
-    How to reate a redshift material and modify the gragh with EasyTransaction.
+    #How to reate a redshift material and modify the gragh with EasyTransaction.
     """
 
     # Create Redshift Node Material instance, if no material filled, we create a new STD material
@@ -95,7 +95,7 @@ def HowToUse():
     # Auto apply GraphTransaction.Commit() to the graph
     # 退出with后, 自动执行GraphTransaction.Commit()
 
-'''
+```
 
 # Examples
 - [__Material Example__](./octane/octane_examples.py)
