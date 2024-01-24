@@ -1,19 +1,3 @@
-"""
-    Copyright [2023] [DunHouGo]
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
-
 ###  ==========  Author INFO  ==========  ###
 
 __author__ = "DunHouGo"
@@ -25,507 +9,31 @@ __version__ = "2023.2.1"
 ###  ==========  Import Libs  ==========  ###
 import c4d
 import maxon
-import maxon.frameworks.nodespace
-import maxon.frameworks.nodes
-import maxon.frameworks.graph
+import Renderer
 import redshift
 import os
 import random
-from dataclasses import dataclass
 from typing import Union,Optional
-from importlib import reload
-# import renderEngine.redshift
-# reload(renderEngine.redshift)
-
-try:
-    from redshift_id import *
-    #reload(redshift_id)
-except:
-    from renderEngine.redshift.redshift_id import *
-
-from renderEngine import node_helper
-reload(node_helper)
-
-RS_SHADER_PREFIX = "com.redshift3d.redshift4c4d.nodes.core."
-RS_STANDARD_SURFACE_PREFIX = "com.redshift3d.redshift4c4d.nodes.core.standardmaterial."
-RS_NODESPACE = "com.redshift3d.redshift4c4d.class.nodespace" # node space
-RS_MATERIAL_END_NODE = "com.autodesk.Redshift.material"      # old mat
-
-###  ==========  Redshift ID Fuction  ==========  ###
-
-# Shader Asset ID Strings ==> commonly used
-# You can get these IDs manually by searching for the node in the commander, showing its details,
-# and copying the ID from the details window.
-class ShaderStr:    
-    # main 
-    Output = "com.redshift3d.redshift4c4d.node.output" # Output node
-    StandardMaterial = RS_SHADER_PREFIX + "standardmaterial"  # Standard Surface node
-    # basic
-    Incandescent = RS_SHADER_PREFIX + "incandescent" # Incandescent node
-    Sprite = RS_SHADER_PREFIX + "sprite" # Sprite node
-    Volume = RS_SHADER_PREFIX + "volume" # Volume node
-    MaterialBlender = RS_SHADER_PREFIX + "materialblender" # Material Blender node
-    MaterialLayer = RS_SHADER_PREFIX + "materiallayer" # Material Layer node
-    # not recommend to use (out of date)
-    Material = RS_SHADER_PREFIX + "material" # Old Material node
-
-    # Color Nodes
-    Color = "net.maxon.asset.utility.color" # C4D node
-    AbsColor = RS_SHADER_PREFIX + "rsmathabscolor" # Abs Color node
-
-    ColorRange = RS_SHADER_PREFIX + "rscolorrange" # Color Range node
-    Colorlayer = RS_SHADER_PREFIX + "rscolorlayer" # Color Layer node
-    # Conversion
-    ColorSplitter = RS_SHADER_PREFIX + "rscolorsplitter" # Color Splitter node
-    # Math
-    ColorInvert = RS_SHADER_PREFIX + "rsmathinvcolor" # Color Invert node
-    ColorMul = RS_SHADER_PREFIX + "rsmathmul" # Color Mutiply node
-    ColorMix = RS_SHADER_PREFIX + "rscolormix" # Color Mix node
-    ColorAdd = RS_SHADER_PREFIX + "rsmathadd" # Color Add node
-    # Texture
-    Texture = RS_SHADER_PREFIX + "texturesampler" # Texture
-    Ramp = RS_SHADER_PREFIX + "rsramp" # Ramp
-    ScalarRamp = RS_SHADER_PREFIX + "rsscalarramp" # Scalar Ramp
-    MaxonNoise = RS_SHADER_PREFIX + "maxonnoise" # Maxon Noise
-    Fresnel = RS_SHADER_PREFIX + "fresnel" # Fresnel
-    Curvature = RS_SHADER_PREFIX + "curvature" # Curvature
-    AO = RS_SHADER_PREFIX + "ambientocclusion" # AO
-    WireFrame = RS_SHADER_PREFIX + "wireframe" # Wire Frame
-    # Unity
-    OSLShader = RS_SHADER_PREFIX + "osl" # OSL
-    Triplanar = RS_SHADER_PREFIX + "triplanar" # Triplanar
-    UVProjection = RS_SHADER_PREFIX + "uvprojection" # UV Projection
-    StoreColorToAOV = RS_SHADER_PREFIX + "storecolortoaov" # Store Color To AOV
-    RaySwitch = RS_SHADER_PREFIX + "rayswitch" # Ray Switch
-    ShaderSwitch = RS_SHADER_PREFIX + "rsshaderswitch" # Shader Switch
-    # Bump and Dispplacement
-    BumpMap = RS_SHADER_PREFIX + "bumpmap" # Bump Map
-    BumpBlender = RS_SHADER_PREFIX + "bumpblender" # Bump Blender
-    Displacement = RS_SHADER_PREFIX + "displacement" # Displacement
-    DisplacementBlender = RS_SHADER_PREFIX + "displacementblender" # Displacement Blender
-    RoundCorners = RS_SHADER_PREFIX + "roundcorners" # Round Corners
-    # Attributes
-    State = RS_SHADER_PREFIX + "state" # State
-    VertexAttribute = RS_SHADER_PREFIX + "vertexattributelookup" # Vertex Attribute
-    PointAttribute = RS_SHADER_PREFIX + "particleattributelookup" # Point Attribute
-    ColorUserData = RS_SHADER_PREFIX + "rsuserdatacolor" # 
-    IntegerUserData = RS_SHADER_PREFIX + "rsuserdatainteger" # 
-    ScalarUserData = RS_SHADER_PREFIX + "rsuserdatascalar" # 
-    StringUserData = RS_SHADER_PREFIX + "rsuserdatastring" # 
-    VectorUserData = RS_SHADER_PREFIX + "rsuserdatavector" # 
-
-# Shader Asset IDs ==> commonly used
-class ShaderID:
-    Output = maxon.Id(ShaderStr.Output) # Output node
-    StandardMaterial = maxon.Id(ShaderStr.StandardMaterial) # Standard Surface node
-    # basic
-    Incandescent = maxon.Id(ShaderStr.Incandescent) # Incandescent node
-    Sprite = maxon.Id(ShaderStr.Sprite) # Sprite node
-    Volume = maxon.Id(ShaderStr.Volume) # Volume node
-    MaterialBlender = maxon.Id(ShaderStr.MaterialBlender) # Material Blender node
-    MaterialLayer = maxon.Id(ShaderStr.MaterialLayer) # Material Layer node
-    # not recommend to use (out of date)
-    Material = maxon.Id(ShaderStr.Material) # Old Material node
-
-    # Color Nodes
-    Color = maxon.Id(ShaderStr.Color) # C4D node
-    AbsColor = maxon.Id(ShaderStr.AbsColor) # Abs Color node
-
-    ColorRange = maxon.Id(ShaderStr.ColorRange) # Color Range node
-    Colorlayer = maxon.Id(ShaderStr.Colorlayer) # Color Layer node
-    
-    # Conversion
-    ColorSplitter = maxon.Id(ShaderStr.ColorSplitter) # Color Splitter node
-    
-    ColorInvert = maxon.Id(ShaderStr.ColorInvert) # Color Invert node
-    ColorMul = maxon.Id(ShaderStr.ColorMul) # Color Mutiply node
-    ColorMix = maxon.Id(ShaderStr.ColorMix) # Color Mix node
-    ColorAdd = maxon.Id(ShaderStr.ColorAdd) # Color Add node
-
-    # Texture
-    Texture = maxon.Id(ShaderStr.Texture) # Texture
-    Ramp = maxon.Id(ShaderStr.Ramp) # Ramp
-    MaxonNoise = maxon.Id(ShaderStr.MaxonNoise) # Maxon Noise
-    Fresnel = maxon.Id(ShaderStr.Fresnel) # Fresnel
-    Curvature = maxon.Id(ShaderStr.Curvature) # Curvature
-    AO = maxon.Id(ShaderStr.AO) # AO
-    WireFrame = maxon.Id(ShaderStr.WireFrame) # Wire Frame
-
-    # Unity
-    OSLShader = maxon.Id(ShaderStr.OSLShader) # OSL
-    Triplanar = maxon.Id(ShaderStr.Triplanar) # Triplanar
-    UVProjection = maxon.Id(ShaderStr.UVProjection) # UV Projection
-    StoreColorToAOV = maxon.Id(ShaderStr.StoreColorToAOV) # Store Color To AOV
-    RaySwitch = maxon.Id(ShaderStr.RaySwitch) # Ray Switch
-    ShaderSwitch = maxon.Id(ShaderStr.ShaderSwitch) # Shader Switch
-    # Bump and Dispplacement
-    BumpMap = maxon.Id(ShaderStr.BumpMap) # Bump Map
-    BumpBlender = maxon.Id(ShaderStr.BumpBlender) # Bump Blender
-    Displacement = maxon.Id(ShaderStr.Displacement) # Displacement
-    DisplacementBlender = maxon.Id(ShaderStr.DisplacementBlender) # Displacement Blender
-    RoundCorners = maxon.Id(ShaderStr.RoundCorners) # Round Corners
-    # Attributes
-    State = maxon.Id(ShaderStr.State) # State
-    VertexAttribute = maxon.Id(ShaderStr.VertexAttribute) # Vertex Attribute
-    PointAttribute = maxon.Id(ShaderStr.PointAttribute) # Point Attribute
-    ColorUserData = maxon.Id(ShaderStr.ColorUserData) # 
-    IntegerUserData = maxon.Id(ShaderStr.IntegerUserData) # 
-    ScalarUserData = maxon.Id(ShaderStr.ScalarUserData) # 
-    StringUserData = maxon.Id(ShaderStr.StringUserData) # 
-    VectorUserData = maxon.Id(ShaderStr.VectorUserData) # 
-
-#=============================================
-#                   Port
-#=============================================
-
-# Port ID Strings ==> most commonly used
-class PortStr():
-    # output port
-    Output_Surface = "com.redshift3d.redshift4c4d.node.output.surface"
-    Output_Displacement = "com.redshift3d.redshift4c4d.node.output.displacement"
-    Output_Volume = "com.redshift3d.redshift4c4d.node.output.volume"
-    Output_Environment = "com.redshift3d.redshift4c4d.node.output.environment"
-    Output_Light = "com.redshift3d.redshift4c4d.node.output.light"
-
-    # standard surface port
-
-    # output
-    standard_outcolor =  RS_STANDARD_SURFACE_PREFIX + "outcolor"
-    # base 
-    base_color = RS_STANDARD_SURFACE_PREFIX + "base_color"
-    base_color_weight = RS_STANDARD_SURFACE_PREFIX + "base_color_weight"
-    diffuse_roughness = RS_STANDARD_SURFACE_PREFIX + "diffuse_roughness"
-    metalness = RS_STANDARD_SURFACE_PREFIX + "metalness"
-    # reflection
-    refl_color = RS_STANDARD_SURFACE_PREFIX + "refl_color"
-    refl_weight = RS_STANDARD_SURFACE_PREFIX + "refl_weight"
-    refl_roughness = RS_STANDARD_SURFACE_PREFIX + "refl_roughness"
-    refl_ior = RS_STANDARD_SURFACE_PREFIX + "refl_ior"
-    refl_aniso = RS_STANDARD_SURFACE_PREFIX + "refl_aniso"
-    refl_aniso_rotation = RS_STANDARD_SURFACE_PREFIX + "refl_aniso_rotation"
-    refl_samples = RS_STANDARD_SURFACE_PREFIX + "refl_samples"
-    refl_isglossiness = RS_STANDARD_SURFACE_PREFIX + "refl_isglossiness" # bool port
-    # transmission
-    refr_color = RS_STANDARD_SURFACE_PREFIX + "refr_color"
-    refr_weight = RS_STANDARD_SURFACE_PREFIX + "refr_weight"
-    refr_roughness = RS_STANDARD_SURFACE_PREFIX + "refr_roughness"
-    refr_samples = RS_STANDARD_SURFACE_PREFIX + "refr_samples"
-    ss_depth = RS_STANDARD_SURFACE_PREFIX + "ss_depth"
-    ss_scatter_color = RS_STANDARD_SURFACE_PREFIX + "ss_scatter_color"
-    ss_phase = RS_STANDARD_SURFACE_PREFIX + "ss_phase"
-    ss_samples = RS_STANDARD_SURFACE_PREFIX + "ss_samples"
-    refr_abbe = RS_STANDARD_SURFACE_PREFIX + "refr_abbe"
-    # sss
-    sss_color = RS_STANDARD_SURFACE_PREFIX + "ms_color"
-    sss_weight = RS_STANDARD_SURFACE_PREFIX + "ms_amount"
-    sss_radius = RS_STANDARD_SURFACE_PREFIX + "ms_radius"
-    sss_scale = RS_STANDARD_SURFACE_PREFIX + "ms_radius_scale"
-    sss_phase = RS_STANDARD_SURFACE_PREFIX + "ms_phase"
-    sss_mode = RS_STANDARD_SURFACE_PREFIX + "ms_mode"
-    sss_samples = RS_STANDARD_SURFACE_PREFIX + "ms_samples"
-    # sheen
-    sheen_color = RS_STANDARD_SURFACE_PREFIX + "sheen_color"
-    sheen_weight = RS_STANDARD_SURFACE_PREFIX + "sheen_weight"
-    sheen_roughness = RS_STANDARD_SURFACE_PREFIX + "sheen_roughness"
-    sheen_samples = RS_STANDARD_SURFACE_PREFIX + "sheen_samples"
-    # thin film
-    thinfilm_thickness = RS_STANDARD_SURFACE_PREFIX + "thinfilm_thickness"
-    thinfilm_ior = RS_STANDARD_SURFACE_PREFIX + "thinfilm_ior"
-    # coat
-    coat_color = RS_STANDARD_SURFACE_PREFIX + "coat_color"
-    coat_weight = RS_STANDARD_SURFACE_PREFIX + "coat_weight"
-    coat_roughness = RS_STANDARD_SURFACE_PREFIX + "coat_roughness"
-    coat_ior = RS_STANDARD_SURFACE_PREFIX + "coat_ior"
-    coat_aniso = RS_STANDARD_SURFACE_PREFIX + "coat_aniso"
-    coat_aniso_rotation = RS_STANDARD_SURFACE_PREFIX + "coat_aniso_rotation"
-    coat_samples = RS_STANDARD_SURFACE_PREFIX + "coat_samples"
-    coat_bump_input = RS_STANDARD_SURFACE_PREFIX + "coat_bump_input"
-    # emission
-    emission_color = RS_STANDARD_SURFACE_PREFIX + "emission_color"
-    emission_weight = RS_STANDARD_SURFACE_PREFIX + "emission_weight"
-    # geo
-    opacity_color = RS_STANDARD_SURFACE_PREFIX + "opacity_color"
-    bump_input = RS_STANDARD_SURFACE_PREFIX + "bump_input"
-
-# Port IDs ==> most commonly used
-class PortID():
-    # output
-    Output_Surface = maxon.Id(PortStr.Output_Surface)
-    Output_Displacement = maxon.Id(PortStr.Output_Displacement)
-    Output_Volume = maxon.Id(PortStr.Output_Volume)
-    Output_Environment = maxon.Id(PortStr.Output_Environment)
-    Output_Light = maxon.Id(PortStr.Output_Light)
-
-    # standard surface port
-
-    # output
-    standard_outcolor =  maxon.Id(PortStr.standard_outcolor)
-    # base 
-    base_color = maxon.Id(PortStr.base_color)
-    base_color_weight = maxon.Id(PortStr.base_color_weight)
-    diffuse_roughness = maxon.Id(PortStr.diffuse_roughness)
-    metalness = maxon.Id(PortStr.metalness)
-    # reflection
-    refl_color = maxon.Id(PortStr.refl_color)
-    refl_weight = maxon.Id(PortStr.refl_weight)
-    refl_roughness = maxon.Id(PortStr.refl_roughness)
-    refl_ior = maxon.Id(PortStr.refl_ior)
-    refl_aniso = maxon.Id(PortStr.refl_aniso)
-    refl_aniso_rotation = maxon.Id(PortStr.refl_aniso_rotation)
-    refl_samples = maxon.Id(PortStr.refl_samples)
-    refl_isglossiness = maxon.Id(PortStr.refl_isglossiness)
-    # transmission
-    refr_color = maxon.Id(PortStr.refr_color)
-    refr_weight = maxon.Id(PortStr.refr_weight)
-    refr_roughness = maxon.Id(PortStr.refr_roughness)
-    refr_samples = maxon.Id(PortStr.refr_samples)
-    ss_depth = maxon.Id(PortStr.ss_depth)
-    ss_scatter_color = maxon.Id(PortStr.ss_scatter_color)
-    ss_phase = maxon.Id(PortStr.ss_phase)
-    ss_samples = maxon.Id(PortStr.ss_samples)
-    refr_abbe = maxon.Id(PortStr.refr_abbe)
-    # sss
-    sss_color = maxon.Id(PortStr.sss_color)
-    sss_weight = maxon.Id(PortStr.sss_weight)
-    sss_radius = maxon.Id(PortStr.sss_radius)
-    sss_scale = maxon.Id(PortStr.sss_scale)
-    sss_phase = maxon.Id(PortStr.sss_phase)
-    sss_mode = maxon.Id(PortStr.sss_mode)
-    sss_samples = maxon.Id(PortStr.sss_samples)
-    # sheen
-    sheen_color = maxon.Id(PortStr.sheen_color)
-    sheen_weight = maxon.Id(PortStr.sheen_weight)
-    sheen_roughness = maxon.Id(PortStr.sheen_roughness)
-    sheen_samples = maxon.Id(PortStr.sheen_samples)
-    # thin film
-    thinfilm_thickness = maxon.Id(PortStr.thinfilm_thickness)
-    thinfilm_ior = maxon.Id(PortStr.thinfilm_ior)
-    # coat
-    coat_color = maxon.Id(PortStr.coat_color)
-    coat_weight = maxon.Id(PortStr.coat_weight)
-    coat_roughness = maxon.Id(PortStr.coat_roughness)
-    coat_ior = maxon.Id(PortStr.thinfilm_ior)
-    coat_aniso = maxon.Id(PortStr.coat_aniso)
-    coat_aniso_rotation = maxon.Id(PortStr.coat_aniso_rotation)
-    coat_samples = maxon.Id(PortStr.coat_samples)
-    coat_bump_input = maxon.Id(PortStr.coat_bump_input)
-    # emission
-    emission_color = maxon.Id(PortStr.emission_color)
-    emission_weight = maxon.Id(PortStr.emission_weight)
-    # geo
-    opacity_color = maxon.Id(PortStr.opacity_color)
-    bump_input = maxon.Id(PortStr.bump_input)
-
-#=============================================
-#          Simplyfy Redshift ID
-#=============================================
-# Str of node ID
-def StrNodeID(node_name):
-    redshift_pre = "com.redshift3d.redshift4c4d.nodes.core."
-    realID = redshift_pre + node_name
-    return realID
-# Str of port ID
-def StrPortID(node_name, port_name):
-    redshift_pre = "com.redshift3d.redshift4c4d.nodes.core."
-    realID = redshift_pre + node_name +  '.' + port_name
-    return realID
-# Make a str to maxon ID
-def StrtoMaxonID(ID_string):
-    realID = maxon.Id(str(ID_string))
-    return realID
-
-ID_MATERIAL_MANAGER: int = 12159
-CID_NODE_EDITOR: int = 465002211
-
-#=============================================
-#              Common Fuctions
-#=============================================
-def GetPreference() -> c4d.BaseList2D:
-    """
-    Get the Redshift preferenc.
-    """
-    prefs = c4d.plugins.FindPlugin(ID_PREFERENCES_NODE)
-    
-    if not isinstance(prefs, c4d.BaseList2D):
-        raise RuntimeError("Could not access preferences node.")
-      
-    descIdSettings = c4d.DescID(
-    c4d.DescLevel(1036220, 1, 465001632), # pref ID Redshift
-    c4d.DescLevel(888, 133, 465001632)
-    )
-    # Redshift
-    return prefs[descIdSettings]
-
-# 首选项设置为Node材质
-def IsNodeBased():
-    """
-    Check if in Redshift and use node material mode.
-    """
-    return GetPreference()[c4d.PREFS_REDSHIFT_USE_NODE_MATERIALS]
-
-def SetMaterialPreview(preview_mode: int = 1):
-    """
-    Set material preview mode, default to 'when render is idle'.
-
-    """    
-    prefs = c4d.plugins.FindPlugin(ID_PREFERENCES_NODE)
-    
-    if not isinstance(prefs, c4d.BaseList2D):
-        raise RuntimeError("Could not access preferences node.")
-
-      
-    descIdSettings = c4d.DescID(
-    c4d.DescLevel(1036220, 1, 465001632), # pref ID Redshift
-    c4d.DescLevel(888, 133, 465001632)
-    )
-    # Set
-    prefsset = prefs[descIdSettings]
-
-    prefsset[c4d.PREFS_REDSHIFT_MATPREVIEW_MODE] = preview_mode
-
-# 获取渲染器版本
-def GetVersion() -> str :
-    """
-    Get the version number of Redshift.
-
-    Returns:
-        str: The version number
-    """
-    try:
-        import redshift
-        return redshift.GetCoreVersion()
-    except:
-        return str(0)
-
-def OpenIPR():
-    try:
-        c4d.CallCommand(1038666) # RS RenderView
-    except:
-        c4d.CallCommand(1038666, 1038666) # Redshift RenderView
-
-# 打开材质编辑器
-def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
-    """
-    Open Node Editor for given material.
-    """
-    if not actmat:
-        doc = c4d.documents.GetActiveDocument()
-        actmat = doc.GetActiveMaterial()
-    else:
-        doc = actmat.GetDocument()
-    doc.AddUndo(c4d.UNDOTYPE_BITS,actmat)
-    actmat.SetBit(c4d.BIT_ACTIVE)
-    if not actmat:
-        raise ValueError("Failed to retrieve a Material.")
-        
-    if node_helper.GetRenderEngine() == ID_REDSHIFT_VIDEO_POST:
-        if IsNodeBased():
-            if not c4d.IsCommandChecked(CID_NODE_EDITOR):
-                c4d.CallCommand(CID_NODE_EDITOR) # Node Editor...
-                c4d.CallCommand(465002360) # Material
-
-        else:
-            c4d.CallCommand(1036229) # Redshift Shader Graph Editor
-            # Only scroll to the material if material manager is opened
-            
-        if c4d.IsCommandChecked(ID_MATERIAL_MANAGER):  
-            c4d.CallCommand(16297) # Scroll To Selection
-
-# 打开aov管理器
-def AovManager() -> None:
-    """
-    Open aov Manager.
-    """
-    c4d.CallCommand(1038693) # Redshift AOV Manager
-
-# 打开贴图管理器
-def TextureManager() -> None:
-    """
-    Open Redshift Texture Manager.
-    """
-    c4d.CallCommand(1038683) # Redshift Asset Manager
-
-
-class VideoPostHelper:
-    """
-    Class for Redshift VideoPost.
-    """
-    def __init__(self, document: c4d.documents.BaseDocument = None):
-        if document is None:
-            document: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
-        self.doc: c4d.documents.BaseDocument = document
-        self.vp: c4d.documents.BaseVideoPost = self.get_videopost()
-        self.vpname: str = self.vp.GetName()
-
-    ###  通用  ###
-    @property
-    def videopost(self) -> c4d.documents.BaseVideoPost:
-        return self.vp
-    
-    # 获取渲染器
-    def get_videopost(self) -> c4d.documents.BaseVideoPost:
-        """Get the video post"""
-        
-        rdata: c4d.documents.RenderData = self.doc.GetActiveRenderData()
-        vpost: c4d.documents.BaseVideoPost = rdata.GetFirstVideoPost()
-        theVp: c4d.documents.BaseVideoPost = None
-
-        # VP
-        while vpost:
-            if vpost.GetType() == ID_REDSHIFT_VIDEO_POST:
-                theVp = vpost
-            vpost = vpost.GetNext()
-        return theVp 
-    
-    # 辅助：打印vp信息
-    def list_vpdata(self):
-
-        if self.vp is None:
-            raise RuntimeError(f"Can't get the {self.vpname} VideoPost")
-        
-        bc: c4d.BaseContainer = self.vp.GetDataInstance()
-
-        for key in range(len(bc)):
-            key = bc.GetIndexId(key)
-            try:
-                print(f"Key: {key}, Value: {bc[key]}, DataType{bc.GetType(key)}")
-            except AttributeError:
-                print("Entry:{0} is DataType {1} and can't be printed in Python".format(key, bc.GetType(key)))
-    
-    # 开启降噪
-    def denoise_on(self, mode: int = 4) -> bool:
-        """
-        Set denoise mode, [1=Aultus Single,2=Aultus Dual,3=OptiX,4=OIDN]
-
-        :param mode: denoise mode, defaults to 4
-        :type mode: int, optional
-        :return: True if successful
-        :rtype: bool
-        """
-        if self.vp is None:
-            raise RuntimeError(f"Can't get the {self.vpname} VideoPost")
-        try:
-            self.vp[c4d.REDSHIFT_RENDERER_DENOISE_ENABLED] = 1
-            self.vp[c4d.REDSHIFT_RENDERER_DENOISE_AUTO_CREATE_AOVS] = 1
-            self.vp[c4d.REDSHIFT_RENDERER_DENOISE_AOVS] = 1        
-            self.vp[c4d.REDSHIFT_RENDERER_DENOISE_ENGINE] = mode # OIDN
-            
-            return True
-        except:
-            return False
+from Renderer.constants.redshift_id import *
+from Renderer.utils.node_helper import NodeGraghHelper, EasyTransaction
 
 
 class AOVHelper:
     """
-    用于获取/删除Redshift AOV
+    Custom helper to easier modify AOV.
     """
-    def __init__(self, videopost: c4d.documents.BaseVideoPost):
-        if isinstance(videopost, c4d.documents.BaseVideoPost):
-            self.vp: c4d.documents.BaseVideoPost = videopost
-            self.vpname: str = self.vp.GetName()
-            
+
+    def __init__(self, document: c4d.documents.BaseDocument = None):
+        if document is None:
+            document: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
+        
+        # Acess data
+        self.doc: c4d.documents.BaseDocument = document
+        self.vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(self.doc, Renderer.ID_REDSHIFT)
+        self.vpname: str = self.vp.GetName()
+
     def __str__(self) -> str:
-        return (f'<Class> AOVHelper with videopost named {self.vpname}')
+        return (f'<Redshift> {__class__.__name__} with videopost named {self.vpname}')
 
     # 获取aov默认名称 ==> ok
     def get_type_name(self, aov_type: c4d.BaseList2D) -> str:
@@ -846,46 +354,46 @@ class AOVHelper:
         aov.SetParameter(c4d.REDSHIFT_AOV_PUZZLE_MATTE_REFLECTION_REFRACTION, False)
         self.add_aov(aov)
         return aov
-          
-#=============================================
-#           Redshift Node Material
-#=============================================
 
-# note : rsID is out of date (c4d update copy behaviar when copy ids in gui, so this function is dead now)
 
-class MaterialHelper:
+class MaterialHelper(NodeGraghHelper):
+
     # 初始化 ==> OK
-    def __init__(self, material, document: c4d.documents.BaseDocument = None):
-        if document is None:
-            document: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
-        self.doc: c4d.documents.BaseDocument = document
+    def __init__(self, material: Union[c4d.BaseMaterial, str] = None):
         
-        if not material:
-            material = c4d.documents.GetActiveDocument().GetActiveMaterial()
-            if material == None:
-                raise ValueError("Cann't Init NodeHelper with out a material or a selected material")
-            
-        self.material = material
-        self.helper: node_helper.NodeGraghHelper = node_helper.NodeGraghHelper(self.material)
-        self.graph = None
-        self.nimbusRef = self.material.GetNimbusRef(RS_NODESPACE)
-        #self.node = maxon.GraphNode # Type of 5 :[true node,  input port, output port, input port list, output port list]
-        if self.material is not None:
-            if isinstance(self.material, c4d.Material):
-                nodeMaterial = self.material.GetNodeMaterialReference()
-                self.graph: maxon.GraphModelInterface = nodeMaterial.GetGraph(RS_NODESPACE)
-                if self.graph is None:
-                    print("[WARNING] Node space is not found in Node Material: %s" % self.material.GetName())
-            if isinstance(self.material, c4d.NodeMaterial):
-                self.graph: maxon.GraphModelInterface = self.material.GetGraph(RS_NODESPACE)
-                if self.graph is None:
-                    print("[WARNING] Node space is not found in Node Material: %s" % self.material.GetName())  
+        # If we filled a str, we create a material with the name of the string
+        if isinstance(material, str):
+            self.material = self.Create(material)
 
+        # No argument filled, we create a material with default name
+        elif material is None:
+            self.material = self.Create()
+
+        else:
+            self.material = material
+
+        # Acess data
+        self.graph = None
+        self.nimbusRef = self.material.GetNimbusRef(Renderer.RS_NODESPACE)
+
+        if isinstance(self.material, c4d.Material):
+            nodeMaterial = self.material.GetNodeMaterialReference()
+            self.graph: maxon.GraphModelInterface = nodeMaterial.GetGraph(Renderer.RS_NODESPACE)
+
+        # Super the NodeGraghHelper
+        super().__init__(self.material)
+
+        # A final check
+        if self.graph.IsNullValue():
+            raise RuntimeError("Empty graph associated with Redshift node space.")
+
+    def __str__(self):
+        return (f"A Redshift {self.__class__.__name__} Instance with Material : {self.material.GetName()}")
+    
     # =====  Material  ===== #
 
-    # 创建材质 ==> OK
-    @staticmethod
-    def Create(name):
+    # 创建材质(Standard Surface) ==> OK
+    def Create(self, name: str = "Standard Surface") -> c4d.BaseMaterial:
         """
         Creates a new Redshift Node Material with a NAME.
 
@@ -895,51 +403,31 @@ class MaterialHelper:
             The Material entry name.
 
         """
-        # Retrieve the selected baseMaterial
+
         material = c4d.BaseMaterial(c4d.Mmaterial)
         if material is None:
-            raise ValueError("Cannot create a BaseMaterial")            
+            raise ValueError("Cannot create a BaseMaterial")
+                 
         material.SetName(name)
-        # Retrieve the reference of the material as a node Material.
+
         nodeMaterial = material.GetNodeMaterialReference()
         if nodeMaterial is None:
             raise ValueError("Cannot retrieve nodeMaterial reference")
         # Add a graph for the redshift node space
-        nodeMaterial.CreateDefaultGraph(RS_NODESPACE)
-            
-        # Return a redshift node material
-        return MaterialHelper(material)
-    
-    # 创建Standard Surface
-    @staticmethod
-    def CreateStandardSurface(name):
-        """
-        Creates a new Redshift Starndard Surface Material with a NAME.
+        nodeMaterial.CreateDefaultGraph(Renderer.RS_NODESPACE)  
 
-        Args:
-            name (str): Name of the Material
+        with EasyTransaction(material) as tr:
 
-        Returns:
-            Material: Redshift Material instance
-        """    
-        standardMaterial = MaterialHelper.Create(name)
-        if standardMaterial is None or standardMaterial.material is None:
-            raise Exception("Failed to create Redshift Standard Surface Material")
-
-        with RSMaterialTransaction(standardMaterial) as transaction:
             # ports
-            brdf: maxon.GraphNode = standardMaterial.helper.GetRootBRDF()
-            standardMaterial.helper.SetName(brdf,'Standard Surface')
-            #standardMaterial.helper.AddPort(brdf,)
-            standardMaterial.helper.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color")
-            standardMaterial.helper.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_weight")
-            standardMaterial.helper.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_weight")
-            standardMaterial.helper.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_color")
-            standardMaterial.helper.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color")
-            #standardMaterial.ExposeUsefulPorts()
+            brdf: maxon.GraphNode = tr.GetRootBRDF()
+            tr.SetName(brdf,'Standard Surface')
+            tr.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color")
+            tr.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_weight")
+            tr.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_weight")
+            tr.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_color")
+            tr.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color")
 
-
-        return standardMaterial
+        return material
 
     # 创建RS Material
     @staticmethod
@@ -954,24 +442,23 @@ class MaterialHelper:
             Material: Redshift Material instance
         """    
         standardMaterial = MaterialHelper.Create(name)
-        if standardMaterial is None or standardMaterial.material is None:
+        if standardMaterial is None or standardMaterial is None:
             raise Exception("Failed to create Redshift Standard Surface Material")
 
-        with RSMaterialTransaction(standardMaterial) as transaction:
-            oldrs = standardMaterial.helper.GetRootBRDF()
+        with EasyTransaction(standardMaterial) as tr:
+            oldrs = tr.GetRootBRDF()
 
-            output_inport = standardMaterial.helper.GetPort(standardMaterial.helper.GetOutput(), PortStr.Output_Surface)
-            standardMaterial.helper.RemoveShader(oldrs)
-            rsMaterial = standardMaterial.AddRSMaterial(target=output_inport)
-            standardMaterial.helper.SetName(rsMaterial,'RS Material')
-            standardMaterial.helper.SetShaderValue(rsMaterial,'com.redshift3d.redshift4c4d.nodes.core.material.refl_roughness',0.2)
+            output_inport = tr.GetPort(tr.GetOutput(), "com.redshift3d.redshift4c4d.node.output.surface")
+            tr.RemoveShader(oldrs)
+            rsMaterial = tr.AddRSMaterial(target=output_inport)
+            tr.SetName(rsMaterial,'RS Material')
+            tr.SetShaderValue(rsMaterial,'com.redshift3d.redshift4c4d.nodes.core.material.refl_roughness',0.2)
 
             # ports
             #standardMaterial.ExposeUsefulPorts()
-            standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),'com.redshift3d.redshift4c4d.nodes.core.material.transl_color')
-            standardMaterial.helper.AddPort(standardMaterial.helper.GetRootBRDF(),'com.redshift3d.redshift4c4d.nodes.core.material.transl_weight')
+            tr.AddPort(tr.GetRootBRDF(),'com.redshift3d.redshift4c4d.nodes.core.material.transl_color')
+            tr.AddPort(tr.GetRootBRDF(),'com.redshift3d.redshift4c4d.nodes.core.material.transl_weight')
         return standardMaterial
- 
 
     # 暴露常用接口
     def ExposeUsefulPorts(self):
@@ -1001,14 +488,19 @@ class MaterialHelper:
         return self.material
 
     # 插入 ==> ok
-    def InsertMaterial(self):
+    def InsertMaterial(self, doc: c4d.documents.BaseDocument = None) -> c4d.BaseMaterial:
         """
         Insert the material to the document.
         """
         if self.material is None: return False
         #self.material.Update(True, True)
-        self.doc.InsertMaterial(self.material)
-        self.doc.AddUndo(c4d.UNDOTYPE_NEW, self.material)
+        if not doc:
+            doc = self.material.GetDocument()
+            if doc is None:
+                doc = c4d.documents.GetActiveDocument()
+
+        doc.InsertMaterial(self.material)
+        doc.AddUndo(c4d.UNDOTYPE_NEW, self.material)
         return self.material
 
     # 刷新材质 ==> ok
@@ -1019,13 +511,17 @@ class MaterialHelper:
         self.material.Update(True, True)
 
     # 设置激活 ==> ok
-    def SetActive(self):
+    def SetActive(self, doc: c4d.documents.BaseDocument = None):
         """
         Set the material active in the document.
         """
         if self.material is not None:
-            self.doc.SetActiveMaterial(self.material)
-            self.doc.AddUndo(c4d.UNDOTYPE_BITS, self.material)
+            if not doc:
+                doc = self.material.GetDocument()
+                if doc is None:
+                    doc = c4d.documents.GetActiveDocument()
+            doc.SetActiveMaterial(self.material)
+            doc.AddUndo(c4d.UNDOTYPE_BITS, self.material)
 
     def FastPreview(self, on: bool = True):
         if self.material is not None:
@@ -1046,7 +542,7 @@ class MaterialHelper:
 
         redshiftMaterial = self
         # modification has to be done within a transaction
-        with RSMaterialTransaction(redshiftMaterial) as transaction:
+        with EasyTransaction(redshiftMaterial):
 
             # Find brdf node (in this case : standard surface)
             # 查找Standard Surface节点
@@ -1130,7 +626,7 @@ class MaterialHelper:
         return redshiftMaterial.material
     
     # 创建Shader ==> OK 
-    def AddShader(self, nodeId: str , outport_id: str = None, targret_shader = None, target_port= None) -> maxon.GraphNode :
+    def AddNode(self, nodeId: str , outport_id: str = None, targret_shader = None, target_port= None) -> maxon.GraphNode :
         """
         Adds a new shader to the graph.
 
@@ -1145,11 +641,54 @@ class MaterialHelper:
         if self.graph is None:
             return None        
 
-        shader = self.helper.AddShader(nodeId)
-        
-        self.helper.AddConnection(shader, outport_id, targret_shader, target_port)
+        shader = self.AddShader(nodeId)
+
+        if outport_id is not None:
+            if isinstance(target_port, maxon.GraphNode):
+                out = self.GetPort(shader, outport_id)
+                out.Connect(target_port)
+        else:
+            self.AddConnection(shader, outport_id, targret_shader, target_port)
         return shader
-    
+
+    def GetRootBRDF(self, filter: Union[str,int] = 0) -> maxon.GraphNode:
+        """
+        Returns the very first brdf shader connect to output
+
+        Args:
+            filter (Union[str,int], optional): filter to get the object, fill ``str`` to filter by name, fill ``int`` to filter by index. Defaults to 0.
+
+        Returns:
+            maxon.GraphNode: the BRDF node
+        """
+
+        standard_mat = "com.redshift3d.redshift4c4d.nodes.core.standardmaterial"
+        rs_mat = "com.redshift3d.redshift4c4d.nodes.core.material"
+        valid_mat = [standard_mat, rs_mat]
+
+        endNode = self.GetOutput()
+        if not endNode: return None
+
+        # only one direct brdf
+        predecessor = list()
+        maxon.GraphModelHelper.GetDirectPredecessors(endNode, maxon.NODE_KIND.NODE, predecessor)
+        rootshader = [i for i in predecessor if self.GetAssetId(i) in valid_mat]
+        if rootshader:
+            return rootshader[0]
+
+        # find brdf by filter
+        else:
+            nodes = []
+            for i in valid_mat:
+                nodes += self.GetNodes(i)
+            # By Name
+            if isinstance(filter, str):
+                for node in nodes:
+                    if self.GetName(node) == filter:
+                        return node
+            elif isinstance(filter, int):
+                return nodes[filter]
+
     ### Material ###
     
     def AddStandardMaterial(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
@@ -1157,7 +696,7 @@ class MaterialHelper:
         Adds a new Standard Material shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.standardmaterial",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.standardmaterial.base_color'],
             connect_inNodes = inputs,
@@ -1171,7 +710,7 @@ class MaterialHelper:
 
         """
 
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.material",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.material.diffuse_color'],
             connect_inNodes = inputs,
@@ -1185,7 +724,7 @@ class MaterialHelper:
 
         """
 
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.materialblender",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.materialblender.basecolor',
                            'com.redshift3d.redshift4c4d.nodes.core.materialblender.layercolor1',
@@ -1200,7 +739,7 @@ class MaterialHelper:
         Adds a new Material Layer shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.materiallayer",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.materiallayer.basecolor',
                            'com.redshift3d.redshift4c4d.nodes.core.materiallayer.layercolor',
@@ -1216,7 +755,7 @@ class MaterialHelper:
         Adds a new Incandescent Material shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.incandescent",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.incandescent.color'],
             connect_inNodes = inputs,
@@ -1229,7 +768,7 @@ class MaterialHelper:
         Adds a new Sprite Material shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.sprite",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.sprite.input'],
             connect_inNodes = inputs,
@@ -1245,7 +784,7 @@ class MaterialHelper:
         Adds a new invert shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathinv",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathinv.input'],
             connect_inNodes = inputs,
@@ -1259,7 +798,7 @@ class MaterialHelper:
         Adds a new Color Constant shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolorconstant",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rscolorconstant.color'],
             connect_inNodes = inputs,
@@ -1273,7 +812,7 @@ class MaterialHelper:
         Adds a new Color Splitter shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter.input'],
             connect_inNodes = inputs,
@@ -1291,7 +830,7 @@ class MaterialHelper:
         Adds a new Color Composite shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolorcomposite",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rscolorcomposite.base_color','com.redshift3d.redshift4c4d.nodes.core.rscolorcomposite.blend_color'],
             connect_inNodes = inputs,
@@ -1305,7 +844,7 @@ class MaterialHelper:
         Adds a new Color Layer shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolorlayer",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rscolorlayer.base_color',
                            'com.redshift3d.redshift4c4d.nodes.core.rscolorlayer.layer1_color',
@@ -1321,7 +860,7 @@ class MaterialHelper:
         Adds a new Color Change Range shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolorrange",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rscolorrange.input'],
             connect_inNodes = inputs,
@@ -1335,7 +874,7 @@ class MaterialHelper:
         Adds a new color correct shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.input'],
             connect_inNodes = inputs,
@@ -1346,12 +885,31 @@ class MaterialHelper:
     ### Operator ###
 
     # 创建Math Mix(Float64) ==> OK
+    def AddValue(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None, mode: Union[str,maxon.Id] = maxon.Id("float")) -> maxon.GraphNode :
+        """
+        Adds a new Value shader to the graph.
+
+        """
+        node = self.AddConnectShader(
+            nodeID ="net.maxon.node.type",
+            input_ports = ['in'],
+            connect_inNodes = inputs,
+            output_ports=['out'], 
+            connect_outNodes = target
+            )
+        if isinstance(mode, str):
+            mode = maxon.Id(mode)
+        if isinstance(mode, maxon.Id):            
+            self.SetShaderValue(node, "datatype", mode)
+        return node
+
+    # 创建Math Mix(Float64) ==> OK
     def AddMathMix(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
         """
         Adds a new Math Mix shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathmix",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathmix.input1',
                            'com.redshift3d.redshift4c4d.nodes.core.rsmathmix.input2',
@@ -1367,7 +925,7 @@ class MaterialHelper:
         Adds a new Vector Mix shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathmixvector",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathmixvector.input1',
                            'com.redshift3d.redshift4c4d.nodes.core.rsmathmixvector.input2',
@@ -1383,7 +941,7 @@ class MaterialHelper:
         Adds a new Color Mix shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolormix",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rscolormix.input1',
                            'com.redshift3d.redshift4c4d.nodes.core.rscolormix.input2',
@@ -1399,7 +957,7 @@ class MaterialHelper:
         Adds a new Math Add shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathadd",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathadd.input1',
                            'com.redshift3d.redshift4c4d.nodes.core.rsmathadd.input2'],
@@ -1414,7 +972,7 @@ class MaterialHelper:
         Adds a new Vector Add shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathaddvector",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathaddvector.input1',
                            'com.redshift3d.redshift4c4d.nodes.core.rsmathaddvector.input2'],
@@ -1429,7 +987,7 @@ class MaterialHelper:
         Adds a new Math Sub shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathsub",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathsub.input1',
                            'com.redshift3d.redshift4c4d.nodes.core.rsmathsub.input2'],
@@ -1444,7 +1002,7 @@ class MaterialHelper:
         Adds a new Vector Sub shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathsubvector",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathsubvector.input1',
                            'com.redshift3d.redshift4c4d.nodes.core.rsmathsubvector.input2'],
@@ -1459,7 +1017,7 @@ class MaterialHelper:
         Adds a new Color Sub shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathsubcolor",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathsubcolor.input1',
                            'com.redshift3d.redshift4c4d.nodes.core.rsmathsubcolor.input2'],
@@ -1474,7 +1032,7 @@ class MaterialHelper:
         Adds a new Math Mul shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathmul",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathmul.input1',
                            'com.redshift3d.redshift4c4d.nodes.core.rsmathmul.input2'],
@@ -1489,7 +1047,7 @@ class MaterialHelper:
         Adds a new Vector Mul shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathmulvector",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathmulvector.input1',
                            'com.redshift3d.redshift4c4d.nodes.core.rsmathmulvector.input2'],
@@ -1504,7 +1062,7 @@ class MaterialHelper:
         Adds a new Math Div shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathdiv",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathdiv.input1',
                            'com.redshift3d.redshift4c4d.nodes.core.rsmathdiv.input2'],
@@ -1519,7 +1077,7 @@ class MaterialHelper:
         Adds a new Vector Div shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsmathdivvector",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsmathdivvector.input1',
                            'com.redshift3d.redshift4c4d.nodes.core.rsmathdivvector.input2'],
@@ -1540,24 +1098,24 @@ class MaterialHelper:
             return None
         nodeId = "bumpmap"
         shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core." + nodeId, maxon.DataDictionary())
-        type_port = self.helper.GetPort(shader, 'com.redshift3d.redshift4c4d.nodes.core.bumpmap.inputtype')
+        type_port = self.GetPort(shader, 'com.redshift3d.redshift4c4d.nodes.core.bumpmap.inputtype')
         type_port.SetDefaultValue(bump_mode)
 
         if input_port:
             if isinstance(input_port, maxon.GraphNode):
-                input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpmap.input')
+                input: maxon.GraphNode = self.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpmap.input')
                 input_port.Connect(input)
 
                 
-        output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpmap.out')
+        output: maxon.GraphNode = self.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpmap.out')
         
         if target_port is not None:
             if isinstance(target_port, maxon.GraphNode):
                 output.Connect(target_port)
 
         else:
-            material = self.helper.GetRootBRDF()
-            bump_port = self.helper.GetPort(material,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.bump_input")
+            material = self.GetRootBRDF()
+            bump_port = self.GetPort(material,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.bump_input")
             output.Connect(bump_port)
         return shader
     
@@ -1567,7 +1125,7 @@ class MaterialHelper:
         Adds a new bump blender shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.bumpblender",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.bumpblender.baseinput',
                            'com.redshift3d.redshift4c4d.nodes.core.bumpblender.bumpinput0',
@@ -1595,13 +1153,13 @@ class MaterialHelper:
 
         if input_port:
             if isinstance(input_port, maxon.GraphNode):
-                input: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacement.texmap')
+                input: maxon.GraphNode = self.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacement.texmap')
                 try:
                     input_port.Connect(input)
                 except:
                     pass
                 
-        output: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacement.out')
+        output: maxon.GraphNode = self.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacement.out')
         
         if target_port is not None:
             if isinstance(target_port, maxon.GraphNode):                
@@ -1611,9 +1169,9 @@ class MaterialHelper:
                     pass
 
         else:
-            rsoutput = self.helper.GetOutput()
+            rsoutput = self.GetOutput()
 
-            dis_port = self.helper.GetPort(rsoutput,"com.redshift3d.redshift4c4d.node.output.displacement")
+            dis_port = self.GetPort(rsoutput,"com.redshift3d.redshift4c4d.node.output.displacement")
             output.Connect(dis_port)
         return shader
 
@@ -1623,7 +1181,7 @@ class MaterialHelper:
         Adds a new displacement blender shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.displacementblender",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.displacementblender.baseinput',
                            'com.redshift3d.redshift4c4d.nodes.core.displacementblender.displaceinput0',
@@ -1644,7 +1202,7 @@ class MaterialHelper:
         Adds a new Round Corners shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.roundcorners",
             input_ports = None,
             connect_inNodes = None,
@@ -1660,7 +1218,7 @@ class MaterialHelper:
         Adds a new Fresnel shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rscolorconstant",
             input_ports = None,
             connect_inNodes = None,
@@ -1674,7 +1232,7 @@ class MaterialHelper:
         Adds a new AO shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.ambientocclusion",
             input_ports = None,
             connect_inNodes = None,
@@ -1688,7 +1246,7 @@ class MaterialHelper:
         Adds a new Curvature shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.curvature",
             input_ports = None,
             connect_inNodes = None,
@@ -1702,7 +1260,7 @@ class MaterialHelper:
         Adds a new Flakes shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.flakes",
             input_ports = None,
             connect_inNodes = None,
@@ -1716,7 +1274,7 @@ class MaterialHelper:
         Adds a new Point Attribute shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.particleattributelookup",
             input_ports = None,
             connect_inNodes = None,
@@ -1731,7 +1289,7 @@ class MaterialHelper:
         Adds a new Vertex Attribute shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.vertexattributelookup",
             input_ports = None,
             connect_inNodes = None,
@@ -1748,7 +1306,7 @@ class MaterialHelper:
         Adds a new ramp shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsramp",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsramp.input'],
             connect_inNodes = inputs,
@@ -1762,7 +1320,7 @@ class MaterialHelper:
         Adds a new scalar ramp shader to the graph.        
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.rsscalarramp",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.rsscalarramp.input'],
             connect_inNodes = inputs,
@@ -1776,7 +1334,7 @@ class MaterialHelper:
         Adds a new TriPlanar shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.triplanar",
             input_ports = ['com.redshift3d.redshift4c4d.nodes.core.triplanar.imagex'],
             connect_inNodes = inputs,
@@ -1790,7 +1348,7 @@ class MaterialHelper:
         Adds a new maxonnoise shader to the graph.
 
         """
-        return self.helper.AddConnectShader(
+        return self.AddConnectShader(
             nodeID ="com.redshift3d.redshift4c4d.nodes.core.maxonnoise",
             input_ports = None,
             connect_inNodes = None,
@@ -1808,12 +1366,12 @@ class MaterialHelper:
         
         nodeId = "texturesampler"
         shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core." + nodeId, maxon.DataDictionary())
-        self.helper.SetName(shader,shadername)
+        self.SetName(shader,shadername)
         
-        texPort: maxon.GraphNode = self.helper.GetPort(shader,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.tex0")
+        texPort: maxon.GraphNode = self.GetPort(shader,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.tex0")
         texFilenamePort: maxon.GraphNode = texPort.FindChild('path')
         colorspacePort: maxon.GraphNode = texPort.FindChild("colorspace")
-        gammaPort: maxon.GraphNode = self.helper.GetPort(shader,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.tex0_gamma")
+        gammaPort: maxon.GraphNode = self.GetPort(shader,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.tex0_gamma")
         gammaPort.SetDefaultValue(int(gamma))
         # tex path
         if filepath is not None:
@@ -1828,7 +1386,7 @@ class MaterialHelper:
         # target connect
         if target_port:
             if isinstance(target_port, maxon.GraphNode):
-                outPort: maxon.GraphNode = self.helper.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor')
+                outPort: maxon.GraphNode = self.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor')
                 try:
                     outPort.Connect(target_port)
                 except:
@@ -1848,7 +1406,7 @@ class MaterialHelper:
         
         # add
         tex_node = self.AddTexture(shadername, filepath, raw, gamma)
-        color_mutiplier_port = self.helper.GetPort(tex_node,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.color_multiplier")
+        color_mutiplier_port = self.GetPort(tex_node,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.color_multiplier")
         
         if color_mode:
             cc_node = self.AddColorCorrect(target=target_port)
@@ -1861,20 +1419,20 @@ class MaterialHelper:
                 ramp_node = self.AddRamp(target=target_port)
         
         if triplaner_node:
-            triplaner_node = self.AddTriPlanar(self.helper.GetPort(tex_node,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor"), self.helper.GetPort(cc_node,"com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.input"))
+            triplaner_node = self.AddTriPlanar(self.GetPort(tex_node,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor"), self.GetPort(cc_node,"com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.input"))
 
         else:
-            self.helper.AddConnection(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor", cc_node, "com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.input")
+            self.AddConnection(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor", cc_node, "com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.input")
         
         
         if not color_mode:
             if scaleramp:
-                self.helper.AddConnection(cc_node, "com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.outcolor", ramp_node, "com.redshift3d.redshift4c4d.nodes.core.rsscalarramp.input")
+                self.AddConnection(cc_node, "com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.outcolor", ramp_node, "com.redshift3d.redshift4c4d.nodes.core.rsscalarramp.input")
             else:
-                self.helper.AddConnection(cc_node, "com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.outcolor", ramp_node, "com.redshift3d.redshift4c4d.nodes.core.rsramp.input")
+                self.AddConnection(cc_node, "com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.outcolor", ramp_node, "com.redshift3d.redshift4c4d.nodes.core.rsramp.input")
         
         if color_mutiplier:
-            self.helper.AddConnection(color_mutiplier, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor", tex_node, color_mutiplier_port)
+            self.AddConnection(color_mutiplier, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor", tex_node, color_mutiplier_port)
         
         return tex_node
     
@@ -1888,7 +1446,7 @@ class MaterialHelper:
         
         # add        
         tex_node = self.AddTexture(shadername, filepath, True)
-        tex_out = self.helper.GetPort(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor")
+        tex_out = self.GetPort(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor")
         self.AddDisplacement(input_port=tex_out)
 
     # NEW
@@ -1901,7 +1459,7 @@ class MaterialHelper:
         
         # add        
         tex_node = self.AddTexture(shadername, filepath, True)
-        tex_out = self.helper.GetPort(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor")
+        tex_out = self.GetPort(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor")
         #tex_out = self.GetPort(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor")
         self.AddBump(input_port=tex_out, target_port=target_port, bump_mode=bump_mode)
    
@@ -1917,9 +1475,9 @@ class MaterialHelper:
         outPort : str
             Output port id of the source shader node.
         """
-        endNode = self.helper.GetOutput()
-        endNodePort = self.helper.GetPort(endNode, "com.redshift3d.redshift4c4d.node.output.surface")
-        return self.helper.AddConnection(soure_node, outPort, endNode, endNodePort) is not None
+        endNode = self.GetOutput()
+        endNodePort = self.GetPort(endNode, "com.redshift3d.redshift4c4d.node.output.surface")
+        return self.AddConnection(soure_node, outPort, endNode, endNodePort) is not None
     
     # 连接到Output置换接口
     def AddtoDisplacement(self, soure_node, outPort):
@@ -1933,48 +1491,125 @@ class MaterialHelper:
         outPort : str
             Output port id of the source shader node.
         """
-        rsoutput = self.helper.GetOutput()
-        rsoutputPort = self.helper.GetPort(rsoutput, "com.redshift3d.com.redshift3d.redshift4c4d.node.output.displacement.node.output.surface")
-        return self.helper.AddConnection(soure_node, outPort, rsoutput, rsoutputPort) is not None
+        rsoutput = self.GetOutput()
+        rsoutputPort = self.GetPort(rsoutput, "com.redshift3d.com.redshift3d.redshift4c4d.node.output.displacement.node.output.surface")
+        return self.AddConnection(soure_node, outPort, rsoutput, rsoutputPort) is not None
 
-###  ==========  Material  ==========  ###
+    # 添加统一缩放（类似Octane的transform）
+    def AddUniTransform(self, tex_shader: maxon.GraphNode) -> Optional[maxon.GraphNode]:
+        """
+        Connects a UniTransform node to the given texture shader.
 
-
-#=============================================
-#           Redshift Transaction
-#=============================================
-
-# Transaction
-
-class RSMaterialTransaction:
-    """
-    A class used to represent a transaction in an Redshift Node Material.
-    Use it in a with statement.
-    """
-
-    def __init__(self, material: c4d.BaseMaterial):
-        self.material = material
-        self.transaction = None
+        Parameters
+        ----------
+        tex_shader : maxon.frameworks.graph.GraphNode
+            The target shader node.
+        """
+        if not tex_shader:
+            return None
+        if self.GetShaderId(tex_shader) != "texturesampler":
+            raise ValueError("The given node is not a texture shader.")
         
-        # no undo steps
-        settings: maxon.DataDictionaryInterface = maxon.DataDictionary()
-        settings.Set(maxon.nodes.UndoMode, maxon.nodes.UNDO_MODE.NONE)
-        self.setting = settings
-        
-    def __enter__(self):
-        if self.material is not None and self.material.graph is not None:
-            self.transaction: maxon.GraphTransaction = self.material.graph.BeginTransaction()
-        return self
+        # The tex value port
+        tex_scale = self.GetPort(tex_shader, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.scale")
+        tex_offset = self.GetPort(tex_shader, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.offset")
+        tex_rotate = self.GetPort(tex_shader, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.rotate")
 
-    def __exit__(self, type, value, traceback):
-        if self.transaction is not None:
-            self.transaction.Commit(self.setting)
-    
+        # create inner node
+        uni_scale_node = self.AddValue()
+        self.SetName(uni_scale_node, "UniScale")
+        #uni_scale_in = self.GetPort(uni_scale_node, "in")
+        uni_scale_out = self.GetPort(uni_scale_node, "out")
+        
+        scale_node = self.AddVectorMul(inputs=[uni_scale_out])
+        scale2d_node = self.AddValue(mode=maxon.Id("net.maxon.parametrictype.vec<2,float>"))
+        offset_node = self.AddValue(mode=maxon.Id("net.maxon.parametrictype.vec<2,float>"))
+        rotate_node = self.AddValue()
+        self.SetName(scale_node, "Scale")
+        self.SetName(scale2d_node, "Scale2D")
+        self.SetName(offset_node, "Offset")
+        self.SetName(rotate_node, "Rotation")
+
+        # Move to group straight away
+        groupRoot: maxon.GraphNode = self.graph.MoveToGroup(maxon.GraphNode(), maxon.Id("UniTransform"), 
+                                                            [uni_scale_node, scale_node, offset_node, rotate_node, scale2d_node])
+        self.SetName(groupRoot, "UniTransform")
+
+        # Create group ports
+        # in
+        groupPortIn_scale: maxon.GraphNode =  maxon.GraphModelHelper.CreateInputPort(groupRoot, "group_scale_id", "Scale")
+        groupPortIn_unify: maxon.GraphNode =  maxon.GraphModelHelper.CreateInputPort(groupRoot, "group_uni_scale_id", "UniScale")
+        groupPortIn_offset: maxon.GraphNode =  maxon.GraphModelHelper.CreateInputPort(groupRoot, "group_offset_id", "Offset")
+        groupPortIn_rotate: maxon.GraphNode =  maxon.GraphModelHelper.CreateInputPort(groupRoot, "group_rotate_id", "Rotation")
+        # out
+        groupPortOut_scale: maxon.GraphNode =  maxon.GraphModelHelper.CreateOutputPort(groupRoot, "group_output_scale_id", "Scale")
+        groupPortOut_offset: maxon.GraphNode =  maxon.GraphModelHelper.CreateOutputPort(groupRoot, "group_output_offset_id", "Offset")
+        groupPortOut_rotate: maxon.GraphNode =  maxon.GraphModelHelper.CreateOutputPort(groupRoot, "group_output_rotate_id", "Rotation")
+
+        # Connect group to the outside nodes
+        groupPortOut_scale.Connect(tex_scale)
+        groupPortOut_offset.Connect(tex_offset)
+        groupPortOut_rotate.Connect(tex_rotate)
+
+        # Find innder node
+        innerNodes: list[maxon.GraphNode] = []
+        groupRoot.GetInnerNodes(maxon.NODE_KIND.NODE, False, innerNodes)
+        # maxon.GraphModelHelper.FindNodesByAssetId(self.graph, maxon.Id(rsID.StrNodeID("rsmathabs")), True, innerNodes)
+        for node in innerNodes:
+            if self.GetName(node) == "Scale":
+                NodeInner_scale: maxon.GraphNode = node
+            if self.GetName(node) == "Offset":
+                NodeInner_offset: maxon.GraphNode = node
+            if self.GetName(node) == "Rotation":
+                NodeInner_rotate: maxon.GraphNode = node
+            if self.GetName(node) == "UniScale":
+                NodeInner_uniScale: maxon.GraphNode = node
+            if self.GetName(node) == "Scale2D":
+                NodeInner_Scale2D: maxon.GraphNode = node
+
+        # Find inner node ports
+        NodeInnerInput_uni_scale_in = self.GetPort(NodeInner_uniScale, "in")
+        NodeInnerInput_offset_in = self.GetPort(NodeInner_offset, "in")
+        NodeInnerInput_rotate_in = self.GetPort(NodeInner_rotate, "in")
+        NodeInnerInput_scale_in = self.GetPort(NodeInner_scale, "com.redshift3d.redshift4c4d.nodes.core.rsmathmulvector.input2")
+        NodeInnerInput_scale2D_in = self.GetPort(NodeInner_Scale2D, "in")
+        # Find outer node ports
+        NodeInnerOutput_scale_out = self.GetPort(NodeInner_scale, "com.redshift3d.redshift4c4d.nodes.core.rsmathmulvector.out")
+        NodeInnerOutput_offset_out = self.GetPort(NodeInner_offset, "out")
+        NodeInnerOutput_rotate_out = self.GetPort(NodeInner_rotate, "out")
+
+        # Connect scale
+        self.GetPort(NodeInner_Scale2D, "out").Connect(NodeInnerInput_scale_in)
+
+        # Connect inner node ports to group ports
+        groupPortIn_scale.Connect(NodeInnerInput_scale2D_in)
+        groupPortIn_unify.Connect(NodeInnerInput_uni_scale_in)
+        groupPortIn_offset.Connect(NodeInnerInput_offset_in)
+        groupPortIn_rotate.Connect(NodeInnerInput_rotate_in)
+
+        NodeInnerOutput_scale_out.Connect(groupPortOut_scale)
+        NodeInnerOutput_offset_out.Connect(groupPortOut_offset)
+        NodeInnerOutput_rotate_out.Connect(groupPortOut_rotate)
+
+        # Set default value
+        NodeInnerInput_uni_scale_in.SetDefaultValue(1)
+        NodeInnerInput_scale2D_in.SetDefaultValue(1)
+
+        # Hide input ports
+        self.RemovePort(groupRoot, groupPortIn_scale)
+        self.RemovePort(groupRoot, groupPortIn_unify)
+        self.RemovePort(groupRoot, groupPortIn_offset)
+        self.RemovePort(groupRoot, groupPortIn_rotate)
+
+        return groupRoot
+
 
 class SceneHelper:
+
     """
-    Class for Redshift Secne Objects.
+    Class for Secne Objects, Tags, Lights, Proxy and so on.
     """
+
     def __init__(self, document: c4d.documents.BaseDocument = None):
         if document is None:
             document: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
@@ -2187,10 +1822,10 @@ class SceneHelper:
             light[c4d.ID_BASELIST_ICON_COLORIZE_MODE] = 1
             
             if seed == 0:
-                randcolor = c4d.Vector(*node_helper.generate_random_color(1))
+                randcolor = c4d.Vector(*Renderer.generate_random_color(1))
             else:
                 random.seed(seed)
-                randcolor = node_helper.generate_random_color(1)
+                randcolor = NodeGraghHelper.generate_random_color(1)
             light[c4d.ID_BASELIST_ICON_COLOR] = randcolor
 
     ### Tag ###
@@ -2412,3 +2047,6 @@ class SceneHelper:
         self.doc.AddUndo(c4d.UNDOTYPE_BITS,bakeset)
         bakeset.SetBit(c4d.BIT_ACTIVE)
         self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,bakeset)
+
+# todo
+# coding more...

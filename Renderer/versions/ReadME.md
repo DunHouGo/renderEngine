@@ -181,5 +181,10 @@ To use this library, you have two options:
   - fix **GetPort** with redshift.
   - add **GetConnectedPortsBefore** to node_helper.
   - add **GetConnectedPortsAfter** to node_helper.
+
+- ### 1.1.4
+- add **AddUniTransform** to redshift_helper.
+- add **AddValue** to redshift_helper.
+
 ---
 - __coming soon...__

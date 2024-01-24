@@ -255,7 +255,7 @@ class NodeGraghHelper(object):
         :rtype: maxon.GraphNode
         """
         if not isinstance(node, maxon.GraphNode):
-            raise ValueError('Expected a maxon.GraphNode, got {}'.format(type(node)))
+            raise ValueError(f'Expected a maxon.GraphNode, got {type(node)}')
         
         maxon.GraphModelHelper.SelectNode(node)
         return node
@@ -284,6 +284,12 @@ class NodeGraghHelper(object):
         """
         if self.graph is None:
             return None
+
+        # Retrieve the end node of this graph
+        endNodePath = self.nimbusRef.GetPath(maxon.NIMBUS_PATH.MATERIALENDNODE)
+        endNode = self.graph.GetNode(endNodePath)
+        return endNode
+
         if self.nodespaceId == RS_NODESPACE:
             output_id = 'com.redshift3d.redshift4c4d.node.output'
         if self.nodespaceId == AR_NODESPACE:
@@ -296,7 +302,8 @@ class NodeGraghHelper(object):
         if len(result) < 1:
             raise RuntimeError("Could not find BSDF node in material.")
         bsdfNode: maxon.GraphNode = result[0]
-        
+        print(bsdfNode)
+
         return bsdfNode
     
     # 获取 BRDF (Material) Node ==> ok
