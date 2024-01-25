@@ -261,6 +261,8 @@ class AOVHelper:
         
         if aov_name == "":
             aov[RNDAOV_NAME] = AOV_SYMBOLS[aov_type]
+        else:
+            aov[RNDAOV_NAME] = aov_name
 
         return aov
     

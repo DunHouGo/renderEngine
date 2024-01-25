@@ -1,5 +1,5 @@
 # Renderer
-> Older version called **renderEngine** had been move to versions folder, if you still intrested.
+> Older version called **renderEngine** had been move to versions folder, if you still interested.
 
 Wrapper class for the maxon and c4d API of popular render engine for Cinema 4D.
 

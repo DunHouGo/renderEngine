@@ -142,7 +142,7 @@ def modify_arnold_scene():
     the_object = c4d.BaseObject(c4d.Oplane)
     doc.InsertObject(the_object)
     the_object.SetName("Original Object")
-    scene_helper.auto_proxy(node=the_object,remove_objects=False)
+    scene_helper.auto_proxy(nodes=the_object,remove_objects=False)
 
 if __name__ == '__main__':
     Renderer.ClearConsole()
