@@ -531,6 +531,7 @@ class MaterialHelper(NodeGraghHelper):
                 self.material[c4d.MATERIAL_PREVIEWSIZE] = 0 # default
 
     # 创建PBR材质 ==> ok
+    # todo fix with new version
     def SetupTextures(self, tex_data: dict = None, mat_name: Optional[str] = None):
         """
         Setup a pbr material with given or selected texture.
@@ -546,20 +547,20 @@ class MaterialHelper(NodeGraghHelper):
 
             # Find brdf node (in this case : standard surface)
             # 查找Standard Surface节点
-            standard_surface = redshiftMaterial.helper.GetRootBRDF()
-            output_node = redshiftMaterial.helper.GetOutput()
+            standard_surface = redshiftMaterial.GetRootBRDF()
+            output_node = redshiftMaterial.GetOutput()
 
             # Change a shader name
             # 更改Standard Surface节点名称
-            redshiftMaterial.helper.SetName(standard_surface,'mat_name Shader')
+            redshiftMaterial.SetName(standard_surface,'mat_name Shader')
 
             # get ports
-            albedoPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.base_color')
-            specularPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color')
-            roughnessPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_roughness')
-            metalnessPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.metalness')
-            opacityPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.opacity_color')
-            reflectionPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color')
+            albedoPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.base_color')
+            specularPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color')
+            roughnessPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_roughness')
+            metalnessPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.metalness')
+            opacityPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.opacity_color')
+            reflectionPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color')
 
             try:
                 # Base Color            
@@ -577,7 +578,7 @@ class MaterialHelper(NodeGraghHelper):
                     
                     if "Glossiness" in tex_data:
                         self.AddTextureTree(filepath=tex_data['Glossiness'], shadername="Glossiness", target_port=roughnessPort)
-                        isglossinessPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
+                        isglossinessPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
                         isglossinessPort.SetDefaultValue(True)
 
                     elif "Roughness" in tex_data:
@@ -592,7 +593,7 @@ class MaterialHelper(NodeGraghHelper):
 
                     elif "Glossiness" in tex_data:
                         self.AddTextureTree(filepath=tex_data['Glossiness'], shadername="Glossiness", scaleramp=True, target_port=roughnessPort)
-                        isglossinessPort = redshiftMaterial.helper.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
+                        isglossinessPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
                         isglossinessPort.SetDefaultValue(True)                    
 
                 if "Normal" in tex_data:

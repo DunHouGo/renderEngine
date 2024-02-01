@@ -391,17 +391,17 @@ class MaterialHelper(NodeGraghHelper):
 
     # 创建Cryptomatte
     @staticmethod                                               
-    def CreateCryptomatte():
+    def CreateCryptomatte() -> c4d.BaseMaterial:
         arnoldMaterial = MaterialHelper.Create('Cryptomatte')
 
         with EasyTransaction(arnoldMaterial) as ts:
-            crypto = ts.material.AddShader("com.autodesk.arnold.shader.cryptomatte")
-            crypto_out = ts.material.GetPort(crypto)
-            end_node = ts.material.GetOutput()
-            end_shader_in = ts.material.GetPort(end_node,'shader')
+            crypto = ts.AddShader("com.autodesk.arnold.shader.cryptomatte")
+            crypto_out = ts.GetPort(crypto)
+            end_node = ts.GetOutput()
+            end_shader_in = ts.GetPort(end_node,'shader')
             crypto_out.Connect(end_shader_in)
 
-        return ts.material.material
+        return ts.material
     
     # 创建Standard Surface
     # @staticmethod

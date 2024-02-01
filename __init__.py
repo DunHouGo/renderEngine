@@ -302,7 +302,7 @@ def get_nodes(doc: c4d.documents.BaseDocument, TRACKED_TYPES : list[int]) -> Uni
         return result
     
 # 根据[类型]获取标签
-def get_tags(doc: c4d.documents.BaseDocument, TRACKED_TYPES : list[int]) -> list[c4d.BaseTag] :
+def get_tags(doc: c4d.documents.BaseDocument, TRACKED_TYPES : Union[list[int],int]) -> list[c4d.BaseTag] :
     """
     Return a list of all tags that are of a type which is contained in TRACKED_TYPES.
 
@@ -317,7 +317,7 @@ def get_tags(doc: c4d.documents.BaseDocument, TRACKED_TYPES : list[int]) -> list
     for node in all_nodes:
         tags = node.GetTags()
         for tag in tags:
-            if tag.GetType() in TRACKED_TYPES:
+            if tag.GetType() in TRACKED_TYPES or tag.GetType() == TRACKED_TYPES:
                 result.append(tag)
 
     # Return the object List.

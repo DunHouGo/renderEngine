@@ -1939,6 +1939,31 @@ class SceneHelper:
             tag = node.GetTag(ID_OCTANE_OBJECTTAG)
         return tag
 
+    # new
+    def get_light_mask(self, light_id: Union[int, str]) -> int:
+        """
+        get the light mask id of given id
+
+        Args:
+            light_id (Union[int, str]): the id number show in the ui
+
+        Returns:
+            int: the int number of the true mask id
+        """
+        if light_id == "s": #sun
+            return c4d.OBJECTTAG_LIGHTID_S
+        elif light_id == "e": # dome
+            return c4d.OBJECTTAG_LIGHTID_E
+        else:
+            # light mask 1-8 
+            for i in range(0,9):
+                if light_id == i:            
+                    return int(i + c4d.OBJECTTAG_LIGHTID_1 -1)
+            # light mask 9-20   
+            for i in range(9,21):
+                if light_id == i:
+                    return int (i + c4d.OBJECTTAG_LIGHTID_9 - 9)
+
     ### Object ###
 
     def add_scatter(self, generator_node: c4d.BaseObject, scatter_nodes: list[c4d.BaseObject] = None,
