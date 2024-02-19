@@ -56,15 +56,18 @@ class AOVHelper:
     Custom helper to modify Arnold AOV(Driver).
     """
 
-    def __init__(self, document: c4d.documents.BaseDocument = None):
+    def __init__(self, vp: c4d.documents.BaseDocument = None):
+        
+        if isinstance(vp, c4d.documents.BaseVideoPost):
+            if vp.GetType() == int(Renderer.ID_REDSHIFT):
+                self.doc = vp.GetDocument()
+                self.vp: c4d.documents.BaseVideoPost = vp
+                self.vpname: str = self.vp.GetName()
 
-        if document is None:
-            document: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
-
-        # Acess data   
-        self.doc: c4d.documents.BaseDocument = document
-        self.vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(self.doc, Renderer.ID_OCTANE)
-        self.vpname: str = self.vp.GetName()
+        elif vp is None:
+            self.doc: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
+            self.vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(self.doc, Renderer.ID_REDSHIFT)
+            self.vpname: str = self.vp.GetName()
 
     # 名称对照字典    
     @staticmethod
@@ -1527,7 +1530,7 @@ class SceneHelper:
 
     ### Light ###
     
-    def add_hdr_dome(self, texture_path: str = None, visible: bool = False) -> list[c4d.BaseTag, c4d.BaseObject]:
+    def add_hdr_dome(self, texture_path: str = None, visible: bool = False) -> c4d.BaseTag:
         """
         Add a texture (hdr) dome light to the scene.
 
@@ -1559,7 +1562,7 @@ class SceneHelper:
 
         return env
 
-    def add_rgb_dome(self, rgb: c4d.Vector = c4d.Vector(0,0,0), visible: bool = True) -> list[c4d.BaseTag, c4d.BaseObject]:
+    def add_rgb_dome(self, rgb: c4d.Vector = c4d.Vector(0,0,0), visible: bool = True) -> c4d.BaseTag:
         """
         Add a rgb dome light to the scene.
 
@@ -1874,6 +1877,30 @@ class SceneHelper:
                         
         return atag
 
+    def get_light_mask(self, light_id: int) -> int:
+        if light_id == 99: #sun
+            return c4d.OBJECTTAG_LIGHTID_S
+        elif light_id == 100: # dome
+            return c4d.OBJECTTAG_LIGHTID_E
+        else:
+            # light mask 1-8 
+            for i in range(0,9):
+                if light_id == i:
+                    return int(i + c4d.OBJECTTAG_LIGHTID_1 -1)
+            # light mask 9-20   
+            for i in range(9,21):
+                if light_id == i:
+                    return int (i + c4d.OBJECTTAG_LIGHTID_9 - 9)
+                
+    def disable_all_mask(self, tag: c4d.BaseTag) -> None:
+        #if tag.CheckType(ID_OCTANE_LIGHT_TAG) and tag[c4d.OBJECTTAG_USE_LGHT_MASK] == 1327:# On:
+        tag[c4d.OBJECTTAG_LIGHTID_S] = False
+        tag[c4d.OBJECTTAG_LIGHTID_E] = False
+        for i in range(0,9):
+            tag[int(i + c4d.OBJECTTAG_LIGHTID_1 -1)] = False
+        for i in range(9,21):
+            tag[int(i + c4d.OBJECTTAG_LIGHTID_9 -9)] = False
+
     # NEW
     def set_tag_texture(self, tag: c4d.BaseTag = None, slot: int = None, tex_path: str = None):
         if not isinstance(tag, c4d.BaseTag):
@@ -1963,6 +1990,20 @@ class SceneHelper:
             for i in range(9,21):
                 if light_id == i:
                     return int (i + c4d.OBJECTTAG_LIGHTID_9 - 9)
+
+    def _disable_all_mask(self, tag: c4d.BaseTag) -> None:
+        """
+        Disable all mlight mask
+
+        Args:
+            tag (c4d.BaseTag): the octane tag
+        """
+        tag[c4d.OBJECTTAG_LIGHTID_S] = False
+        tag[c4d.OBJECTTAG_LIGHTID_E] = False
+        for i in range(0,9):           
+            tag[int(i + c4d.OBJECTTAG_LIGHTID_1 -1)] = False
+        for i in range(9,21):
+            tag[int(i + c4d.OBJECTTAG_LIGHTID_9 -9)] = False
 
     ### Object ###
 

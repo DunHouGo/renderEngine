@@ -8,10 +8,11 @@ from pprint import pprint
 # How to create and modify redshift aovs
 def modify_redshift_aov():
 
-    # Get the doc host the aovs, in this case th active doc
+    # Get the videopost host the aovs
     doc: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
+    vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(doc, Renderer.ID_REDSHIFT)
     # Set redshift AOVHelper instance
-    aov_helper = Redshift.AOV(doc)
+    aov_helper = Redshift.AOV(vp)
     
     # Create a redshift aov item
     # the id can find from Renderer.constants.redshift,or Redshift.theid
@@ -65,10 +66,11 @@ def modify_redshift_aov():
 # How to create and modify octane aovs
 def modify_octane_aov():
 
-    # Get the doc host the aovs, in this case th active doc
+    # Get the videopost host the aovs
     doc: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
+    vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(doc, Renderer.ID_REDSHIFT)
     # Set Octane AOVHelper instance
-    aov_helper = Octane.AOV(doc)
+    aov_helper = Octane.AOV(vp)
     
     # Create a Octane aov item
     # the id can find from Renderer.constants.octane, or Octane.theid
@@ -108,10 +110,11 @@ def modify_octane_aov():
 # How to create and modify arnold aovs
 def modify_arnold_aov():
 
-    # Get the doc host the aovs, in this case th active doc
+    # Get the videopost host the aovs
     doc: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
+    vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(doc, Renderer.ID_REDSHIFT)
     # Set Arnold AOVHelper instance
-    aov_helper = Arnold.AOV(doc)
+    aov_helper = Arnold.AOV(vp)
 
     # Start record undo
     aov_helper.doc.StartUndo()

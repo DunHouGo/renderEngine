@@ -552,4 +552,17 @@ def list_vpdata(videopost: c4d.documents.BaseVideoPost):
         except AttributeError:
             print("Entry:{0} is DataType {1} and can't be printed in Python".format(key, bc.GetType(key)))
 
+def srgb_to_linear(rgb: c4d.Vector, gamma: float = 2.2) -> c4d.Vector:
+    r = (rgb[0] / 1.0)  ** (1 / gamma)
+    g = (rgb[1] / 1.0)  ** (1 / gamma)
+    b = (rgb[2] / 1.0)  ** (1 / gamma)
+    return c4d.Vector(r,g,b)
+
+def linear_to_srgb(rgb: c4d.Vector, gamma: float = 2.2) -> c4d.Vector:
+    r = (rgb[0] ** gamma) * 1.0
+    g = (rgb[1] ** gamma) * 1.0
+    b = (rgb[2] ** gamma) * 1.0
+    return c4d.Vector(r,g,b)
+
+
 # todo

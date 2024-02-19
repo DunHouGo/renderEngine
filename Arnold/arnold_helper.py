@@ -15,14 +15,18 @@ class AOVHelper:
     Custom helper to modify Arnold AOV(Driver).
     """
 
-    def __init__(self, document: c4d.documents.BaseDocument = None):
-        if document is None:
-            document: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
-            
-        # Acess data
-        self.doc: c4d.documents.BaseDocument = document
-        self.vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(self.doc, Renderer.ID_ARNOLD)
-        self.vpname: str = self.vp.GetName()
+    def __init__(self, vp: c4d.documents.BaseDocument = None):
+        
+        if isinstance(vp, c4d.documents.BaseVideoPost):
+            if vp.GetType() == int(Renderer.ID_REDSHIFT):
+                self.doc = vp.GetDocument()
+                self.vp: c4d.documents.BaseVideoPost = vp
+                self.vpname: str = self.vp.GetName()
+
+        elif vp is None:
+            self.doc: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
+            self.vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(self.doc, Renderer.ID_REDSHIFT)
+            self.vpname: str = self.vp.GetName()
 
     def __str__(self) -> str:
         return (f'<Class> {__class__.__name__} with videopost named {self.vpname}')
