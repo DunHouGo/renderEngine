@@ -23,7 +23,7 @@ class AOVHelper:
     Custom helper to easier modify AOV.
     """
 
-    def __init__(self, vp: c4d.documents.BaseDocument = None):
+    def __init__(self, vp: c4d.documents.BaseVideoPost = None):
         
         if isinstance(vp, c4d.documents.BaseVideoPost):
             if vp.GetType() == int(Renderer.ID_REDSHIFT):

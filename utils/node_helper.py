@@ -6,7 +6,215 @@ import Renderer
 from typing import Union, Optional
 from pprint import pprint
 from Renderer.constants.common_id import *
-import sys
+import os, sys, json
+
+FILEPATH, f = os.path.split(__file__)
+
+parent_dir = os.path.abspath(os.path.join(FILEPATH, os.pardir))
+
+REDSHIFT_DATA = os.path.join(parent_dir, 'constants', "Redshift.json")
+ARNOLD_DATA = os.path.join(parent_dir, 'constants', "Arnold.json")
+
+class ConverterPorts:
+
+    """
+    data = {
+        "Redshift.json" : {
+            "com.redshift3d.redshift4c4d.nodes.core.texturesampler" : {
+                "Name" : "Texture"
+                "Input" : "None"
+                "Output": "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor"
+            }
+            "com.redshift3d.redshift4c4d.nodes.core.texturesampler" : {
+                "Name" : "Texture"
+                "Input" : "com.redshift3d.redshift4c4d.nodes.core.triplanar.imagex"
+                "Output": "com.redshift3d.redshift4c4d.nodes.core.triplanar.outcolor"
+            }            
+        }
+    }
+    """
+
+    def __init__(self, nodespaceId: maxon.Id) -> None:
+        self.nodespaceId: maxon.Id = nodespaceId
+        # self.dataPath = r"C:\Users\DunHou\Desktop\DelMe\data.json"
+
+        if self.nodespaceId == RS_NODESPACE:
+            self.dataPath = REDSHIFT_DATA
+        if self.nodespaceId == AR_NODESPACE:
+            self.dataPath = ARNOLD_DATA
+
+        if not os.path.exists(self.dataPath): 
+            raise FileExistsError(f"the Convertor data is not exsit at {self.dataPath}")
+
+    @staticmethod
+    def InitRedshiftData() -> dict[dict[str]]:
+
+        repo: maxon.AssetRepositoryRef = maxon.AssetInterface.GetUserPrefsRepository()
+        if repo.IsNullValue():
+            raise RuntimeError("Could not access the user preferences repository.")
+
+        # latest version assets
+        nodeTemplateDescriptions: list[maxon.AssetDescription] = repo.FindAssets(
+            maxon.Id("net.maxon.node.assettype.nodetemplate"), maxon.Id(), maxon.Id(),
+            maxon.ASSET_FIND_MODE.LATEST)
+
+        allShaders: list[str] =  [
+            str(item.GetId())  # asset ID.
+            for item in nodeTemplateDescriptions
+            if str(item.GetId()).startswith("com.redshift3d.redshift4c4d.")  # Only RS ones
+        ]
+            
+        output = {}
+
+        def _GetOutput(shader):
+            out_ids = ['outcolor','output','out']
+
+            for out in out_ids:
+                port_id = f"{str(shader.GetValue('net.maxon.node.attribute.assetid'))[1:].split(',')[0]}.{out}"
+                port: maxon.GraphNode = shader.GetOutputs().FindChild(port_id)
+                if not port.IsNullValue():
+                    return str(port.GetId())
+            return ""
+
+        def _GetInput(shader):
+            out_ids = ['color','input','base_color', 
+                       'tex0', 'albedo', 'texture',
+                       'input1','x', 'default', 'attribute'
+                       ]
+
+            for out in out_ids:
+                port_id = f"{str(shader.GetValue('net.maxon.node.attribute.assetid'))[1:].split(',')[0]}.{out}"
+                port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
+                if not port.IsNullValue():
+                    return str(port.GetId())
+            return ""
+
+        rsNodeSpaceId: maxon.Id = maxon.Id(RS_NODESPACE)
+        if c4d.GetActiveNodeSpaceId() != rsNodeSpaceId:
+            raise RuntimeError("Make RS the active renderer and node space to run this script.")
+
+        material: c4d.BaseMaterial = c4d.BaseMaterial(c4d.Mmaterial)
+        if not material:
+            raise MemoryError(f"{material = }")
+
+        nodeMaterial: c4d.NodeMaterial = material.GetNodeMaterialReference()
+        graph: maxon.NodesGraphModelInterface = nodeMaterial.CreateDefaultGraph(rsNodeSpaceId)
+
+        with graph.BeginTransaction() as gt:
+            for nodeId in allShaders:
+                data = {}
+                node = graph.AddChild(maxon.Id(), nodeId)
+                data["input"] = str(_GetInput(node))
+                data["output"] = str(_GetOutput(node))
+                output[f"{str(node.GetValue('net.maxon.node.attribute.assetid'))[1:].split(',')[0]}"] = data
+
+            gt.Commit()
+
+        c4d.documents.GetActiveDocument().InsertMaterial(material)
+        c4d.EventAdd()
+
+        return output
+
+    @staticmethod
+    def InitArnoldData() -> dict[dict[str]]:
+
+        repo: maxon.AssetRepositoryRef = maxon.AssetInterface.GetUserPrefsRepository()
+        if repo.IsNullValue():
+            raise RuntimeError("Could not access the user preferences repository.")
+
+        # latest version assets
+        nodeTemplateDescriptions: list[maxon.AssetDescription] = repo.FindAssets(
+            maxon.Id("net.maxon.node.assettype.nodetemplate"), maxon.Id(), maxon.Id(),
+            maxon.ASSET_FIND_MODE.LATEST)
+
+        allShaders: list[str] =  [
+            str(item.GetId())  # asset ID.
+            for item in nodeTemplateDescriptions
+            if str(item.GetId()).startswith("com.autodesk.arnold.")  # Only Arnold ones
+        ]
+        
+        output = {}
+
+        def _GetOutput(shader):
+            out_ids = ['outcolor','output','out']
+
+            for out in out_ids:
+                port: maxon.GraphNode = shader.GetOutputs().FindChild(out)
+                if not port.IsNullValue():
+                    return str(port.GetId())
+            return ""
+
+        def _GetInput(shader):
+            out_ids = ['color','input','base_color', 'filename',
+                       'tex0', 'albedo', 'texture',
+                       'input1','x', 'default', 'aov_name'
+                       ]
+
+            for out in out_ids:
+                port: maxon.GraphNode = shader.GetInputs().FindChild(out)
+                if not port.IsNullValue():
+                    return str(port.GetId())
+            return ""
+
+        rsNodeSpaceId: maxon.Id = maxon.Id(AR_NODESPACE)
+        if c4d.GetActiveNodeSpaceId() != rsNodeSpaceId:
+            raise RuntimeError("Make RS the active renderer and node space to run this script.")
+
+        material: c4d.BaseMaterial = c4d.BaseMaterial(c4d.Mmaterial)
+        if not material:
+            raise MemoryError(f"{material = }")
+
+        nodeMaterial: c4d.NodeMaterial = material.GetNodeMaterialReference()
+        graph: maxon.NodesGraphModelInterface = nodeMaterial.CreateDefaultGraph(rsNodeSpaceId)
+
+        with graph.BeginTransaction() as gt:
+            for nodeId in allShaders:
+                data = {}
+                node = graph.AddChild(maxon.Id(), nodeId)
+                data["input"] = str(_GetInput(node))
+                data["output"] = str(_GetOutput(node))
+                output[f"{str(node.GetValue('net.maxon.node.attribute.assetid'))[1:].split(',')[0]}"] = data
+
+            gt.Commit()
+
+        c4d.documents.GetActiveDocument().InsertMaterial(material)
+        c4d.EventAdd()
+
+        return output
+
+    ### Key methods ###
+
+    def IsGeneratorNode(self, node: maxon.GraphNode) -> bool:
+        if self.GetConvertInput(node) != "":
+            return True
+        return False
+
+    def GetConvertInput(self, StrOrNode: Union[str, maxon.GraphNode]) -> str:
+        if isinstance(StrOrNode, str):
+            assetId = StrOrNode
+        elif isinstance(StrOrNode, maxon.GraphNode):
+            if StrOrNode.GetKind() == maxon.NODE_KIND.NODE:       
+                assetId = str(StrOrNode.GetValue("net.maxon.node.attribute.assetid"))[1:].split(",")[0]
+
+        with open(self.dataPath, 'r', encoding='UTF-8') as file:
+            data: dict = json.loads(file.read())
+
+        # data: dict = read_json(self.dataPath)
+        item: dict =  data.get(assetId,"")
+        return item.get("input","")
+    
+    def GetConvertOutput(self, StrOrNode: Union[str, maxon.GraphNode]) -> str:
+        if isinstance(StrOrNode, str):
+            assetId = StrOrNode
+        elif isinstance(StrOrNode, maxon.GraphNode):
+            if StrOrNode.GetKind() == maxon.NODE_KIND.NODE:       
+                assetId = str(StrOrNode.GetValue("net.maxon.node.attribute.assetid"))[1:].split(",")[0]
+        with open(self.dataPath, 'r', encoding='UTF-8') as file:
+            data: dict = json.loads(file.read())
+        #data: dict = read_json(self.dataPath)
+        item: dict =  data.get(assetId,"")
+        return item.get("output","")
+
 
 # Custom Helper for New Node Materials Graph
 class NodeGraghHelper:
@@ -449,12 +657,44 @@ class NodeGraghHelper:
 
         return node.GetValue("isgroup")
     
+    # New 是不是生成类节点:没有默认的输入端
+    def IsGeneratorNode(self, node: maxon.GraphNode) -> bool:
+        return ConverterPorts(self.nodespaceId).IsGeneratorNode(node)
+    
+    # New 获取默认输入端口
+    def GetConvertInput(self, node: maxon.GraphNode) -> Optional[str]:
+        """
+        Get the Convert port of a node, this is a custom solution in python, only used to get "defaut" port.
+
+        Args:
+            node (maxon.GraphNode): the host node.
+
+        Returns:
+            str: the id of the port, or None
+        """
+        res = ConverterPorts(self.nodespaceId).GetConvertInput(node)
+        return res if res != "" else None
+    
+    # New 获取默认输出端口
+    def GetConvertOutput(self, node: maxon.GraphNode) -> Optional[str]:
+        """
+        Get the Convert port of a node, this is a custom solution in python, only used to get "defaut" port.
+
+        Args:
+            node (maxon.GraphNode): the host node.
+
+        Returns:
+            str: the id of the port, or None
+        """
+        res = ConverterPorts(self.nodespaceId).GetConvertOutput(node)
+        return res if res != "" else None
 
     #=============================================
     # Node
     #=============================================
 
     # 当前NodeSpace下所有可用的shader ==> ok
+    
     def GetAvailableShaders(self) -> list[maxon.Id]:
         """
         Get all available node assets for active nodespace
@@ -1604,4 +1844,3 @@ class EasyTransaction:
     def __exit__(self, type, value, traceback) -> None:
         if self.transaction is not None:
             self.transaction.Commit(self.setting)
-

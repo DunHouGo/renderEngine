@@ -414,7 +414,7 @@ def deselect_all_materials(doc: c4d.documents.BaseDocument = None):
         m.DelBit(c4d.BIT_ACTIVE)
 
 # 迭代对象
-def iter_node(node, include_node=False, include_siblings=False) -> list[c4d.GeListNode]:
+def iter_node(node, include_node=False, include_siblings=False):
     """Provides a non-recursive iterator for all descendants of a node.
 
     Args:

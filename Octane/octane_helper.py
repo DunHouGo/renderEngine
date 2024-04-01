@@ -56,17 +56,17 @@ class AOVHelper:
     Custom helper to modify Arnold AOV(Driver).
     """
 
-    def __init__(self, vp: c4d.documents.BaseDocument = None):
+    def __init__(self, vp: c4d.documents.BaseVideoPost = None):
         
         if isinstance(vp, c4d.documents.BaseVideoPost):
-            if vp.GetType() == int(Renderer.ID_REDSHIFT):
+            if vp.GetType() == int(Renderer.ID_OCTANE):
                 self.doc = vp.GetDocument()
                 self.vp: c4d.documents.BaseVideoPost = vp
                 self.vpname: str = self.vp.GetName()
 
         elif vp is None:
             self.doc: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
-            self.vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(self.doc, Renderer.ID_REDSHIFT)
+            self.vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(self.doc, Renderer.ID_OCTANE)
             self.vpname: str = self.vp.GetName()
 
     # 名称对照字典    

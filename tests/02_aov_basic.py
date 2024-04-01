@@ -68,7 +68,7 @@ def modify_octane_aov():
 
     # Get the videopost host the aovs
     doc: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
-    vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(doc, Renderer.ID_REDSHIFT)
+    vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(doc, Renderer.ID_OCTANE)
     # Set Octane AOVHelper instance
     aov_helper = Octane.AOV(vp)
     
@@ -112,7 +112,7 @@ def modify_arnold_aov():
 
     # Get the videopost host the aovs
     doc: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
-    vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(doc, Renderer.ID_REDSHIFT)
+    vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(doc, Renderer.ID_ARNOLD)
     # Set Arnold AOVHelper instance
     aov_helper = Arnold.AOV(vp)
 

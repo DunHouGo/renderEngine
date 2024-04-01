@@ -197,10 +197,24 @@ def modify_octane_material():
 
     # Open Octane Node Editor with the material
     Octane.OpenNodeEditor(material)
-    
+
+def ConvertTest():
+
+    material: c4d.BaseMaterial = c4d.documents.GetActiveDocument().GetActiveMaterial()
+
+    with EasyTransaction(material) as tr: 
+
+        nodes = tr.GetActiveNodes()
+        for node in nodes:
+            print(f"Node: {tr.GetName(node)}")
+            print(f"Default Input: {tr.GetConvertInput(node)}")
+            print(f"Default Output: {tr.GetConvertOutput(node)}")
+            print("-"*10)
+
 if __name__ == '__main__':
     Renderer.ClearConsole()
     create_material()
     # modify_material()
     # access_material_data()
     # modify_octane_material()
+    # ConvertTest()
