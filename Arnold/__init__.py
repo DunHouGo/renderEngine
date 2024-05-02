@@ -8,6 +8,7 @@ import c4d
 import Renderer
 from Renderer.constants.arnold_id import *
 from Renderer.Arnold.arnold_helper import AOVHelper as AOV, MaterialHelper as Material, SceneHelper as Scene
+from Renderer.Arnold.arnold_helper import GetShaderLink, SetShaderLink, GetVColor, SetVColor
 
 def GetPreference() -> c4d.BaseList2D:
     prefs = c4d.plugins.FindPlugin(ID_PREFERENCES_NODE)

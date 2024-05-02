@@ -262,7 +262,7 @@ class AOVHelper:
         # read
         aov_type = aov[RNDAOV_TYPE]
         
-        if aov_name == "":
+        if aov_name is None:
             aov[RNDAOV_NAME] = AOV_SYMBOLS[aov_type]
         else:
             aov[RNDAOV_NAME] = aov_name
@@ -1546,6 +1546,8 @@ class SceneHelper:
         osky = c4d.BaseObject(c4d.Osky)
         env = osky.MakeTag(ID_OCTANE_ENVIRONMENT_TAG)
         image = c4d.BaseList2D(ID_OCTANE_IMAGE_TEXTURE)
+        img[1118] = 2
+        img[c4d.IMAGETEXTURE_GAMMA] = 1.0
         env.InsertShader(image)
         env[c4d.ENVIRONMENTTAG_TEXTURE] = image
         self.doc.InsertObject(osky)

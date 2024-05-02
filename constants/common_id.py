@@ -9,6 +9,8 @@ import maxon
 ID_OCTANE: int = 1029525 # Octane 
 ID_REDSHIFT: int = 1036219 # Redshift
 ID_ARNOLD: int = 1029988 # Arnold
+ID_VRAY: int = 1053272
+ID_CORONA: int = 1030480
 ID_LOOKS: int = 1054755
 
 # Buildin ID

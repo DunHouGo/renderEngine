@@ -16,5 +16,14 @@
   - Fix some hint
   - Fix Octane Scene parameter
   - Update the example of AOVHelper
+- ### 1.0.2
+  - Add **Vray** class
+  - Add **Corona** class
+  - Change VideoPost Helper __init__ parameter doc to vp
+  - minior fixes
+- ### 1.0.3
+  - Add **GetPortRealName** to fit the 2024.4.0 version.
+  - Add **CheckArgType** and **CheckArgCallback** decorator
+  - add some documents
 ---
 - __coming soon...__

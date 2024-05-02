@@ -3,18 +3,12 @@ import c4d
 import maxon
 import functools
 import Renderer
-from typing import Union, Optional
+from typing import Union, Optional, Any
 from pprint import pprint
 from Renderer.constants.common_id import *
 import os, sys, json
 
-FILEPATH, f = os.path.split(__file__)
-
-parent_dir = os.path.abspath(os.path.join(FILEPATH, os.pardir))
-
-REDSHIFT_DATA = os.path.join(parent_dir, 'constants', "Redshift.json")
-ARNOLD_DATA = os.path.join(parent_dir, 'constants', "Arnold.json")
-
+# Custom Helper for get the "Converter Port" in trick.
 class ConverterPorts:
 
     """
@@ -35,20 +29,29 @@ class ConverterPorts:
     """
 
     def __init__(self, nodespaceId: maxon.Id) -> None:
+
         self.nodespaceId: maxon.Id = nodespaceId
-        # self.dataPath = r"C:\Users\DunHou\Desktop\DelMe\data.json"
+
+        FILEPATH, f = os.path.split(__file__)
+        parent_dir = os.path.abspath(os.path.join(FILEPATH, os.pardir))
 
         if self.nodespaceId == RS_NODESPACE:
-            self.dataPath = REDSHIFT_DATA
+            self.dataPath = os.path.join(parent_dir, 'constants', "Redshift.json")
         if self.nodespaceId == AR_NODESPACE:
-            self.dataPath = ARNOLD_DATA
+            self.dataPath = os.path.join(parent_dir, 'constants', "Arnold.json")
 
         if not os.path.exists(self.dataPath): 
             raise FileExistsError(f"the Convertor data is not exsit at {self.dataPath}")
 
     @staticmethod
     def InitRedshiftData() -> dict[dict[str]]:
+        """
+        Get the basic data, then save the date and modity it.
+        This should be used if the data is missing or you want to customizd
 
+        Returns:
+            dict[dict[str]]: teh data we want
+        """
         repo: maxon.AssetRepositoryRef = maxon.AssetInterface.GetUserPrefsRepository()
         if repo.IsNullValue():
             raise RuntimeError("Could not access the user preferences repository.")
@@ -117,7 +120,13 @@ class ConverterPorts:
 
     @staticmethod
     def InitArnoldData() -> dict[dict[str]]:
-
+        """
+        Get the basic data, then save the date and modity it.
+        This should be used if the data is missing or you want to customizd
+        
+        Returns:
+            dict[dict[str]]: teh data we want
+        """
         repo: maxon.AssetRepositoryRef = maxon.AssetInterface.GetUserPrefsRepository()
         if repo.IsNullValue():
             raise RuntimeError("Could not access the user preferences repository.")
@@ -185,11 +194,29 @@ class ConverterPorts:
     ### Key methods ###
 
     def IsGeneratorNode(self, node: maxon.GraphNode) -> bool:
+        """
+        True if the node don't have a input data. so we call it generator.
+
+        Args:
+            node (maxon.GraphNode): the host node
+
+        Returns:
+            bool: True if the node don't have a input data.
+        """
         if self.GetConvertInput(node) != "":
             return True
         return False
 
     def GetConvertInput(self, StrOrNode: Union[str, maxon.GraphNode]) -> str:
+        """
+        Get the default in port of the node.
+
+        Args:
+            StrOrNode (Union[str, maxon.GraphNode]): the node or it's string id.
+
+        Returns:
+            str: the string id of the default in port, else ""
+        """
         if isinstance(StrOrNode, str):
             assetId = StrOrNode
         elif isinstance(StrOrNode, maxon.GraphNode):
@@ -204,6 +231,15 @@ class ConverterPorts:
         return item.get("input","")
     
     def GetConvertOutput(self, StrOrNode: Union[str, maxon.GraphNode]) -> str:
+        """
+        Get the default out port of the node.
+
+        Args:
+            StrOrNode (Union[str, maxon.GraphNode]): the node or it's string id.
+
+        Returns:
+            str: the string id of the default out port, else ""
+        """
         if isinstance(StrOrNode, str):
             assetId = StrOrNode
         elif isinstance(StrOrNode, maxon.GraphNode):
@@ -240,7 +276,8 @@ class NodeGraghHelper:
         self._support_renderers: list = [
             "net.maxon.nodespace.standard",
             "com.autodesk.arnold.nodespace",
-            "com.redshift3d.redshift4c4d.class.nodespace"
+            "com.redshift3d.redshift4c4d.class.nodespace",
+            "com.chaos.class.vray_node_renderer_nodespace"
         ]
 
         if not isinstance(material, c4d.BaseMaterial):
@@ -296,10 +333,22 @@ class NodeGraghHelper:
             return result
         return wrapper
     
-
     #=============================================
     # Util
     #=============================================
+    # 包装maxon数据转换，把数据强制转换为maxon数据类型
+    def _ConvertData(self, data: Any) -> maxon.data:
+        """
+        Convert the data to maxon data type for safely.
+
+        Args:
+            data (Any): the data to convert
+
+        Returns:
+            maxon.data: the converted data
+        """
+        
+        return maxon.MaxonConvert(data, maxon.CONVERSIONMODE.TOMAXON)
 
     # 获取资产ID 只有node有asset id ==> ok
     def GetAssetId(self, node: maxon.GraphNode) -> str:
@@ -345,7 +394,7 @@ class NodeGraghHelper:
 
         return shaderId
 
-    # 获取节点名 ==> ok
+    # NOTE:获取节点名 ==> ok
     def GetName(self, node: maxon.GraphNode) -> Optional[str]:
         """
         Retrieve the displayed name of a node.
@@ -356,17 +405,19 @@ class NodeGraghHelper:
         Returns:
             Optional[str]: the name of the ndoe
         """
-        if not isinstance(node, maxon.GraphNode) or node.GetKind() != maxon.NODE_KIND.NODE:
-            raise ValueError(f'{sys._getframe().f_code.co_name} Expected a true node GraphNode, got {type(node)}')
+        if not isinstance(node, maxon.GraphNode):#  or node.GetKind() != maxon.NODE_KIND.NODE:
+            raise ValueError(f'{sys._getframe().f_code.co_name} Expected a node GraphNode, got {type(node)}')
 
         nodeName = node.GetValue(maxon.NODE.BASE.NAME)
 
+        # 此函数在2024.4.0中可以返回正确的值
+        # 在2024.2.0中返回None
         if nodeName is None:
             nodeName = node.GetValue(maxon.EffectiveName)
 
         if nodeName is None:
             nodeName = str(node)
-            
+
         return nodeName
 
     # 设置节点名
@@ -384,11 +435,10 @@ class NodeGraghHelper:
         if not isinstance(node, maxon.GraphNode) and node.GetKind() != maxon.NODE_KIND.NODE:
             raise ValueError(f'{sys._getframe().f_code.co_name} Expected a true node GraphNode, got {type(node)}')
 
-        if not isinstance(name, str):
-            raise ValueError('Expected a String, got {}'.format(type(name)))
+        # if not isinstance(name, str):
+        #     raise ValueError('Expected a String, got {}'.format(type(name)))
         
-        node.SetValue(maxon.NODE.BASE.NAME, maxon.String(name))
-        node.SetValue(maxon.EffectiveName, maxon.String(name))
+        node.SetValue(maxon.NODE.BASE.NAME, self._ConvertData(str(name)))
         return True
 
     # 选择 ==> ok
@@ -518,15 +568,7 @@ class NodeGraghHelper:
         """
         # standard data type
         port: maxon.GraphNode = self.GetPort(node,paramId)
-        if not self.IsPortValid(port):
-            return None
-        
-        # don't sure if this worked before 2024
-        if c4d.GetC4DVersion() >= 2024000:
-            return port.GetValue("value")
-            # "effectivename" is None when a wire filled into the port
-        else:
-            return port.GetDefaultValue()
+        self.GetPortData(port)
 
     # 设置属性 ==> ok
     def SetShaderValue(self, node: maxon.GraphNode, paramId: Union[maxon.Id,str]=None, value=None) -> bool:
@@ -541,14 +583,58 @@ class NodeGraghHelper:
         Returns:
             bool: True if the value has been changed.
         """
+
+        port: maxon.GraphNode = self.GetPort(node,paramId)        
+        return self.SetPortData(port, value)
+
+    # 获取端口属性 ==> ok
+    def GetPortData(self, port: maxon.GraphNode) -> any:
+        """
+        Gets the value to the given port.
+
+        Args:
+            node (maxon.GraphNode): the node
+
+        Returns:
+            bool: True if the value has been changed.
+        """
         # standard data type
-        port: maxon.GraphNode = self.GetPort(node,paramId)
-        
         if not self.IsPortValid(port):
-            print("[WARNING] Input port '%s' is not found on shader '%r'" % (paramId, node))
-            return None
-    
-        return port.SetDefaultValue(value)
+            raise ValueError(f"Input {port} is not a valid port")
+
+        if c4d.GetC4DVersion() >= 2024400:
+            return port.GetPortValue()
+            # "effectivename" is None when a wire filled into the port
+        elif 2024000 <= c4d.GetC4DVersion() < 2024400:
+            return port.GetValue("value")
+        else:
+            try:
+                return port.GetValue("value")
+            except:
+                return port.GetDefaultValue()
+
+    # 设置端口属性 ==> ok
+    def SetPortData(self, port: maxon.GraphNode, value) -> bool:
+        """
+        Sets the value to the given port.
+
+        Args:
+            node (maxon.GraphNode): the node
+            paramId (Union[maxon.Id,str], optional): the port id. Defaults to None.
+            value (_type_, optional): the value to set. Defaults to None.
+
+        Returns:
+            bool: True if the value has been changed.
+        """
+        if not self.IsPortValid(port):
+            raise ValueError(f"Input {port} is not a valid port")
+
+        return port.SetValue("net.maxon.description.data.base.defaultvalue", self._ConvertData(value))
+
+        # if c4d.GetC4DVersion() >= 2024400:
+        #     return port.SetPortValue(maxon_value)
+        
+        # return port.SetDefaultValue(maxon_value)
 
     # 获取所有Shader ==> ok
     def GetAllShaders(self, mask: Union[str,maxon.Id] = None) -> list[maxon.GraphNode]:
@@ -659,6 +745,15 @@ class NodeGraghHelper:
     
     # New 是不是生成类节点:没有默认的输入端
     def IsGeneratorNode(self, node: maxon.GraphNode) -> bool:
+        """
+        True if the node don't have a input data. so we call it generator.
+
+        Args:
+            node (maxon.GraphNode): the host node
+
+        Returns:
+            bool: True if the node don't have a input data.
+        """
         return ConverterPorts(self.nodespaceId).IsGeneratorNode(node)
     
     # New 获取默认输入端口
@@ -691,7 +786,7 @@ class NodeGraghHelper:
 
     #=============================================
     # Node
-    #=============================================
+    #=============================================~~
 
     # 当前NodeSpace下所有可用的shader ==> ok
     
@@ -1084,7 +1179,8 @@ class NodeGraghHelper:
     #=============================================
 
     # New 获取端口名 ==> ok
-    def GetPortName(self, port: maxon.GraphNode) -> str:
+    # NOTE: 2024.4.0 此函数返回了接口的真正名称（Maxon.String），也就是节点编辑器中的显示名称
+    def GetPortName(self, port: maxon.GraphNode) -> Union[str, maxon.String]:
         """
         Get the name of the port
 
@@ -1098,6 +1194,23 @@ class NodeGraghHelper:
             raise ValueError(f'{sys._getframe().f_code.co_name} Expected a port, got {type(port)}')
         
         return self.GetName(port).split(".")[-1]
+    
+    # New 获取端口名称 ==> ok
+    # NOTE: 此函数返回的是端口id的名称(最后一个分段)，用于比对更加准确
+    def GetPortRealName(self, port: maxon.GraphNode) -> str:
+        """
+        Get the real name of the port.
+
+        Args:
+            port (maxon.GraphNode): the port
+
+        Returns:
+            str: The id string of this port
+        """
+        if not self.IsPort(port):
+            raise ValueError(f'{sys._getframe().f_code.co_name} Expected a port, got {type(port)}')
+        
+        return str(port.GetId()).split(".")[-1]
 
     # 选择的端口 ==> ok
     def GetActivePorts(self, single_mode: bool = True, callback: callable = None) -> Union[maxon.GraphNode, list[maxon.GraphNode]]:
@@ -1254,10 +1367,12 @@ class NodeGraghHelper:
                 port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
                 if port.IsNullValue():
                     port = shader.GetOutputs().FindChild(port_id)
+                    if port.IsNullValue():
+                        return False
             return port
         
         if self.nodespaceId == AR_NODESPACE:
-            if port_id == None:                
+            if port_id == None:
                 for out in out_ids:                               
                     port: maxon.GraphNode = shader.GetInputs().FindChild(out)
                     if port.IsNullValue():
@@ -1268,7 +1383,17 @@ class NodeGraghHelper:
                 port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
                 if port.IsNullValue():
                     port = shader.GetOutputs().FindChild(port_id)
+                    if port.IsNullValue():
+                        return False
             return port
+        else:
+            port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
+            if port.IsNullValue():
+                port = shader.GetOutputs().FindChild(port_id)
+                if port.IsNullValue():
+                    return False
+            return port
+
 
     # 获取端口所在节点 ==> ok
     def GetTrueNode(self, port: maxon.GraphNode) -> maxon.GraphNode:
@@ -1299,7 +1424,9 @@ class NodeGraghHelper:
             bool: True if the node is valid.
         """
         try:
-            return port.IsValid()
+            if self.IsPort(port):
+                return port.IsValid()
+            return False
         except Exception as e:
             return False
 
@@ -1320,6 +1447,46 @@ class NodeGraghHelper:
             return True
         return False
     
+    # NEW @ 2024.4.8 ==> ok
+    def IsOutPort(self, port: maxon.GraphNode, only_port: bool = True) -> bool:
+        """
+        Check is a port is a out port or out(include out list)
+
+        Args:
+            port (maxon.GraphNode): the port the check
+            only_port (bool, optional): if set True, only outport will return trye. Defaults to True.
+
+        Returns:
+            bool: True if the node is a output port or a output list
+        """
+        if not isinstance(port, maxon.GraphNode):
+            raise TypeError("Kind should be a maxon.GraphNode")
+        if only_port:
+            condition = maxon.NODE_KIND.OUTPORT
+        else:
+            condition = maxon.NODE_KIND.OUT_MASK
+        return port.GetKind() == condition
+
+    # NEW @ 2024.4.8 ==> ok
+    def IsInputPort(self, port: maxon.GraphNode, only_port: bool = True) -> bool:
+        """
+        Check is a port is a input port or out(include out list)
+
+        Args:
+            port (maxon.GraphNode): the port the check
+            only_port (bool, optional): if set True, only input will return trye. Defaults to True.
+
+        Returns:
+            bool: True if the node is a input port or a input list
+        """
+        if not isinstance(port, maxon.GraphNode):
+            raise TypeError("Kind should be a maxon.GraphNode")
+        if only_port:
+            condition = maxon.NODE_KIND.INPORT
+        else:
+            condition = maxon.NODE_KIND.IN_MASK
+        return port.GetKind() == condition
+
     # New 端口是否在同一个节点  ==> ok
     def OnSameNode(self, port_1: maxon.GraphNode ,port_2: maxon.GraphNode) -> bool:
         """
@@ -1337,7 +1504,7 @@ class NodeGraghHelper:
         if self.GetTrueNode(port_1) == self.GetTrueNode(port_2):
             return True
         return False
-    
+
     # New 获取所有被连接的端口 ==> ok
     def GetAllConnectedPorts(self, except_node: maxon.GraphNode = None) -> list[maxon.GraphNode]:
         """
@@ -1362,7 +1529,7 @@ class NodeGraghHelper:
                 all_ports.append(wire[1])
                 all_ports.append(wire[-1])
         return all_ports
-    
+
     # New 端口是否连接  ==> ok
     def IsPortConnected(self, port: maxon.GraphNode) -> bool:
         """
@@ -1624,8 +1791,8 @@ class NodeGraghHelper:
         Disconnects the given shader input.
 
         Args:
-            port (maxon.GraphNode): _description_
-            another_port (Optional[Union[maxon.GraphNode,str]], optional): _description_. Defaults to None.
+            port (maxon.GraphNode): the port we can remove connection. and we can only fill one port
+            another_port (Optional[Union[maxon.GraphNode,str]], optional): the 2rd port. Defaults to None.
         """
         
         # 两个输入都是port 
@@ -1803,7 +1970,10 @@ class EasyTransaction:
             elif self.nodespaceId == AR_NODESPACE:
                 self.helper= Renderer.Arnold.Material(material)
                 self.graph: maxon.GraphModelInterface = self.helper.graph
-
+            
+            elif self.nodespaceId == VR_NODESPACE:
+                self.helper= Renderer.VRay.Material(material)
+                self.graph: maxon.GraphModelInterface = self.helper.graph
             if self.graph.IsNullValue():
                 raise ValueError("Cannot retrieve the graph of this nimbus NodeSpace.")
 
@@ -1844,3 +2014,5 @@ class EasyTransaction:
     def __exit__(self, type, value, traceback) -> None:
         if self.transaction is not None:
             self.transaction.Commit(self.setting)
+
+

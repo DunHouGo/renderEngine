@@ -1,7 +1,7 @@
 import c4d
 import maxon
 import Renderer
-from Renderer import Redshift, Arnold, Octane, EasyTransaction, TextureHelper
+from Renderer import Redshift, Arnold, Octane, VRay, EasyTransaction, TextureHelper
 from pprint import pprint
 
 """ 
@@ -210,6 +210,35 @@ def ConvertTest():
             print(f"Default Input: {tr.GetConvertInput(node)}")
             print(f"Default Output: {tr.GetConvertOutput(node)}")
             print("-"*10)
+
+
+import c4d
+import maxon
+import Renderer
+from Renderer import Redshift,EasyTransaction
+from pprint import pprint
+
+def test():
+
+    material: c4d.BaseMaterial = Redshift.Material("MyMaterial")
+
+    # Use EasyTransaction to modify the graph
+    # 使用EasyTransaction来修改材质
+    with EasyTransaction(material) as tr:
+    
+        std = tr.GetRootBRDF()
+        base_color = tr.GetPort(std, "com.redshift3d.redshift4c4d.nodes.core.standardmaterial.base color")
+        refl_color = tr.GetPort(std, "com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl color")
+        ior = tr.AddConnectShader(
+            "com.redshift3d.redshift4c4d.nodes.core.iortometaltints",
+            output_ports=["com.redshift3d.redshift4c4d.nodes.core.iortometaltints.facing", "com.redshift3d.redshift4c4d.nodes.core.iortometaltints.edgetint"],
+            connect_outNodes=[base_color,refl_color]
+        )
+
+        # Insert the material to the document
+        # 导入材质(来自Redshift MaterialHelper)
+        tr.InsertMaterial()
+
 
 if __name__ == '__main__':
     Renderer.ClearConsole()

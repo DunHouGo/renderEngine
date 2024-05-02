@@ -14,9 +14,11 @@ __license__ = "MIT license"
 ###  ==========  Import Libs  ==========  ###
 """Provides functions and constants that are commonly used in all modules. Also exposes the sub-modules.
 """
+
+
 import c4d
 import typing
-from typing import Union, Optional
+from typing import Union, Optional, Callable
 import functools
 import time
 import random
@@ -42,11 +44,15 @@ if c4d.plugins.FindPlugin(ID_ARNOLD, type=c4d.PLUGINTYPE_ANY) is not None:
     from Renderer import Arnold
 if c4d.plugins.FindPlugin(ID_OCTANE, type=c4d.PLUGINTYPE_ANY) is not None:
     from Renderer import Octane
+if c4d.plugins.FindPlugin(ID_VRAY, type=c4d.PLUGINTYPE_ANY) is not None:
+    from Renderer import Vray
+if c4d.plugins.FindPlugin(ID_CORONA, type=c4d.PLUGINTYPE_ANY) is not None:
+    from Renderer import Corona
 
-SUPPORT_RENDERER: list[int] = [ID_REDSHIFT, ID_ARNOLD, ID_OCTANE]
+SUPPORT_RENDERER: list[int] = [ID_REDSHIFT, ID_ARNOLD, ID_OCTANE, ID_CORONA, ID_VRAY]
 
 ###  ==========  Decorators  ==========  ###
-    
+
 # decorator 装饰器 状态栏信息
 def Statusbar(msg: str) -> None:
     """A decorator for indicating a computationally expensive process in the *Cinema4D* status bar. 
@@ -74,6 +80,7 @@ def Statusbar(msg: str) -> None:
     def decorator(f):
         """
         """
+        @functools.wraps(f)
         def wrapper(*args, **kwargs):
             """
             """
@@ -121,6 +128,61 @@ def TimeIt(func) -> None:
         print(f"Executing {func.__name__}() took {(time.perf_counter() - t0):.4f} seconds.")
         return result
     return wrapper
+
+# decorator 装饰器 检查某个参数的类型
+# @CheckArgType("arg_name", (type, tuple))
+def CheckArgType(arg_name: str, expected_type: Union[type, tuple]) -> callable:  
+    def decorator(func):  
+        @functools.wraps(func)  
+        def wrapper(*args, **kwargs):  
+            # 获取参数位置  
+            arg_positions = [i for i, param in enumerate(func.__code__.co_varnames) if param == arg_name]  
+              
+            # 检查位置参数  
+            for pos in arg_positions:  
+                if pos < len(args):  
+                    arg_value = args[pos]  
+                    break  
+            else:  
+                # 检查关键字参数  
+                arg_value = kwargs.get(arg_name)  
+                if arg_value is None:  
+                    raise TypeError(f"Missing required argument '{arg_name}'")  
+  
+            # 检查参数类型  
+            if not isinstance(arg_value, expected_type):  
+                raise TypeError(f"Argument '{arg_name}' should be of type {expected_type}, got {type(arg_value)}")  
+              
+            return func(*args, **kwargs)  
+          
+        return wrapper  
+      
+    return decorator 
+
+
+# decorator 装饰器 检查某个参数是否符合指定条件
+# @CheckArgCallback("node", lambda node: isinstance(node, maxon.GraphNode) and node.GetKind() != maxon.NODE_KIND.NODE)
+def CheckArgCallback(arg_name: str, callback: Callable):
+
+    def decorator(func):
+        @functools.wraps(func)  
+        def wrapper(*args, **kwargs):
+            # 检查参数是否存在
+            if arg_name in kwargs:
+                # 获取参数值
+                param_value = kwargs[arg_name]
+                # 使用回调函数判断参数是否符合条件
+                if callback(param_value):
+                    # 如果符合条件，则调用原始函数
+                    return func(*args, **kwargs)
+                else:
+                    # 如果不符合条件，则抛出异常
+                    raise ValueError(f"Invalid type for parameter '{param_value}' with {type(param_value)} for parameter '{arg_name}'")
+            else:
+                # 如果参数不存在，则抛出异常
+                raise ValueError(f"Parameter '{arg_name}' is missing")
+        return wrapper
+    return decorator
 
 ###  ==========  Functions  ==========  ###
 

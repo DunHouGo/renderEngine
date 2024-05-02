@@ -572,7 +572,7 @@ class MaterialHelper(NodeGraghHelper):
                 self.material.SetName(mat_name)
                 
             except Exception as e:
-                raise RuntimeError ("Unable to setup texture")
+                raise RuntimeError (f"Unable to setup texture with {e}")
             
         # 将Standard Surface材质引入当前Document
         self.InsertMaterial()
@@ -1087,7 +1087,7 @@ class MaterialHelper(NodeGraghHelper):
         
         texPort: maxon.GraphNode = self.GetPort(shader,"filename")
 
-        colorspacePort: maxon.GraphNode = self.GetPort(shader,"colorspace")
+        colorspacePort: maxon.GraphNode = self.GetPort(shader,"color_space")
 
         # tex path
         if filepath is not None:
