@@ -25,5 +25,12 @@
   - Add **GetPortRealName** to fit the 2024.4.0 version.
   - Add **CheckArgType** and **CheckArgCallback** decorator
   - add some documents
+- ### 1.0.4
+  - fix typing error
+  - fix **Vray** import error
+- ### 1.0.5
+  - Add **AOV** to **Vray**, you can modify aovs like other libs now.
+  - Add **custom id** to Vray, you can check this to avoid anosing id work.
+
 ---
 - __coming soon...__

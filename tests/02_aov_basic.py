@@ -1,7 +1,7 @@
 import c4d
 import maxon
 import Renderer
-from Renderer import Redshift, Arnold, Octane
+from Renderer import Redshift, Arnold, Octane, Vray
 from pprint import pprint
 
 
@@ -173,8 +173,41 @@ def modify_arnold_aov():
     # End record undo
     aov_helper.doc.EndUndo()
 
+# How to create and modify vray aovs
+def modify_vray_aov():
+
+    # Get the doc host the aovs, in this case th active doc vp
+    doc: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
+    vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(doc, Renderer.ID_VRAY)
+    # Set Vray AOVHelper instance
+    aov_helper = Vray.AOV(vp)
+    # the id can find from Renderer.constants.vray, or Vray_id.py
+    # If #name is None, defulat to type.
+    diff_aov = aov_helper.create_aov_shader(aov_type = Vray.VRAY_AOV_DIFFUSE)
+    # Add the DIFFUSE aov just created to the Octane aov system
+    aov_helper.add_aov(diff_aov)
+
+    # Add some aovs
+    aov_helper.add_aov(aov_helper.create_aov_shader(aov_type = Vray.VRAY_AOV_BACKGROUND, aov_name = 'BG'))
+    aov_helper.add_aov(aov_helper.create_aov_shader(Vray.VRAY_AOV_SPECULAR))
+    aov_helper.add_aov(aov_helper.create_aov_shader(Vray.VRAY_AOV_REFLECTION))
+    aov_helper.add_aov(aov_helper.create_aov_shader(Vray.VRAY_AOV_SHADOW))
+    aov_helper.add_aov(aov_helper.create_aov_shader(Vray.VRAY_AOV_LIGHT_MIX))
+
+    # Remove last aov: volume
+    aov_helper.remove_last_aov()
+
+    # Remove specified aov: wire
+    aov_helper.remove_aov_type(aov_type = Vray.VRAY_AOV_DIFFUSE[0])
+
+    # Print current aov info
+    aov_helper.print_aov()
+
+    c4d.EventAdd()
+
 if __name__ == '__main__':
     Renderer.ClearConsole()
     modify_redshift_aov()
     # modify_octane_aov()
     # modify_arnold_aov()
+    # modify_vray_aov()

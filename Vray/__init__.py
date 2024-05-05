@@ -6,7 +6,7 @@
 import c4d
 import Renderer
 from ..constants.vray_id import *
-from ..Vray.vray_helper import MaterialHelper as Material
+from ..Vray.vray_helper import MaterialHelper as Material, AOVHelper as AOV
 
 
 # 首选项设置为Node材质

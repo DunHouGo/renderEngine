@@ -1972,7 +1972,7 @@ class EasyTransaction:
                 self.graph: maxon.GraphModelInterface = self.helper.graph
             
             elif self.nodespaceId == VR_NODESPACE:
-                self.helper= Renderer.VRay.Material(material)
+                self.helper= Renderer.Vray.Material(material)
                 self.graph: maxon.GraphModelInterface = self.helper.graph
             if self.graph.IsNullValue():
                 raise ValueError("Cannot retrieve the graph of this nimbus NodeSpace.")
