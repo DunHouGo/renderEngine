@@ -10,8 +10,6 @@ __version__ = "2023.2.1"
 import c4d
 import maxon
 import Renderer
-import os
-import random
 from typing import Generator, Union,Optional
 from Renderer.constants.vray_id import *
 from Renderer.utils.node_helper import NodeGraghHelper, EasyTransaction
@@ -64,12 +62,12 @@ class AOVHelper:
         """
         pass
 
-    def iterater(self, node: c4d.BaseList2D) -> Generator[None, None, c4d.BaseObject]:
+    def iterater(self, node: c4d.BaseObject) -> Generator[None, None, c4d.BaseObject]:
         """
         Iterate the aov nodes.
 
         Args:
-            node (c4d.BaseList2D): the node we start from.
+            node (c4d.BaseObject): the node we start from.
         """
         while isinstance(node, c4d.BaseObject):
             yield node
@@ -94,43 +92,43 @@ class AOVHelper:
             return None
         return head
 
-    def get_type(self, node: c4d.BaseList2D) -> int:
+    def get_type(self, node: c4d.BaseObject) -> int:
         """Get the type of the given node."""
         return node.GetParameter(VRAY_RENDER_ELEMENT_CREATE_NODE_TYPE, c4d.DESCFLAGS_GET_NONE)
 
-    def get_name(self, node: c4d.BaseList2D) -> str:
+    def get_name(self, node: c4d.BaseObject) -> str:
         """Get the name of the given node."""
         return node.GetName()
 
-    def get_enable(self, node: c4d.BaseList2D) -> bool:
+    def get_enable(self, node: c4d.BaseObject) -> bool:
         """Get the enable check of the given node."""
         return node.GetParameter(VRAY_RENDER_ELEMENT_ENABLED, c4d.DESCFLAGS_GET_NONE)
 
-    def get_filter(self, node: c4d.BaseList2D) -> bool:
+    def get_filter(self, node: c4d.BaseObject) -> bool:
         """Get the filter check of the given node."""
         return node.GetParameter(VRAY_RENDER_ELEMENT_FILTER_PARAMETER_ID, c4d.DESCFLAGS_GET_NONE)
 
-    def get_denoise(self, node: c4d.BaseList2D) -> bool:
+    def get_denoise(self, node: c4d.BaseObject) -> bool:
         """Get the denoise check of the given node."""
         return node.GetParameter(VRAY_RENDER_ELEMENT_DENOISE_PARAMETER_ID, c4d.DESCFLAGS_GET_NONE)
 
-    def set_type(self, node: c4d.BaseList2D, arg: int) -> bool:
+    def set_type(self, node: c4d.BaseObject, arg: int) -> bool:
         """Set the type of the given node."""
         return node.SetParameter(VRAY_RENDER_ELEMENT_CREATE_NODE_TYPE, arg, c4d.DESCFLAGS_SET_NONE)
 
-    def set_name(self, node: c4d.BaseList2D, arg: str) -> str:
+    def set_name(self, node: c4d.BaseObject, arg: str) -> str:
         """Set the name of the given node."""
         return node.SetName(arg)
 
-    def set_enable(self, node: c4d.BaseList2D, arg: int) -> bool:
+    def set_enable(self, node: c4d.BaseObject, arg: int) -> bool:
         """Set the enable check of the given node."""
         return node.SetParameter(VRAY_RENDER_ELEMENT_ENABLED, arg, c4d.DESCFLAGS_GET_NONE)
 
-    def set_filter(self, node: c4d.BaseList2D, arg: int) -> bool:
+    def set_filter(self, node: c4d.BaseObject, arg: int) -> bool:
         """Set the filter check of the given node."""
         return node.SetParameter(VRAY_RENDER_ELEMENT_FILTER_PARAMETER_ID, arg, c4d.DESCFLAGS_GET_NONE)
 
-    def set_denoise(self, node: c4d.BaseList2D, arg: int) -> bool:
+    def set_denoise(self, node: c4d.BaseObject, arg: int) -> bool:
         """Set the denoise check of the given node."""
         return node.SetParameter(VRAY_RENDER_ELEMENT_DENOISE_PARAMETER_ID, arg, c4d.DESCFLAGS_GET_NONE)
 
@@ -151,15 +149,15 @@ class AOVHelper:
         return res
 
     # 获取指定类型的aov shader ==> ok
-    def get_aov(self, aov_type: c4d.BaseList2D) -> list[c4d.BaseObject]:
+    def get_aov(self, aov_type: c4d.BaseObject) -> list[c4d.BaseObject]:
         """
         Get all the aovs of given type in a list.
         
         Args:
-            aov_type (Union[c4d.BaseList2D, c4d.BaseShader]): Shader to iterate.
+            aov_type (Union[c4d.BaseObject, c4d.BaseShader]): Shader to iterate.
             
         Returns:
-            list[c4d.BaseList2D]: A List of all find aovs
+            list[c4d.BaseObject]: A List of all find aovs
 
         """
 
@@ -227,7 +225,7 @@ class AOVHelper:
                     if aov_type == 158:
                         print ("Subdata: Cryptomatte type:", aov[c4d.RENDERCHANNELCRYPTOMATTE_ID_TYPE])
                 
-        print ("--- OCTANERENDER ---")
+        print ("--- VRAY RENDER ---")
 
     # 创建aov ==> ok
     def create_aov_shader(self, aov_type: list[int], aov_name: str = None) -> c4d.BaseShader :
@@ -255,12 +253,12 @@ class AOVHelper:
         return aov
     
     # 将aov添加到vp ==> ok
-    def add_aov(self, aov_shader: c4d.BaseList2D) -> c4d.BaseList2D:
+    def add_aov(self, aov_shader: c4d.BaseObject) -> c4d.BaseObject:
         """
         Add the vray aov shader to Octane Render.
 
         :param aov_shader: the vray aov shader
-        :type aov_shader: c4d.BaseList2D
+        :type aov_shader: c4d.BaseObject
         :return: the vray aov shader
         :rtype: c4d.BaseList2D
         """
@@ -322,6 +320,7 @@ class AOVHelper:
                         aov.Remove()  
                 else:
                     aov.Remove() 
+
 
 class MaterialHelper(NodeGraghHelper):
 

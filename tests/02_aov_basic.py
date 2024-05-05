@@ -1,7 +1,7 @@
 import c4d
 import maxon
 import Renderer
-from Renderer import Redshift, Arnold, Octane, Vray
+from Renderer import Redshift, Arnold, Octane, Vray, Corona
 from pprint import pprint
 
 
@@ -63,6 +63,8 @@ def modify_redshift_aov():
     # Print current aov info
     aov_helper.print_aov()
 
+    Redshift.AovManager()
+
 # How to create and modify octane aovs
 def modify_octane_aov():
 
@@ -106,6 +108,7 @@ def modify_octane_aov():
         
     # Print current aov info
     aov_helper.print_aov()
+    Octane.AovManager()
 
 # How to create and modify arnold aovs
 def modify_arnold_aov():
@@ -170,6 +173,7 @@ def modify_arnold_aov():
     # Print current aov info
     aov_helper.print_aov()
     
+    Arnold.AovManager()
     # End record undo
     aov_helper.doc.EndUndo()
 
@@ -184,7 +188,7 @@ def modify_vray_aov():
     # the id can find from Renderer.constants.vray, or Vray_id.py
     # If #name is None, defulat to type.
     diff_aov = aov_helper.create_aov_shader(aov_type = Vray.VRAY_AOV_DIFFUSE)
-    # Add the DIFFUSE aov just created to the Octane aov system
+    # Add the DIFFUSE aov just created to the vray aov system
     aov_helper.add_aov(diff_aov)
 
     # Add some aovs
@@ -203,11 +207,50 @@ def modify_vray_aov():
     # Print current aov info
     aov_helper.print_aov()
 
-    c4d.EventAdd()
+    Vray.AovManager()
+
+# How to create and modify corona aovs
+def modify_corona_aov():
+
+    # Get the doc host the aovs, in this case th active doc vp
+    doc: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
+    vp: c4d.documents.BaseVideoPost = Renderer.GetVideoPost(doc, Renderer.ID_CORONA)
+    # Set Corona AOVHelper instance
+    aov_helper = Corona.AOV(vp)
+
+    # turn on the mutipass
+    aov_helper.enable_mutipass(True)
+    
+    # Add the DIFFUSE aov
+    diff_aov = aov_helper.create_aov_shader(aov_type = Corona.CORONA_MULTIPASS_TYPE_ALBEDO)    
+    aov_helper.add_aov(diff_aov)
+
+    # Add some aovs
+    aov_helper.add_aov(aov_helper.create_aov_shader(aov_type = Corona.CORONA_MULTIPASS_TYPE_EMISSION, aov_name = 'emmision aov'))
+    aov_helper.add_aov(aov_helper.create_aov_shader(Corona.CORONA_MULTIPASS_TYPE_REFLECT))
+    aov_helper.add_aov(aov_helper.create_aov_shader(Corona.CORONA_MULTIPASS_TYPE_REFRACT))
+    aov_helper.add_aov(aov_helper.create_aov_shader(Corona.CORONA_MULTIPASS_TYPE_TRANSLUCENCY))
+    aov_helper.add_aov(aov_helper.create_aov_shader(Corona.CORONA_MULTIPASS_TYPE_ZDEPTH))
+
+    # Remove last aov: volume
+    aov_helper.remove_last_aov()
+
+    # Remove specified aov: wire
+    aov_helper.remove_aov_type(aov_type = Corona.CORONA_MULTIPASS_TYPE_TRANSLUCENCY)
+
+    # Print current aov info
+    aov_helper.print_aov()
+
+    Corona.AovManager()
+    
 
 if __name__ == '__main__':
     Renderer.ClearConsole()
+
     modify_redshift_aov()
     # modify_octane_aov()
     # modify_arnold_aov()
     # modify_vray_aov()
+    # modify_aorona_aov()
+
+    c4d.EventAdd()

@@ -5,7 +5,7 @@
 """
 import Renderer
 from Renderer.constants.corona_id import *
-from Renderer.Corona.corona_helper import MaterialHelper as Material
+from Renderer.Corona.corona_helper import MaterialHelper as Material, AOVHelper as AOV
 
 # 获取渲染器
 def GetRenderEngine(document: c4d.documents.BaseDocument = None) -> int :

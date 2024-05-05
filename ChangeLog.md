@@ -31,6 +31,8 @@
 - ### 1.0.5
   - Add **AOV** to **Vray**, you can modify aovs like other libs now.
   - Add **custom id** to Vray, you can check this to avoid anosing id work.
+- ### 1.0.6
+  - Add **AOV** to **Corona**, you can modify aovs like other libs now.
 
 ---
 - __coming soon...__
