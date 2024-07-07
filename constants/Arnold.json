@@ -1,6 +1,6 @@
 {
     "com.autodesk.arnold.material":{
-        "input":"", 
+        "input":"shader", 
         "output":""
     }, 
     "com.autodesk.arnold.shader.abs":{
@@ -68,11 +68,11 @@
         "output":"output"
     }, 
     "com.autodesk.arnold.shader.bump2d":{
-        "input":"", 
+        "input":"bump_map", 
         "output":"output"
     }, 
     "com.autodesk.arnold.shader.bump3d":{
-        "input":"", 
+        "input":"bump_map", 
         "output":"output"
     }, 
     "com.autodesk.arnold.shader.c4d_noise":{
@@ -188,11 +188,11 @@
         "output":"output"
     }, 
     "com.autodesk.arnold.shader.float_to_rgb":{
-        "input":"", 
+        "input":"r", 
         "output":"output"
     }, 
     "com.autodesk.arnold.shader.float_to_rgba":{
-        "input":"", 
+        "input":"r", 
         "output":"output"
     }, 
     "com.autodesk.arnold.shader.fog":{
@@ -272,7 +272,7 @@
         "output":"output"
     }, 
     "com.autodesk.arnold.shader.mix_shader":{
-        "input":"", 
+        "input":"shader1", 
         "output":"output"
     }, 
     "com.autodesk.arnold.shader.modulo":{
@@ -440,7 +440,7 @@
         "output":"output"
     }, 
     "com.autodesk.arnold.shader.two_sided":{
-        "input":"", 
+        "input":"front", 
         "output":"output"
     }, 
     "com.autodesk.arnold.shader.user_data_float":{

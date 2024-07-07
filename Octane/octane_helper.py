@@ -836,23 +836,48 @@ class MaterialHelper:
         """
         theNode = c4d.BaseList2D(shaderID)
         if parentNode:
-            self.material[parentNode] = theNode                                     
+            self.material[parentNode] = theNode
         self.material.InsertShader(theNode)
         if self.doc is not None:
             self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, self.material)
         return theNode
 
-    # todo
-    def AddConnectShader(self):
-        pass
+    # 在shader后插入shader ==> ok
+    def AddConnectShader(self, shader: c4d.BaseShader, newShader: c4d.BaseShader, inputSlot: int) -> c4d.BaseShader:
+        parrent = self.GetNextNode(shader)
+        # shader
+        if len(parrent):
+            parrent = parrent[0]
+            slot = self.GetConnectedPortAfter(shader)
+        # root
+        else:
+            parrent = shader.GetMain()
+            slot = self.GetMaterialPort(shader)
+        newShader[inputSlot] = shader
+        parrent[slot] = newShader
+        return newShader
 
     # todo
     def InsertShader(self):
         pass
 
-    # todo
     def RemoveShader(self, shader: c4d.BaseShader) -> None:
         return shader.Remove()
+
+    # 比较shader是否为相同的shader
+    def IsUnique(self, shader: c4d.BaseShader, anotherShader: c4d.BaseShader) -> bool:
+        """
+        Return True if the two shaders is a same shader
+        """
+        if not isinstance(shader, c4d.BaseShader) or not isinstance(anotherShader, c4d.BaseShader):
+            return False
+
+        if shader.GetType() != anotherShader.GetType():
+            return False
+
+        if bytes(shader.FindUniqueID(c4d.MAXON_CREATOR_ID)) != bytes(anotherShader.FindUniqueID(c4d.MAXON_CREATOR_ID)):
+            return False
+        return True
 
     # 是否是shader ==> ok
     def IsNode(self, node: c4d.BaseShader) -> bool:
@@ -956,7 +981,7 @@ class MaterialHelper:
         return result
 
     # New 获取后方节点(只包含子节点)  ==> ok
-    def GetNextNode(self, node: c4d.BaseShader) -> list[c4d.BaseShader]:
+    def GetNextNode(self, node: c4d.BaseShader) -> list[c4d.BaseShader,c4d.BaseMaterial]:
         """
         Return the nodes directly connected after the node.
 
@@ -969,6 +994,7 @@ class MaterialHelper:
         # Bail when the passed node is not a true node.
         if not isinstance(node, c4d.BaseShader):
             raise ValueError(f'{sys._getframe().f_code.co_name} Expected a BaseShader, got {type(node)}')
+
         # The list.
         result: list = []
         for shader in self.GetAllShaders():
@@ -1071,7 +1097,7 @@ class MaterialHelper:
             if shader == node:
                 return True
         return False
-    
+
     # 获取shader上被连接的端口列表 ==> ok
     def GetConnections(self, node: c4d.BaseShader) -> list[tuple[int, c4d.BaseShader]]:
         """
@@ -1151,13 +1177,14 @@ class MaterialHelper:
         """
         Add a Transform node to all the Image nodes.
         """
-        for _, shader in self.GetRootConnectedNodes(node):
+        for _, shader in self.GetRootConnectedNodes():
             if shader == node:
                 return self.GetMaterialPort(node)
         
         # Get the next node.
-        after_node: c4d.BaseShader = node.GetUp()
-
+        after_node: c4d.BaseShader = self.GetNextNode(node)[0]#node.GetUp()
+        if after_node is None:
+            return False
         bc = after_node.GetDataInstance()
         if bc is None:
             raise RuntimeError("Failed to retrieve bc")
@@ -1509,6 +1536,28 @@ class MaterialHelper:
         trans_node = self.AddTransform()
         for image in images:
             image[c4d.IMAGETEXTURE_TRANSFORM_LINK] = trans_node
+
+    def UniProjection(self, effectiveShaders: Optional[list[c4d.BaseShader]]=None, projectionType: int = 6):
+        """
+        Add a Projection node to all the Image nodes.
+        """
+        if effectiveShaders is None:
+            effectiveShaders = self.GetNodes(ID_OCTANE_IMAGE_TEXTURE)
+        proj_node = self.AddProjection()
+        proj_node[1360] = projectionType
+        for image in effectiveShaders:
+            image[c4d.IMAGETEXTURE_PROJECTION_LINK] = proj_node
+
+    def AddTriplanars(self, effectiveShaders: Optional[list[c4d.BaseShader]]=None):
+        """
+        Add Triplanar nodes to all the Image nodes.
+        """
+        if effectiveShaders is None:
+            effectiveShaders = self.GetNodes(ID_OCTANE_IMAGE_TEXTURE)
+        for shader in effectiveShaders:
+            mysha = self.AddShader(ID_OCTANE_TRIPLANAR)
+            self.AddConnectShader(shader, mysha, c4d.TRIPTEX_TEXTURE1)
+        self.UniProjection(effectiveShaders, 6)
 
 
 class SceneHelper:

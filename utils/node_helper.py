@@ -39,7 +39,8 @@ class ConverterPorts:
             self.dataPath = os.path.join(parent_dir, 'constants', "Redshift.json")
         if self.nodespaceId == AR_NODESPACE:
             self.dataPath = os.path.join(parent_dir, 'constants', "Arnold.json")
-
+        if self.nodespaceId == VR_NODESPACE:
+            self.dataPath = os.path.join(parent_dir, 'constants', "Vray.json")      
         if not os.path.exists(self.dataPath): 
             raise FileExistsError(f"the Convertor data is not exsit at {self.dataPath}")
 
@@ -191,6 +192,91 @@ class ConverterPorts:
 
         return output
 
+    @staticmethod
+    def InitVrayData() -> dict[dict[str]]:
+        """
+        Get the basic data, then save the date and modity it.
+        This should be used if the data is missing or you want to customizd
+
+        Returns:
+            dict[dict[str]]: teh data we want
+        """
+        repo: maxon.AssetRepositoryRef = maxon.AssetInterface.GetUserPrefsRepository()
+        if repo.IsNullValue():
+            raise RuntimeError("Could not access the user preferences repository.")
+
+        # latest version assets
+        nodeTemplateDescriptions: list[maxon.AssetDescription] = repo.FindAssets(
+            maxon.Id("net.maxon.node.assettype.nodetemplate"), maxon.Id(), maxon.Id(),
+            maxon.ASSET_FIND_MODE.LATEST)
+
+        allShaders: list[str] =  [
+            str(item.GetId())  # asset ID.
+            for item in nodeTemplateDescriptions
+            if str(item.GetId()).startswith("com.chaos.vray_node.")  # Only Vr ones
+        ]
+        # pprint(allShaders)
+        output = {}
+
+        def _GetOutput(shader):
+            out_ids = ['output.default','outcolor','output','out']
+
+            for out in out_ids:
+                port_id = f"{str(shader.GetValue('net.maxon.node.attribute.assetid'))[1:].split(',')[0]}.{out}"
+                port: maxon.GraphNode = shader.GetOutputs().FindChild(port_id)
+                if not port.IsNullValue():
+                    return str(port.GetId())
+            return ""
+
+        def _GetInput(shader):
+            out_ids = ['file', 'color','input','base_color','color1','color_a','value','input_color',
+                       'tex0', 'albedo', 'texture','float_a',"texture_x"
+                       'input1','x', 'default', 'attribute', "texture_map", "basemap"
+                       ]
+
+            for out in out_ids:
+                port_id = f"{str(shader.GetValue('net.maxon.node.attribute.assetid'))[1:].split(',')[0]}.{out}"
+                port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
+                if not port.IsNullValue():
+                    return str(port.GetId())
+            return ""
+
+        rsNodeSpaceId: maxon.Id = maxon.Id(VR_NODESPACE)
+        if c4d.GetActiveNodeSpaceId() != rsNodeSpaceId:
+            raise RuntimeError("Make RS the active renderer and node space to run this script.")
+
+        material: c4d.BaseMaterial = c4d.BaseMaterial(c4d.Mmaterial)
+        if not material:
+            raise MemoryError(f"{material = }")
+
+        nodeMaterial: c4d.NodeMaterial = material.GetNodeMaterialReference()
+        graph: maxon.NodesGraphModelInterface = nodeMaterial.CreateEmptyGraph(rsNodeSpaceId)
+        if graph.IsNullValue():
+            raise RuntimeError("Could not add graph to material.")
+
+        with graph.BeginTransaction() as gt:
+            for nodeId in allShaders:
+                data = {}
+                try:
+                    node = graph.AddChild(maxon.Id(), maxon.Id(nodeId))
+                    data["input"] = str(_GetInput(node))
+                    data["output"] = str(_GetOutput(node))
+                    output[f"{str(node.GetValue('net.maxon.node.attribute.assetid'))[1:].split(',')[0]}"] = data
+                except:
+                    pass
+
+            gt.Commit()
+
+        c4d.documents.GetActiveDocument().InsertMaterial(material)
+        c4d.EventAdd()
+
+        return output
+
+    # todo
+    @staticmethod 
+    def InitBasicData() -> dict[dict[str]]:
+        pass
+
     ### Key methods ###
 
     def IsGeneratorNode(self, node: maxon.GraphNode) -> bool:
@@ -228,6 +314,8 @@ class ConverterPorts:
 
         # data: dict = read_json(self.dataPath)
         item: dict =  data.get(assetId,"")
+        if item == "":
+            return ""
         return item.get("input","")
     
     def GetConvertOutput(self, StrOrNode: Union[str, maxon.GraphNode]) -> str:
@@ -249,6 +337,8 @@ class ConverterPorts:
             data: dict = json.loads(file.read())
         #data: dict = read_json(self.dataPath)
         item: dict =  data.get(assetId,"")
+        if item == "":
+            return ""
         return item.get("output","")
 
 
@@ -332,7 +422,7 @@ class NodeGraghHelper:
             print(f"Function {func.__name__} return : {result = }")
             return result
         return wrapper
-    
+
     #=============================================
     # Util
     #=============================================
@@ -487,7 +577,7 @@ class NodeGraghHelper:
         endNodePath = self.nimbusRef.GetPath(maxon.NIMBUS_PATH.MATERIALENDNODE)
         endNode = self.graph.GetNode(endNodePath)
         return endNode
-    
+
     # 获取此节点空间默认纹理节点（节点数据） ==> ok
     def GetImageNodeID(self, include_portData: bool = False) -> Union[maxon.Id, tuple]:
         """
@@ -755,7 +845,7 @@ class NodeGraghHelper:
             bool: True if the node don't have a input data.
         """
         return ConverterPorts(self.nodespaceId).IsGeneratorNode(node)
-    
+
     # New 获取默认输入端口
     def GetConvertInput(self, node: maxon.GraphNode) -> Optional[str]:
         """
@@ -769,7 +859,7 @@ class NodeGraghHelper:
         """
         res = ConverterPorts(self.nodespaceId).GetConvertInput(node)
         return res if res != "" else None
-    
+
     # New 获取默认输出端口
     def GetConvertOutput(self, node: maxon.GraphNode) -> Optional[str]:
         """
@@ -789,7 +879,6 @@ class NodeGraghHelper:
     #=============================================~~
 
     # 当前NodeSpace下所有可用的shader ==> ok
-    
     def GetAvailableShaders(self) -> list[maxon.Id]:
         """
         Get all available node assets for active nodespace
@@ -969,13 +1058,35 @@ class NodeGraghHelper:
         next_port: maxon.GraphNode = wireData[1]
         if not self.IsPort(next_port):
             raise ValueError(f'{sys._getframe().f_code.co_name} wireData Error: cannot get a in-port form wireData')
-        
+
         # remove wire
         if isinstance(pre_port, maxon.GraphNode) or isinstance(next_port, maxon.GraphNode):
             self.RemoveConnection(next_port,pre_port)
 
         # add our new shader and wires
         return self.AddConnectShader(nodeID,input_port,pre_port,output_port,next_port)
+
+    # 在节点后自动插入Shader ==> ok
+    def AddShaderAfter(self, sourceNode: maxon.GraphNode, newNode: Union[str,maxon.GraphNode],
+                       source_out: Union[str,maxon.GraphNode]=None, new_input: Union[str,maxon.GraphNode]=None) -> Optional[maxon.GraphNode]:
+        """Add a shader after the given source node."""
+        if source_out is None:
+            port_out: maxon.GraphNode = self.GetPort(sourceNode, self.GetConvertOutput(sourceNode))
+            if not self.IsPortValid(port_out):
+                return False
+        else:
+            port_out: maxon.GraphNode = self.GetPort(sourceNode, source_out)
+            
+        node = self.AddShader(newNode)
+        if new_input is None:
+            port_in : maxon.GraphNode= self.GetPort(node, self.GetConvertInput(node))
+            if not self.IsPortValid(port_in):
+                return False
+        else:
+            port_out: maxon.GraphNode = self.GetPort(sourceNode, source_out)
+
+        self.ConnectPorts(port_out, port_in)
+        return node
 
     # 删除Shader ==> ok
     def RemoveShader(self, shader: maxon.GraphNode, keep_wire: bool = True) -> bool:
@@ -1543,7 +1654,7 @@ class NodeGraghHelper:
         """
 
         if not self.IsPort(port):
-            raise ValueError(f'{sys._getframe().f_code.co_name} Expected a port, got {type(port)}')
+            return False
         
         all_ports = []
         wirs = self.GetAllConnections()

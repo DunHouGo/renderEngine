@@ -15,8 +15,8 @@ __license__ = "MIT license"
 """Provides functions and constants that are commonly used in all modules. Also exposes the sub-modules.
 """
 
-
 import c4d
+import os
 import typing
 from typing import Union, Optional, Callable
 import functools
@@ -36,6 +36,7 @@ from Renderer import constants, utils
 from Renderer.constants.common_id import *
 from Renderer.utils.node_helper import NodeGraghHelper, EasyTransaction
 from Renderer.utils.texture_helper import TextureHelper
+from Renderer.utils import material_maker as MaterialMaker
 
 # import moudule if plugin installed
 if c4d.plugins.FindPlugin(ID_REDSHIFT, type=c4d.PLUGINTYPE_ANY) is not None:
@@ -50,6 +51,7 @@ if c4d.plugins.FindPlugin(ID_CORONA, type=c4d.PLUGINTYPE_ANY) is not None:
     from Renderer import Corona
 
 SUPPORT_RENDERER: list[int] = [ID_REDSHIFT, ID_ARNOLD, ID_OCTANE, ID_CORONA, ID_VRAY]
+IMAGE_EXTENSIONS: tuple[str] = ('.png', '.jpg', '.jpeg', '.tga', '.bmp', ".exr", ".hdr", ".tif", ".tiff","iff", ".psd", ".tx",  ".b3d", ".dds", ".dpx", ".psb", ".rla", ".rpf", ".pict")
 
 ###  ==========  Decorators  ==========  ###
 
@@ -292,6 +294,18 @@ def ChangeRenderer(document: c4d.documents.BaseDocument = None, videopost: int =
     rdata: c4d.documents.RenderData = document.GetActiveRenderData()
     rdata[c4d.RDATA_RENDERENGINE] = videopost
     AddVideoPost(document, videopost)
+
+
+# Check if the file is an image
+def IsImageFile(file: str) -> bool:
+    """Check if the file is an image"""
+    if not file:
+        return False
+    if not os.path.exists(file):
+        return False
+    if not os.path.isfile(file):
+        return False
+    return file.lower().endswith(IMAGE_EXTENSIONS)
 
 #=============================================
 # Util

@@ -16,6 +16,11 @@ def GetRenderEngine(document: c4d.documents.BaseDocument = None) -> int :
         document = c4d.documents.GetActiveDocument()
     return document.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]
 
+def IsCoronaMaterial(material: c4d.BaseMaterial) -> bool:
+    if isinstance(material, c4d.BaseMaterial):
+        if material.GetType() in Renderer.constants.ID_VALID_MATERIALS:
+            return True
+    return False
 
 # 打开IPR
 def OpenIPR() -> None:

@@ -1118,7 +1118,7 @@ class MaterialHelper(NodeGraghHelper):
     ### Tree ###
 
     # NEW
-    def AddTextureTree(self, shadername :str = 'Texture', filepath: str = None, raw: bool = True, color_mode: bool = False,scaleramp: bool = False,color_mutiplier: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> list[maxon.GraphNode] :
+    def AddTextureTree(self, shadername :str = 'Texture', filepath: str = None, raw: bool = True, color_mode: bool = False,scaleramp: bool = False,color_mutiplier: maxon.GraphNode = None,triplaner_node: bool = False, target_port: maxon.GraphNode = None) -> list[maxon.GraphNode] :
         """
         Adds a texture tree (tex + color correction + ramp) to the graph.
         """
@@ -1139,8 +1139,10 @@ class MaterialHelper(NodeGraghHelper):
             else:
                 ramp_node = self.AddRampRGB(target=target_port)
 
-        self.AddConnection(tex_node, "output", cc_node, "input")
-        
+        if triplaner_node:
+            triplaner_node = self.AddTriPlanar(self.GetPort(tex_node,"output"), self.GetPort(cc_node,"input"))
+        else:
+            self.AddConnection(tex_node, "output", cc_node, "input")
         
         if not color_mode:
             if scaleramp:
@@ -1152,9 +1154,9 @@ class MaterialHelper(NodeGraghHelper):
             self.AddConnection(color_mutiplier, "output", tex_node, color_mutiplier_port)
         
         return tex_node
-    
+
     # NEW
-    def AddDisplacementTree(self, shadername :str = 'Displacement', filepath: str = None) -> list[maxon.GraphNode] :
+    def AddDisplacementTree(self, shadername :str = 'Displacement', filepath: str = None, triplaner_node: bool = False) -> list[maxon.GraphNode] :
         """
         Adds a displacement tree (tex + displacement) to the graph.
         """
@@ -1166,10 +1168,13 @@ class MaterialHelper(NodeGraghHelper):
         tex_out = self.GetPort(tex_node, "output")
         endNode = self.GetOutput()
         disp_port = self.GetPort(endNode,'displacement')
+        if triplaner_node:
+            triplaner_node = self.AddTriPlanar(tex_out)
+            tex_out = self.GetPort(triplaner_node, self.GetConvertOutput(triplaner_node))
         self.AddDisplacement(tex_out,disp_port)
 
     # NEW
-    def AddBumpTree(self, shadername :str = 'Bump', filepath: str = None) -> list[maxon.GraphNode] :
+    def AddBumpTree(self, shadername :str = 'Bump', filepath: str = None, triplaner_node: bool = False) -> list[maxon.GraphNode] :
         """
         Adds a bump tree (tex + bump) to the graph.
         """
@@ -1179,18 +1184,14 @@ class MaterialHelper(NodeGraghHelper):
         tex_node = self.AddTexture(shadername, filepath, True)
         tex_out = self.GetPort(tex_node, "output")
         brdf = self.GetRootBRDF()
-        # print("brdf:",brdf)
-        # endNode = self.GetOutput()
-        # predecessor = list()
-        # maxon.GraphModelHelper.GetDirectPredecessors(endNode, maxon.NODE_KIND.NODE, predecessor)
-        # print("predecessor",predecessor)
-        # if len(predecessor)>=1:
-        #     rootshader = predecessor[0]
         disp_port = self.GetPort(brdf,'normal')
+        if triplaner_node:
+            triplaner_node = self.AddTriPlanar(tex_out)
+            tex_out = self.GetPort(triplaner_node, self.GetConvertOutput(triplaner_node))
         self.AddBump2d(tex_out,disp_port)
         
     # NEW
-    def AddNormalTree(self, shadername :str = 'Normal', filepath: str = None) -> list[maxon.GraphNode] :
+    def AddNormalTree(self, shadername :str = 'Normal', filepath: str = None,triplaner_node: bool = False) -> list[maxon.GraphNode] :
         """
         Adds a Normal tree (tex + Normal) to the graph.
         """
@@ -1200,8 +1201,10 @@ class MaterialHelper(NodeGraghHelper):
         tex_node = self.AddTexture(shadername, filepath, True)
         tex_out = self.GetPort(tex_node, "output")
         brdf = self.GetRootBRDF()
-        # print("brdf:",brdf)
         disp_port = self.GetPort(brdf,'normal')
+        if triplaner_node:
+            triplaner_node = self.AddTriPlanar(tex_out)
+            tex_out = self.GetPort(triplaner_node, self.GetConvertOutput(triplaner_node))
         self.AddNormal(tex_out,disp_port)
         
     # 连接到Output Surface接口

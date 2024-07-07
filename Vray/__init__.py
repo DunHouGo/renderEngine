@@ -19,6 +19,11 @@ def IsNodeBased(material: c4d.BaseMaterial) -> bool:
         return True
     return False
 
+def IsVrayMaterial(material: c4d.BaseMaterial) -> bool:
+    if material is None:
+        return False
+    return (material.GetType() in Renderer.constants.ID_LAYER_TYPE_MATERIAL) or material.GetNodeMaterialReference().HasSpace(VR_NODESPACE)
+
 def OpenIPR():
     c4d.CallCommand(1054856) # V-Ray VFB
 

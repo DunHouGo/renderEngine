@@ -31,8 +31,15 @@
 - ### 1.0.5
   - Add **AOV** to **Vray**, you can modify aovs like other libs now.
   - Add **custom id** to Vray, you can check this to avoid anosing id work.
-- ### 1.0.6
-  - Add **AOV** to **Corona**, you can modify aovs like other libs now.
 
+- ### 1.0.6
+  - Add **ConverterPorts** and add methods into **NodeGraghHelper**.
+  - Add **AddShaderAfter** to **NodeGraghHelper**.
+  - Add **IsUnique** to Octane to compare shaders
+  - some fixes
+- ### 1.0.7
+  - Add **MaterialMaker** and add methods into **PBRPackage**.
+  - Fix some ids and json data
+  - some fixes
 ---
 - __coming soon...__

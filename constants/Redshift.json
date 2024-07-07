@@ -128,15 +128,15 @@
         "output":"com.redshift3d.redshift4c4d.nodes.core.matcap.outcolor"
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.material":{
-        "input":"", 
+        "input":"com.redshift3d.redshift4c4d.nodes.core.material.diffuse_color", 
         "output":"com.redshift3d.redshift4c4d.nodes.core.material.outcolor"
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.materialblender":{
-        "input":"", 
+        "input":"com.redshift3d.redshift4c4d.nodes.core.materialblender.basecolor", 
         "output":"com.redshift3d.redshift4c4d.nodes.core.materialblender.out"
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.materiallayer":{
-        "input":"", 
+        "input":"com.redshift3d.redshift4c4d.nodes.core.materiallayer.basecolor", 
         "output":"com.redshift3d.redshift4c4d.nodes.core.materiallayer.out"
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.matteshadow":{
@@ -149,7 +149,7 @@
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.normalmap":{
         "input":"com.redshift3d.redshift4c4d.nodes.core.normalmap.tex0", 
-        "output":""
+        "output":"com.redshift3d.redshift4c4d.nodes.core.normalmap.outdisplacementvector"
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.particleattributelookup":{
         "input":"com.redshift3d.redshift4c4d.nodes.core.particleattributelookup.attribute", 
@@ -500,7 +500,7 @@
         "output":"com.redshift3d.redshift4c4d.nodes.core.rsscalarramp.out"
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.rsshaderswitch":{
-        "input":"", 
+        "input":"com.redshift3d.redshift4c4d.nodes.core.rsshaderswitch.shader0", 
         "output":"com.redshift3d.redshift4c4d.nodes.core.rsshaderswitch.outcolor"
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.rsuserdatacolor":{
@@ -552,15 +552,15 @@
         "output":""
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.storecolortoaov":{
-        "input":"", 
+        "input":"com.redshift3d.redshift4c4d.nodes.core.storecolortoaov.beauty_input", 
         "output":"com.redshift3d.redshift4c4d.nodes.core.storecolortoaov.outcolor"
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.storeintegertoaov":{
-        "input":"", 
+        "input":"com.redshift3d.redshift4c4d.nodes.core.storeintegertoaov.beauty_input", 
         "output":"com.redshift3d.redshift4c4d.nodes.core.storeintegertoaov.outcolor"
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.storescalartoaov":{
-        "input":"", 
+        "input":"com.redshift3d.redshift4c4d.nodes.core.storescalartoaov.beauty_input", 
         "output":"com.redshift3d.redshift4c4d.nodes.core.storescalartoaov.outcolor"
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.subsurfacescatter":{
@@ -584,7 +584,7 @@
         "output":"com.redshift3d.redshift4c4d.nodes.core.toonmaterial.outcolor"
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.triplanar":{
-        "input":"", 
+        "input":"com.redshift3d.redshift4c4d.nodes.core.triplanar.image", 
         "output":"com.redshift3d.redshift4c4d.nodes.core.triplanar.outcolor"
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.uvprojection":{

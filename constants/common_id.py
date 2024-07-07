@@ -30,6 +30,9 @@ AR_SHADER_PREFIX: str = "com.autodesk.arnold.shader."
 STANDARD_NODESPACE: str = "net.maxon.nodespace.standard"
 VR_NODESPACE: str = "com.chaos.class.vray_node_renderer_nodespace"
 
+ARNOLD_SHADER_NETWORK = 1033991
+REDSHIFT_SHADER_NETWORK = 1036224
+
 # data types
 DATATYPE_INT: maxon.Id = maxon.Id("int64")
 DATATYPE_COL3: maxon.Id = maxon.Id("net.maxon.parametrictype.col<3,float64>")

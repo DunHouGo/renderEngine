@@ -6,6 +6,7 @@
 import Renderer
 from ..constants.redshift_id import *
 from ..Redshift.redshift_helper import AOVHelper as AOV, MaterialHelper as Material, SceneHelper as Scene
+REDSHIFT_SHADER_NETWORK = 1036224
 
 def GetPreference() -> c4d.BaseList2D:
     """
@@ -22,6 +23,12 @@ def GetPreference() -> c4d.BaseList2D:
     )
     # Redshift
     return prefs[descIdSettings]
+
+def IsRedshiftMaterial(material: c4d.BaseMaterial) -> bool:
+    if material is None:
+        return False
+    return material.CheckType(REDSHIFT_SHADER_NETWORK) or material.GetNodeMaterialReference().HasSpace(Renderer.RS_NODESPACE)
+
 
 # 首选项设置为Node材质
 def IsNodeBased():

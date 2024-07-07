@@ -16,6 +16,12 @@ def GetRenderEngine(document: c4d.documents.BaseDocument = None) -> int :
         document = c4d.documents.GetActiveDocument()
     return document.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]
 
+def IsOctaneMaterial(material: c4d.BaseMaterial) -> bool:
+    if isinstance(material, c4d.BaseMaterial):
+        if material.GetType() in Renderer.constants.OCTANE_MATERIALS:
+            return True
+    return False
+
 # 获取渲染器版本
 def GetVersion() -> str :
     """

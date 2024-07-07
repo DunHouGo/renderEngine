@@ -541,35 +541,44 @@ class MaterialHelper(NodeGraghHelper):
     ### Bump ###
 
     # 创建Bump ==> # todo
-    def AddBump(self, input_port: maxon.GraphNode = None, target_port: maxon.GraphNode = None, bump_mode: int = 0) -> maxon.GraphNode :
+    def AddRootBump(self, input_port: maxon.GraphNode = None) -> maxon.GraphNode :
         """
-        Adds a new Bump shader to the graph.
+        Adds a new displacement shader to the graph.
 
         """
         if self.graph is None:
             return None
-        shader: maxon.GraphNode = self.graph.AddChild("", "com.chaos.vray_node.brdfbump", maxon.DataDictionary())
-        type_port = self.GetPort(shader, 'com.chaos.vray_node.brdfbump.map_type')
-        type_port.SetDefaultValue(bump_mode)
+        nodeId = "com.chaos.vray_node.brdfbump"
+        # shader: maxon.GraphNode = self.graph.AddChild("", nodeId, maxon.DataDictionary())
+        brdf = self.GetRootBRDF()
+        wiredata = brdf.GetWires(self.GetOutput())
+        # brdf_out = self.GetPort(brdf, "com.chaos.vray_node.brdfvraymtl.output.default")
+
+        displacement = self.InsertShader(nodeId, wiredata, "com.chaos.vray_node.brdfbump.base_brdf","com.chaos.vray_node.brdfbump.output.default")
 
         if input_port:
             if isinstance(input_port, maxon.GraphNode):
-                input: maxon.GraphNode = self.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpmap.input')
-                input_port.Connect(input)
-
+                input: maxon.GraphNode = self.GetPort(displacement,'com.chaos.vray_node.brdfbump.bump_tex_color')
+                try:
+                    input_port.Connect(input)
+                except:
+                    pass
                 
-        output: maxon.GraphNode = self.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpmap.out')
+        # output: maxon.GraphNode = self.GetPort(shader,'com.chaos.vray_node.brdfbump.output.default')
         
-        if target_port is not None:
-            if isinstance(target_port, maxon.GraphNode):
-                output.Connect(target_port)
+        # if target_port is not None:
+        #     if isinstance(target_port, maxon.GraphNode):                
+        #         try:
+        #             output.Connect(target_port)
+        #         except:
+        #             pass
 
-        else:
-            material = self.GetRootBRDF()
-            bump_port = self.GetPort(material,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.bump_input")
-            output.Connect(bump_port)
-        return shader
-
+        # else:
+        #     output = self.GetOutput()
+        #     dis_port = self.GetPort(output,"com.chaos.vray_node.mtlsinglebrdf.brdf")
+        #     output.Connect(dis_port)
+        return displacement
+    
     # 创建Normal ==> OK
     def AddNormal(self, input_port: maxon.GraphNode = None, target_port: maxon.GraphNode = None, bump_mode: int = 1) -> maxon.GraphNode :
         """
@@ -688,10 +697,85 @@ class MaterialHelper(NodeGraghHelper):
         if target is not None:
             output.Connect(target)
         return layerNode
-    
-    ### Tree ###
 
-    def AddBumpTree(self, shadername :str = 'Bump', filepath: str = None, bump_mode: int = 1, target_port: maxon.GraphNode = None) -> list[maxon.GraphNode] :
+    # 创建TriPlanar ==> OK
+    def AddTriPlanar(self, inputs: list[Union[str,maxon.GraphNode]] = None, target: list[Union[str,maxon.GraphNode]] = None) -> maxon.GraphNode :
+        """
+        Adds a new TriPlanar shader to the graph.
+
+        """
+        return self.AddConnectShader(
+            nodeID ="com.chaos.vray_node.textriplanar",
+            input_ports = ['com.chaos.vray_node.textriplanar.texture_x'],
+            connect_inNodes = inputs,
+            output_ports=['com.chaos.vray_node.textriplanar.output.default'], 
+            connect_outNodes = target
+            )
+
+
+    ### Tree ###
+    # todo
+    # NEW
+    def AddTextureTree(self, shadername :str = 'Texture', filepath: str = None, raw: bool = True, gamma: int = 1.0, triplaner_node: bool = False, color_mode: bool = False,scaleramp: bool = True,color_mutiplier: maxon.GraphNode = None, target_port: maxon.GraphNode = None) -> list[maxon.GraphNode] :
+        """
+        Adds a texture tree (tex + color correction + ramp) to the graph.
+        """
+        if self.graph is None:
+            return None
+
+        # add
+        tex_node = self.AddTexture(shadername, filepath, raw, gamma)
+        color_mutiplier_port = self.GetPort(tex_node,"com.chaos.vray_node.texbitmap.color_mult")
+        
+        if color_mode:
+            cc_node = self.AddColorCorrect(target=target_port)
+        
+        else:
+            cc_node = self.AddColorCorrect()
+            if scaleramp:
+                ramp_node = self.AddRemap(target=target_port)
+        
+        if triplaner_node:
+            triplaner_node = self.AddTriPlanar(self.GetPort(tex_node,"com.chaos.vray_node.textriplanar.texture_x"), 
+                                               self.GetPort(cc_node,"com.chaos.vray_node.textriplanar.output.default"))
+
+        else:
+            self.AddConnection(tex_node, "com.chaos.vray_node.texbitmap.output.default", 
+                               cc_node, "com.chaos.vray_node.textriplanar.texture_x")
+        
+        if not color_mode:
+            if scaleramp:
+                self.AddConnection(cc_node, "com.chaos.vray_node.colorcorrection.output.default",
+                                   ramp_node, "com.chaos.vray_node.texremap.input_color")
+            else:
+                self.AddConnection(cc_node, "com.chaos.vray_node.colorcorrection.output.default",
+                                   ramp_node, "com.redshift3d.redshift4c4d.nodes.core.rsramp.input")
+        
+        if color_mutiplier:
+            self.AddConnection(color_mutiplier, "com.chaos.vray_node.texbitmap.color_mult", tex_node, color_mutiplier_port)
+        
+        return tex_node
+
+    # todo
+    def AddDisplacementTree(self, shadername :str = 'Displacement', filepath: str = None, triplaner_node: bool = False) -> list[maxon.GraphNode] :
+        """
+        Adds a displacement tree (tex + displacement) to the graph.
+        """
+        if self.graph is None:
+            return None
+        # add        
+        tex_node = self.AddTexture(shadername, filepath, True)
+        # tex_in = self.GetPort(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.tex0")
+        tex_out = self.GetPort(tex_node, "com.chaos.vray_node.texbitmap.output.default")
+
+        if triplaner_node:
+            triplaner_node = self.AddTriPlanar(tex_out)
+            tex_out = self.GetPort(triplaner_node, self.GetConvertOutput(triplaner_node))
+
+        self.AddRootBump(input_port=tex_out)
+
+
+    def AddBumpTree(self, shadername :str = 'Bump', filepath: str = None, bump_mode: int = 1, target_port: maxon.GraphNode = None, triplaner_node: bool = False) -> list[maxon.GraphNode] :
         """
         Adds a bump tree (tex + bump) to the graph.
         """
@@ -701,9 +785,11 @@ class MaterialHelper(NodeGraghHelper):
         # add        
         tex_node = self.AddTexture(shadername, filepath, True)
         tex_out = self.GetPort(tex_node, "com.chaos.vray_node.texbitmap.output.default")
+        if triplaner_node:
+            triplaner_node = self.AddTriPlanar(tex_out)
+            tex_out = self.GetPort(triplaner_node, self.GetConvertOutput(triplaner_node))
         #tex_out = self.GetPort(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor")
         self.AddNormal(input_port=tex_out, target_port=target_port, bump_mode=bump_mode)
-
 
 # todo
 # coding more...

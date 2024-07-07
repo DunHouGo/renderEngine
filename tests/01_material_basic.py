@@ -1,7 +1,7 @@
 import c4d
 import maxon
 import Renderer
-from Renderer import Redshift, Arnold, Octane, VRay, EasyTransaction, TextureHelper
+from Renderer import Redshift, Arnold, Octane, Vray, EasyTransaction, TextureHelper
 from pprint import pprint
 
 """ 

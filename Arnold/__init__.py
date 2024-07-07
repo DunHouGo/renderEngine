@@ -21,6 +21,11 @@ def GetPreference() -> c4d.BaseList2D:
     # Set 
     return prefs[descIdSettings]
 
+def IsArnoldMaterial(material: c4d.BaseMaterial) -> bool:
+    if material is None:
+        return False
+    return material.CheckType(ARNOLD_SHADER_NETWORK) or material.GetNodeMaterialReference().HasSpace(AR_NODESPACE)
+
 # 首选项设置为Node材质
 def IsNodeBased() -> bool:
     """

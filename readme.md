@@ -14,15 +14,17 @@ Happy Rendering and Scpriting!
 - Node Materials with the new GraphNode model
 - Redshift ( Only Node Material for Material Helper)
 - Arnold ( Only Node Material for Material Helper)
+- Vray ( Only Node Material for Material Helper)
+- Corona
 - Waiting for more...
 
 ## About Boghma
 
 Boghma is a open community for c4d developers, we are trying to make it easier for everyone to create plugins and share them.
 
-This library is also included in [Boghma](https://community.boghma.com/) python library.
+This library is also included in [Boghma](https://www.boghma.com/) python library.
 
-You can install our free plugin [Boghma Plugin Manager](https://github.com/DunHouGo/Boghma-Plugin-HUB) and install any plugin you want, this library will be automatically installed or updated.
+You can install our free plugin [Boghma Plugin Manager](https://www.boghma.com/c4d/plugins-manager) and install any plugin you want, this library will be automatically installed or updated.
 
 If you want to share your free plugins or libaray, please join us in [Join Us](https://flowus.cn/boghma/share/96035b74-6205-4e6c-b49c-65de7d1e2e62).
 
@@ -32,7 +34,7 @@ All the boghma plugins and boghma library are personal FREE.
 
 ## Installation
 
-1. (**Recommend**) Download [Boghma Plugin Manager](https://github.com/DunHouGo/Boghma-Plugin-HUB) and install any plugin, the boghma lib will auto installed or updated.
+1. (**Recommend**) Download [Boghma Plugin Manager](https://www.boghma.com/c4d/plugins-manager) and install any plugin, the boghma lib will auto installed or updated.
 2. Download the source code and import it to your Cinema 4D.
    
 # Limit
@@ -121,12 +123,6 @@ Renderer
   - AOV
   - Material
   - Scene
-- Vray
-  - AOV
-  - Material
-- Corona
-  - AOV
-  - Material
 - utils
   - NodeGraghHelper
   - TextureHelper

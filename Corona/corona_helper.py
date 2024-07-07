@@ -587,15 +587,25 @@ class MaterialHelper:
             self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, self.material)
         return theNode
 
-    # todo
-    def AddConnectShader(self):
-        pass
+    # 在shader后插入shader ==> ok
+    def AddConnectShader(self, shader: c4d.BaseShader, newShader: c4d.BaseShader, inputSlot: int) -> c4d.BaseShader:
+        parrent = self.GetNextNode(shader)
+        # shader
+        if len(parrent):
+            parrent = parrent[0]
+            slot = self.GetConnectedPortAfter(shader)
+        # root
+        else:
+            parrent = shader.GetMain()
+            slot = self.GetMaterialPort(shader)
+        newShader[inputSlot] = shader
+        parrent[slot] = newShader
+        return newShader
 
     # todo
     def InsertShader(self):
         pass
 
-    # todo
     def RemoveShader(self, shader: c4d.BaseShader) -> None:
         return shader.Remove()
 
@@ -901,7 +911,7 @@ class MaterialHelper:
                 return self.GetMaterialPort(node)
         
         # Get the next node.
-        after_node: c4d.BaseShader = node.GetUp()
+        after_node: c4d.BaseShader = self.GetNextNode(node)[0]#node.GetUp()
 
         bc = after_node.GetDataInstance()
         if bc is None:
@@ -939,3 +949,31 @@ class MaterialHelper:
         
         return theNode
 
+    # Create a corona normal shader bundle
+    def AddNormalShader(self, img_path: str,
+                            name: str, slot: int,  color_space: int = CR_COLORSPACE_LINEAR) -> c4d.BaseShader:
+        #color_space: 2 sRGB 1 linear
+        normal_shader = c4d.BaseList2D(1035405)
+        self.material.InsertShader(normal_shader)
+        self.material[slot] = normal_shader
+
+        shader = c4d.BaseList2D(1036473)
+        shader[c4d.CORONA_BITMAP_FILENAME] = img_path
+        shader[c4d.CORONA_BITMAP_COLORPROFILE] = color_space
+        shader.SetName(name)
+        shader[c4d.ID_BASELIST_NAME] = name
+        self.material.InsertShader(shader)
+        normal_shader[c4d.CORONA_NORMALMAP_TEXTURE] = shader
+        return normal_shader
+
+    # Create a corona bitmap shader to load a texture
+    def AddBitmapShader(self, img_path: str,
+                            name: str, slot: int,  color_space: int = CR_COLORSPACE_LINEAR) -> c4d.BaseShader:
+        shader = c4d.BaseList2D(1036473)
+        shader[c4d.CORONA_BITMAP_FILENAME] = img_path
+        shader.SetName(name)
+        shader[c4d.ID_BASELIST_NAME] = name
+        shader[c4d.CORONA_BITMAP_COLORPROFILE] = color_space
+        self.material.InsertShader(shader)
+        self.material[slot] = shader
+        return shader
