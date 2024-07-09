@@ -8,11 +8,21 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 import Renderer
 # from Renderer.constants.arnold_id import *
+from Renderer.constants.common_id import ID_REDSHIFT, ID_ARNOLD, ID_OCTANE, ID_VRAY, ID_CORONA
 from Renderer.utils.node_helper import NodeGraghHelper, EasyTransaction
-from Renderer import Arnold, Redshift, Vray, Octane, Corona
+if c4d.plugins.FindPlugin(ID_REDSHIFT, type=c4d.PLUGINTYPE_ANY) is not None:
+    from Renderer import Redshift
+if c4d.plugins.FindPlugin(ID_ARNOLD, type=c4d.PLUGINTYPE_ANY) is not None:
+    from Renderer import Arnold
+if c4d.plugins.FindPlugin(ID_OCTANE, type=c4d.PLUGINTYPE_ANY) is not None:
+    from Renderer import Octane
+if c4d.plugins.FindPlugin(ID_VRAY, type=c4d.PLUGINTYPE_ANY) is not None:
+    from Renderer import Vray
+if c4d.plugins.FindPlugin(ID_CORONA, type=c4d.PLUGINTYPE_ANY) is not None:
+    from Renderer import Corona
 
 regex_dif: str = '[^a-zA-Z0-9^\s](diff|dif|diffuse|albedo|color|col|base.?color)'
-regex_spec: str = '[^a-zA-Z0-9^\s](spec|specular)'
+regex_spec: str = '[^a-zA-Z0-9^\s](spec|specular|edgetint)'
 regex_metal: str = '[^a-zA-Z0-9^\s](metal|metallic|metalness)'
 regex_rough: str = '[^a-zA-Z0-9^\s](rough|roughness)'
 regex_gloss: str = '[^a-zA-Z0-9^\s](gloss|glossiness)'
@@ -22,14 +32,15 @@ regex_bump: str = '[^a-zA-Z0-9^\s](bump)'
 regex_normal: str = '[^a-zA-Z0-9^\s](normal|nrm|normaldx|normalgl|nor|nor.?dx|nor.?gl|opengl|directx)'
 regex_emission: str = '[^a-zA-Z0-9^\s](emission|emissive|emis)'
 regex_disp: str = '[^a-zA-Z0-9^\s](displacement|height|disp|depth|dis|displace)'
-regex_trans: str = '[^a-zA-Z0-9^\s](trans|transmission|translucency)'
+regex_trans: str = '[^a-zA-Z0-9^\s](trans|transmission|translucency|sss)'
+regex_sheen: str = '[^a-zA-Z0-9^\s](sheen)'
+regex_anisotropy: str = '[^a-zA-Z0-9^\s](anisotropy|anis)'
 
 regex_PBR: str = '[^a-zA-Z0-9^\s](diff|dif|diffuse|albedo|color|col|base.?color|spec|specular|metal|metallic|metalness|rough|roughness|gloss|glossiness|ao|ambient.?occlusion|occlusion|occ|mixed.?ao|alpha|opacity|bump|normal|nrm|normaldx|normalgl|nor|nor.?dx|nor.?gl|opengl|directx|emisson|emissive|emis|displacement|height|disp|depth|dis|displace|trans|transmission|translucy)'
 
 regex_extensions: str = '.(jpg|jpeg|png|exr|tif|tiff|tga|psd|tx|hdr|exr|bmp|b3d|dds|dpx|iff|psb|rla|rpf|pict)'
 
 IMAGE_EXTENSIONS: tuple[str] = ('.png', '.jpg', '.jpeg', '.tga', '.bmp', ".exr", ".hdr", ".tif", ".tiff","iff", ".psd", ".tx",  ".b3d", ".dds", ".dpx", ".psb", ".rla", ".rpf", ".pict")
-
 
 #=============================================
 # PBR Package
@@ -105,6 +116,8 @@ class PBRPackage:
         self.emission: Optional[str] = None
         self.displacement: Optional[str] = None
         self.transmission: Optional[str] = None
+        self.sheen: Optional[str] = None
+        self.anisotropy: Optional[str] = None
 
     def __eq__(self, other):
         if isinstance(other, PBRPackage):
@@ -149,6 +162,11 @@ class PBRPackage:
                 self.displacement: str = i
             elif self.get_texture(i, regex_trans) is not None:
                 self.transmission: str = i
+            elif self.get_texture(i, regex_sheen) is not None:
+                self.sheen: str = i
+            elif self.get_texture(i, regex_anisotropy) is not None:
+                self.anisotropy: str = i
+
         return self
 
     def get_texture(self, text: str, regex: str = None) -> str:
@@ -187,6 +205,8 @@ class PBRPackage:
             "emission": self.emission,
             "displacement": self.displacement,
             "transmission": self.transmission,
+            "sheen": self.sheen,
+            "anisotropy": self.anisotropy
         }
 
     def get_valid_dict(self) -> dict:
@@ -200,7 +220,7 @@ class PBRPackage:
 #=============================================
 # PBR Material from package
 #=============================================
-def ArnoldPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_displacement: bool = False, doc: c4d.documents.BaseDocument=None) -> Optional[c4d.BaseMaterial]:
+def ArnoldPbrFromPackage(folder: str, pbr_name: str, triplanar: bool = True, use_displacement: bool = False, doc: c4d.documents.BaseDocument=None) -> Optional[c4d.BaseMaterial]:
     if doc is None:
         doc = c4d.documents.GetActiveDocument()
     pbrInstance = PBRPackage(folder, pbr_name)
@@ -208,70 +228,90 @@ def ArnoldPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use
     data = pbrInstance.get_valid_dict()
     material = Arnold.Material(pbr_name)
 
-    with EasyTransaction(material) as mat:
-        standard_surface = mat.GetRootBRDF()
-        mat.SetName(standard_surface, pbr_name)
+    with EasyTransaction(material) as tr:
+        standard_surface = tr.GetRootBRDF()
+        tr.SetName(standard_surface, pbr_name)
 
         # get ports
-        albedoPort = mat.GetPort(standard_surface,'base_color')
-        # specularPort = mat.GetPort(standard_surface,'specular_color')
-        roughnessPort = mat.GetPort(standard_surface,'specular_roughness')
-        metalnessPort = mat.GetPort(standard_surface,'metalness')
-        opacityPort = mat.GetPort(standard_surface,'opacity')
-        reflectionPort = mat.GetPort(standard_surface,'transmission_color')
-        emissionPort = mat.GetPort(standard_surface,'emission_color')
+        albedoPort = tr.GetPort(standard_surface,'base_color')
+        specularPort = tr.GetPort(standard_surface,'specular_color')
+        roughnessPort = tr.GetPort(standard_surface,'specular_roughness')
+        metalnessPort = tr.GetPort(standard_surface,'metalness')
+        opacityPort = tr.GetPort(standard_surface,'opacity')
+        transmissionPort = tr.GetPort(standard_surface,'transmission_color')
+        emissionPort = tr.GetPort(standard_surface,'emission_color')
+        gloss2roughPort = None
+        sheenPort = tr.GetPort(standard_surface,'sheen_color')
+        anisotropyPort = tr.GetPort(standard_surface,'specular_anisotropy')
         triplanarID = "com.autodesk.arnold.shader.triplanar"
 
         try:
             # Base Color            
             if "ao" in data:
-                aoNode = mat.AddTexture(filepath=data['ao'], shadername="AO")
+                aoNode = tr.AddTexture(filepath=data['ao'], shadername="AO")
                 if "diffuse" in data:
-                    mat.AddTextureTree(filepath=data['diffuse'], shadername="Albedo", raw=False, color_mode=True, color_mutiplier=aoNode, target_port=albedoPort, triplaner_node=triplaner)
+                    tr.AddTextureTree(filepath=data['diffuse'], shadername="Albedo", raw=False, color_mode=True, color_mutiplier=aoNode, target_port=albedoPort, triplaner_node=triplanar)
             else:
-                mat.AddTextureTree(filepath=data['diffuse'], shadername="Albedo", raw=False, target_port=albedoPort, triplaner_node=triplaner)
+                tr.AddTextureTree(filepath=data['diffuse'], shadername="Albedo", raw=False, target_port=albedoPort, triplaner_node=triplanar)
             # if triplaner:
             #     mat.AddTriPlanar(mat.GetPort(albedo,mat.GetConvertOutput(albedo)), 
             #                     mat.GetPort(albedo_cc := mat.GetNextNode(albedo)[0] ,mat.GetConvertInput(albedo_cc)))
             
             if "metalness" in data:
-                node = mat.AddTexture(filepath=data['metalness'], shadername="metalness",target_port=metalnessPort)
-                if triplaner:
-                    mat.InsertShader(triplanarID,mat.GetConnectedPortsAfter(node),"input","output")
+                node = tr.AddTexture(filepath=data['metalness'], shadername="metalness",target_port=metalnessPort)
+                if triplanar:
+                    tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
+                if "anisotropy" in data:
+                    node = tr.AddTexture(filepath=data['anisotropy'], shadername="anisotropy",target_port=anisotropyPort)
+                    if triplanar:
+                        tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
+                if "specular" in data:
+                    node = tr.AddTexture(filepath=data['specular'], shadername="Specular",target_port=specularPort)
+                    if triplanar:
+                        tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
+            if "sheen" in data:
+                node = tr.AddTexture(filepath=data['sheen'], shadername="sheen",target_port=sheenPort)
+                if triplanar:
+                    tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
 
-            if "roughness" in data:
-                node = mat.AddTextureTree(filepath=data['roughness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplaner)
+
+            if "roughness" in data and "glossiness" not in data:
+                node = tr.AddTextureTree(filepath=data['roughness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplanar)
+
+            elif "glossiness" in data and "roughness" not in data:
+                node = tr.AddTextureTree(filepath=data['roughness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplanar)
 
             if "normal" in data:
-                mat.AddNormalTree(filepath=data['normal'], shadername="Normal", triplaner_node=triplaner)
+                tr.AddNormalTree(filepath=data['normal'], shadername="Normal", triplaner_node=triplanar)
             
             if "bump" in data and "normal" not in data:  
-                mat.AddBumpTree(filepath=data['bump'], shadername="Bump", triplaner_node=triplaner)
+                tr.AddBumpTree(filepath=data['bump'], shadername="Bump", triplaner_node=triplanar)
             
             if "displacement" in data and use_displacement:
-                mat.AddDisplacementTree(filepath=data['displacement'], shadername="Displacement", triplaner_node=triplaner)
+                tr.AddDisplacementTree(filepath=data['displacement'], shadername="Displacement", triplaner_node=triplanar)
 
             if "alpha" in data:
-                node = mat.AddTexture(filepath=data['alpha'], shadername="Alpha",target_port=opacityPort)
-                if triplaner:
-                    mat.InsertShader(triplanarID,mat.GetConnectedPortsAfter(node),"input","output")
+                node = tr.AddTexture(filepath=data['alpha'], shadername="Alpha",target_port=opacityPort)
+                if triplanar:
+                    tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
             if "emission" in data:
-                node = mat.AddTexture(filepath=data['emission'], shadername="Emission", raw=False, target_port=emissionPort)
-                if triplaner:
-                    mat.InsertShader(triplanarID,mat.GetConnectedPortsAfter(node),"input","output")
+                node = tr.AddTexture(filepath=data['emission'], shadername="Emission", raw=False, target_port=emissionPort)
+                if triplanar:
+                    tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
             if "transmission" in data:
-                node = mat.AddTexture(filepath=data['transmission'], shadername="Transmission", raw=True, target_port=reflectionPort)
-                if triplaner:
-                    mat.InsertShader(triplanarID,mat.GetConnectedPortsAfter(node),"input","output")
-            mat.material.SetName(pbr_name)
+                node = tr.AddTexture(filepath=data['transmission'], shadername="Transmission", raw=True, target_port=transmissionPort)
+                if triplanar:
+                    tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
+            tr.material.SetName(pbr_name)
 
         except Exception as e:
             raise RuntimeError (f"Unable to setup texture with {e}")
 
-    mat.InsertMaterial(doc)
-    mat.SetActive(doc)
+    tr.InsertMaterial(doc)
+    doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, tr.material)
+    tr.SetActive(doc)
     
-    return mat.material
+    return tr.material
 
 def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_displacement: bool = False, doc: c4d.documents.BaseDocument=None) -> Optional[c4d.BaseMaterial]:
     if doc is None:
@@ -292,11 +332,15 @@ def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, u
         opacityPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.opacity_color')
         reflectionPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color')
         emissionPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_color')
+        gloss2roughPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_isglossiness')
+        specularPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color')
+        sheenPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.material.sheen_color')
+        anisotropyPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.material.refl_aniso')
         triplanarID = "com.redshift3d.redshift4c4d.nodes.core.triplanar"
         triplanarInput = "com.redshift3d.redshift4c4d.nodes.core.triplanar.imagex"
         triplanarOutput = "com.redshift3d.redshift4c4d.nodes.core.triplanar.outcolor"
 
-        try:          
+        try:
             if "ao" in data:
                 aoNode = tr.AddTexture(filepath=data['ao'], shadername="AO")
                 if "diffuse" in data:
@@ -308,9 +352,16 @@ def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, u
                 node = tr.AddTexture(filepath=data['metalness'], shadername="metalness",target_port=metalnessPort)
                 if triplaner:
                     tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
+                if "anisotropy" in data:
+                    node = tr.AddTexture(filepath=data['anisotropy'], shadername="anisotropy",target_port=anisotropyPort)
+                    if triplaner:
+                        tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
 
-            if "roughness" in data:
+            if "roughness" in data and "glossiness" not in data:
                 node = tr.AddTextureTree(filepath=data['roughness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplaner)
+            elif "glossiness" in data and "roughness" not in data:
+                tr.SetPortData(gloss2roughPort,True)
+                node = tr.AddTextureTree(filepath=data['glossiness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplaner)
 
             if "normal" in data:
                 tr.AddBumpTree(filepath=data['normal'], shadername="Normal", triplaner_node=triplaner)
@@ -320,6 +371,16 @@ def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, u
             
             if "displacement" in data and use_displacement:
                 tr.AddDisplacementTree(filepath=data['displacement'], shadername="Displacement", triplaner_node=triplaner)
+
+            if "sheen" in data:
+                node = tr.AddTexture(filepath=data['sheen'], shadername="sheen",target_port=sheenPort)
+                if triplaner:
+                    tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
+            if "specular" in data:
+                node = tr.AddTexture(filepath=data['specular'], shadername="Specular",target_port=specularPort)
+                if triplaner:
+                    tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
+
 
             if "alpha" in data:
                 node = tr.AddTexture(filepath=data['alpha'], shadername="Alpha",target_port=opacityPort)
@@ -339,6 +400,7 @@ def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, u
             raise RuntimeError (f"Unable to setup texture with {e}")
 
     tr.InsertMaterial(doc)
+    doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, tr.material)
     tr.SetActive(doc)
     
     return tr.material
@@ -364,9 +426,16 @@ def OctanePbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use
 
     if "metalness" in data:
         tr.AddImageTexture(data['metalness'], "Metalness",parentNode=c4d.OCT_MAT_SPECULAR_MAP_LINK)
+        if "anisotropy" in data:
+            tr.AddImageTexture(data['anisotropy'], "Anisotropy",parentNode=c4d.OCT_MAT_ANISOTROPY_FLOAT)
+        if "specular" in data:
+            tr.AddImageTexture(data['specular'], "Specular",parentNode=c4d.OCT_MATERIAL_SPECULAR_LINK)
 
     if "roughness" in data:
         tr.AddTextureTree(data['roughness'], "Roughness", parentNode=c4d.OCT_MATERIAL_ROUGHNESS_LINK)
+
+    if "sheen" in data:
+        tr.AddTextureTree(data['sheen'], "Sheen", parentNode=c4d.OCT_MAT_SHEEN_MAP_FLOAT)
 
     if "normal" in data:
         tr.AddImageTexture(texturePath=data['normal'], nodeName="Normal", isFloat=False, gamma=1, parentNode=c4d.OCT_MATERIAL_NORMAL_LINK)
@@ -380,7 +449,6 @@ def OctanePbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use
             displacementNode[c4d.DISPLACEMENT_LEVELOFDETAIL] = 11 # 2k
             displacementSlotName = c4d.DISPLACEMENT_TEXTURE
             displacementNode[displacementSlotName] = tr.AddImageTexture(texturePath=data['displacement'], nodeName="Displacement")
-
     if "alpha" in data:
         tr.AddImageTexture(texturePath=data['alpha'], nodeName="Alpha", parentNode=c4d.OCT_MATERIAL_OPACITY_LINK)
     if "emission" in data:
@@ -396,6 +464,7 @@ def OctanePbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use
         tr.AddTriplanars()
 
     tr.InsertMaterial(doc)
+    doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, tr.material)
     tr.SetActive(doc)
     
     return tr.material
@@ -415,6 +484,14 @@ def CoronaPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use
     if "metalness" in data:
         tr.material[c4d.CORONA_PHYSICAL_MATERIAL_METALLIC_MODE_VALUE] = 0  # metal
         tr.AddBitmapShader(data['metalness'], "Metalness", c4d.CORONA_PHYSICAL_MATERIAL_METALLIC_MODE_TEXTURE)
+        if "anisotropy" in data:
+            tr.AddBitmapShader(data['anisotropy'], "Anisotropy", c4d.CORONA_PHYSICAL_MATERIAL_BASE_ANISOTROPY_TEXTURE)
+        if "specular" in data:
+            tr.material[c4d.CORONA_PHYSICAL_MATERIAL_BASE_BUMPMAPPING_ENABLE] = 1
+            tr.AddNormalShader(data['specular'], "Specular", c4d.CORONA_PHYSICAL_MATERIAL_BASE_EDGECOLOR_TEXTURE)
+    if "sheen" in data:
+        tr.material[c4d.CORONA_PHYSICAL_MATERIAL_SHEEN] = 1
+        tr.AddNormalShader(data['sheen'], "Sheen", c4d.CORONA_PHYSICAL_MATERIAL_SHEEN_AMOUNT_TEXTURE)
 
     if "roughness" in data:
         tr.AddBitmapShader(data['roughness'], "Roughness", c4d.CORONA_PHYSICAL_MATERIAL_BASE_ROUGHNESS_TEXTURE)
@@ -439,6 +516,7 @@ def CoronaPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use
         tr.AddBitmapShader(data['transmission'], "Transmission", c4d.CORONA_PHYSICAL_MATERIAL_REFRACT_AMOUNT_TEXTURE)
 
     tr.InsertMaterial(doc)
+    doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, tr.material)
     tr.SetActive(doc)
 
     return tr.material
@@ -464,6 +542,10 @@ def VrayPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_d
         useRoughness = tr.GetPort(base_material,"com.chaos.vray_node.brdfvraymtl.option_use_roughness")
         normalPort = tr.GetPort(base_material,'com.chaos.vray_node.brdfvraymtl.bump_map')
         emissionPort = tr.GetPort(base_material,'com.chaos.vray_node.brdfvraymtl.self_illumination')
+        sheenPort = tr.GetPort(base_material,'com.chaos.vray_node.brdfvraymtl.sheen_color')
+        anisotropyPort = tr.GetPort(base_material,'com.chaos.vray_node.brdfvraymtl.anisotropy')
+        specularPort = tr.GetPort(base_material,'com.chaos.vray_node.brdfvraymtl.reflectr')
+
         triplanarID = "com.chaos.vray_node.textriplanar"
         triplanarInput = "com.chaos.vray_node.textriplanar.texture_x"
         triplanarOutput = "com.chaos.vray_node.textriplanar.output.default"
@@ -488,11 +570,27 @@ def VrayPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_d
                 node = tr.AddTexture(filepath=data['metalness'], shadername="Metalness",target_port=metalnessPort)
                 if triplaner:
                     tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
-            if "roughness" in data:
+                if "anisotropy" in data:
+                    node = tr.AddTexture(filepath=data['anisotropy'], shadername="Anisotropy",target_port=anisotropyPort)
+                    if triplaner:
+                        tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
+
+            if "specular" in data:
+                node = tr.AddTexture(filepath=data['specular'], shadername="specular",target_port=specularPort)
+                if triplaner:
+                    tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
+
+            if "roughness" in data and "glossiness" not in data:
                 tr.SetPortData(useRoughness, True)
                 node = tr.AddTexture(filepath=data['roughness'], shadername="Roughness",target_port=roughnessPort)
                 if triplaner:
                     tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
+            elif "glossiness" in data and "glossiness" not in data:
+                tr.SetPortData(useRoughness, False)
+                node = tr.AddTexture(filepath=data['roughness'], shadername="Roughness",target_port=roughnessPort)
+                if triplaner:
+                    tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
+
             if "normal" in data:
                 tr.AddBumpTree(filepath=data['normal'], shadername="Normal",bump_mode=1,target_port=normalPort, triplaner_node=triplaner)
             
@@ -500,6 +598,11 @@ def VrayPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_d
                 tr.AddBumpTree(filepath=data['bump'], shadername="Bump", triplaner_node=triplaner, bump_mode=0)
             if "displacement" in data and use_displacement:
                 pass
+
+            if "sheen" in data:
+                node = tr.AddTexture(filepath=data['sheen'], shadername="sheen",target_port=sheenPort)
+                if triplaner:
+                    tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
 
             if "alpha" in data:
                 node = tr.AddTexture(filepath=data['alpha'], shadername="Alpha",target_port=opacityPort)
@@ -519,6 +622,7 @@ def VrayPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_d
             raise RuntimeError (f"Unable to setup texture with {e}")
 
     tr.InsertMaterial(doc)
+    doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, tr.material)
     tr.SetActive(doc)
     
     return tr.material
@@ -528,7 +632,7 @@ def VrayPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_d
 #=============================================
 def ArnoldPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo: str=None, ao: str=None, 
                       metalness: str=None, roughness: str=None, alpha: str=None, bump: str=None, normal: str=None, displacement: str=None, 
-                      emission: str=None, transmission: str=None,
+                      emission: str=None, transmission: str=None, sheen: str=None, specular: str=None, anisotropy: str=None,
                       triplanar: bool = True) -> Optional[c4d.BaseMaterial]:
 
     if doc is None:
@@ -548,6 +652,10 @@ def ArnoldPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
                 opacityPort = tr.GetPort(standard_surface,'opacity')
                 reflectionPort = tr.GetPort(standard_surface,'transmission_color')
                 emissionPort = tr.GetPort(standard_surface,'emission_color')
+                gloss2roughPort = None
+                sheenPort = tr.GetPort(standard_surface,'sheen_color')
+                anisotropyPort = tr.GetPort(standard_surface,'specular_anisotropy')
+                specularPort = tr.GetPort(standard_surface,'specular_color')
                 triplanarID = "com.autodesk.arnold.shader.triplanar"
 
                 # Base Color            
@@ -562,8 +670,21 @@ def ArnoldPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
                     node = tr.AddTexture(filepath=metalness, shadername="Metalness",target_port=metalnessPort)
                     if triplanar:
                         tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), "input", "output")
+                    if anisotropy:
+                        node = tr.AddTexture(filepath=anisotropy, shadername="anisotropy",target_port=anisotropyPort)
+                        if triplanar:
+                            tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
+                    if specular:
+                        node = tr.AddTexture(filepath=specular, shadername="Specular",target_port=specularPort)
+                        if triplanar:
+                            tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
                 if roughness:
                     tr.AddTextureTree(filepath=roughness, shadername="Roughness",triplaner_node=triplanar, target_port=roughnessPort)               
+
+                if sheen:
+                    node = tr.AddTexture(filepath=sheen, shadername="sheen",target_port=sheenPort)
+                    if triplanar:
+                        tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
 
                 if normal:
                     tr.AddNormalTree(filepath=normal, shadername="Normal",triplaner_node=triplanar)
@@ -598,7 +719,7 @@ def ArnoldPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
 
 def RedshiftPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo: str=None, ao: str=None, 
                       metalness: str=None, roughness: str=None, alpha: str=None, bump: str=None, normal: str=None, displacement: str=None, 
-                      emission: str=None, transmission: str=None,
+                      emission: str=None, transmission: str=None, sheen: str=None, specular: str=None, anisotropy: str=None, glossiness: str=None,
                       triplanar: bool = True) -> Optional[c4d.BaseMaterial]:
     if doc is None:
         doc = c4d.documents.GetActiveDocument()
@@ -618,6 +739,10 @@ def RedshiftPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, al
                 opacityPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.opacity_color')
                 reflectionPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color')
                 emissionPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_color')
+                gloss2roughPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_isglossiness')
+                specularPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color')
+                sheenPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.material.sheen_color')
+                anisotropyPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.material.refl_aniso')
                 triplanarID = "com.redshift3d.redshift4c4d.nodes.core.triplanar"
                 triplanarInput = "com.redshift3d.redshift4c4d.nodes.core.triplanar.imagex"
                 triplanarOutput = "com.redshift3d.redshift4c4d.nodes.core.triplanar.outcolor"
@@ -636,9 +761,21 @@ def RedshiftPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, al
                     node = tr.AddTexture(filepath=metalness, shadername="Metalness",target_port=metalnessPort)
                     if triplanar:
                         tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
-                if roughness:
-                    tr.AddTextureTree(filepath=roughness, shadername="Roughness",triplaner_node=triplanar, target_port=roughnessPort)               
+                    if specular:
+                        node = tr.AddTexture(filepath=specular, shadername="Specular",target_port=specularPort)
+                        if triplanar:
+                            tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
+                    if anisotropy:
+                        node = tr.AddTexture(filepath=anisotropy, shadername="Anisotropy",target_port=anisotropyPort)
+                        if triplanar:
+                            tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
 
+                if roughness and not glossiness:
+                    tr.AddTextureTree(filepath=roughness, shadername="Roughness",triplaner_node=triplanar, target_port=roughnessPort)               
+                elif glossiness and not roughness:
+                    tr.SetPortData(gloss2roughPort,True)
+                    node = tr.AddTextureTree(filepath=glossiness, shadername="Roughness", target_port=roughnessPort, triplaner_node=triplanar)
+            
                 if normal:
                     tr.AddBumpTree(filepath=normal, shadername="Normal",triplaner_node=triplanar)
                 
@@ -660,7 +797,10 @@ def RedshiftPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, al
                     node = tr.AddTexture(filepath=transmission, shadername="Transmission", raw=True, target_port=reflectionPort)
                     if triplanar:
                         tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
-
+                if sheen:
+                    node = tr.AddTexture(filepath=sheen, shadername="Sheen", raw=True, target_port=sheenPort)
+                    if triplanar:
+                        tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
             tr.InsertMaterial(doc)
             if isinstance(doc, c4d.documents.BaseDocument):
                 doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, tr.material)
@@ -672,7 +812,7 @@ def RedshiftPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, al
 
 def VrayPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo: str=None, ao: str=None, 
                       metalness: str=None, roughness: str=None, alpha: str=None, bump: str=None, normal: str=None, displacement: str=None, 
-                      emission: str=None, transmission: str=None,
+                      emission: str=None, transmission: str=None, sheen: str=None, specular: str=None, anisotropy: str=None, glossiness: str=None,
                       triplanar: bool = True) -> Optional[c4d.BaseMaterial]:
     if doc is None:
         doc = c4d.documents.GetActiveDocument()
@@ -693,14 +833,16 @@ def VrayPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo
             opacityPort = tr.GetPort(base_material,'com.chaos.vray_node.brdfvraymtl.opacity_color')
             reflectionPort = tr.GetPort(base_material,'com.chaos.vray_node.brdfvraymtl.refract')
             useRoughness = tr.GetPort(base_material,"com.chaos.vray_node.brdfvraymtl.option_use_roughness")
-            normalPort = tr.GetPort(base_material,'com.chaos.vray_node.brdfvraymtl.bump_map')
-            
+            sheenPort = tr.GetPort(base_material,'com.chaos.vray_node.brdfvraymtl.sheen_color')
+            anisotropyPort = tr.GetPort(base_material,'com.chaos.vray_node.brdfvraymtl.anisotropy')
+            specularPort = tr.GetPort(base_material,'com.chaos.vray_node.brdfvraymtl.reflectr')
+
             emissionPort = tr.GetPort(base_material,'com.chaos.vray_node.brdfvraymtl.emission_color')
             triplanarID = "com.chaos.vray_node.textriplanar"
             triplanarInput = "com.chaos.vray_node.textriplanar.texture_x"
             triplanarOutput = "com.chaos.vray_node.textriplanar.output.default"
 
-            # Base Color            
+            # Base Color
             if ao:
                 aoNode = tr.AddTexture(filepath=ao, shadername="AO")
                 if albedo:
@@ -712,8 +854,21 @@ def VrayPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo
                 node = tr.AddTexture(filepath=metalness, shadername="Metalness",target_port=metalnessPort)
                 if triplanar:
                     tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
-            if roughness:
-                tr.AddTextureTree(filepath=roughness, shadername="Roughness",triplaner_node=triplanar, target_port=roughnessPort)               
+                if specular:
+                    node = tr.AddTexture(filepath=specular, shadername="Specular",target_port=specularPort)
+                    if triplanar:
+                        tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
+                if anisotropy:
+                    node = tr.AddTexture(filepath=anisotropy, shadername="Anisotropy",target_port=anisotropyPort)
+                    if triplanar:
+                        tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
+
+            if roughness and not glossiness:
+                tr.SetPortData(useRoughness, True)
+                tr.AddTextureTree(filepath=roughness, shadername="Roughness",triplaner_node=triplanar, target_port=roughnessPort)   
+            elif glossiness and not roughness:
+                tr.SetPortData(useRoughness, False)
+                tr.AddTextureTree(filepath=glossiness, shadername="Glossiness",triplaner_node=triplanar, target_port=roughnessPort)
 
             if normal:
                 tr.AddBumpTree(filepath=normal, shadername="Normal",triplaner_node=triplanar,bump_mode=1)
@@ -736,6 +891,10 @@ def VrayPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo
                 node = tr.AddTexture(filepath=transmission, shadername="Transmission", raw=True, target_port=reflectionPort)
                 if triplanar:
                     tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
+            if sheen:
+                node = tr.AddTexture(filepath=sheen, shadername="Sheen", raw=True, target_port=sheenPort)
+                if triplanar:
+                    tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
 
         tr.InsertMaterial(doc)
         if isinstance(doc, c4d.documents.BaseDocument):
@@ -748,7 +907,7 @@ def VrayPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo
 
 def OctanePbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo: str=None, ao: str=None, 
                       metalness: str=None, roughness: str=None, alpha: str=None, bump: str=None, normal: str=None, displacement: str=None, 
-                      emission: str=None, transmission: str=None,
+                      emission: str=None, transmission: str=None, sheen: str=None, specular: str=None, anisotropy: str=None,
                       triplanar: bool = True) -> Optional[c4d.BaseMaterial]:
     if doc is None:
         doc = c4d.documents.GetActiveDocument()
@@ -768,6 +927,11 @@ def OctanePbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
 
         if metalness:
             mat.AddImageTexture(texturePath=metalness, nodeName="Metalness", parentNode=c4d.OCT_MAT_SPECULAR_MAP_LINK)
+            if anisotropy:
+                mat.AddImageTexture(anisotropy, "Anisotropy",parentNode=c4d.OCT_MAT_ANISOTROPY_FLOAT)
+            if specular:
+                mat.AddImageTexture(specular, "Specular",parentNode=c4d.OCT_MATERIAL_SPECULAR_LINK)
+
         if roughness:
             roughnessNode = mat.AddImageTexture(texturePath=roughness, nodeName="Roughness")
             if roughnessNode:
@@ -793,6 +957,9 @@ def OctanePbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
             mat.AddImageTexture(texturePath=transmission, nodeName="Transmission", gamma=1, parentNode=c4d.OCT_MATERIAL_TRANSMISSION_LINK)
             mat.material[c4d.UNIVMAT_TRANSMISSION_TYPE] = 1
 
+        if sheen:
+            mat.AddTextureTree(sheen, "Sheen", parentNode=c4d.OCT_MAT_SHEEN_MAP_FLOAT)
+
         if emission:  
             emission = mat.AddTextureEmission(parentNode=c4d.OCT_MATERIAL_EMISSION)
             mat.AddImageTexture(texturePath=emission, nodeName="Emission", gamma=1, parentNode=emission[c4d.TEXEMISSION_EFFIC_OR_TEX])
@@ -814,7 +981,7 @@ def OctanePbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
     
 def CoronaPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo: str=None, ao: str=None, 
                       metalness: str=None, roughness: str=None, alpha: str=None, bump: str=None, normal: str=None, displacement: str=None, 
-                      emission: str=None, transmission: str=None,
+                      emission: str=None, transmission: str=None, sheen: str=None, specular: str=None, anisotropy: str=None,
                       triplanar: bool = True) -> Optional[c4d.BaseMaterial]:
     if doc is None:
         doc = c4d.documents.GetActiveDocument()
@@ -827,9 +994,17 @@ def CoronaPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
         if metalness:
             tr.material[c4d.CORONA_PHYSICAL_MATERIAL_METALLIC_MODE_VALUE] = 0  # metal
             tr.AddBitmapShader(metalness, "Metalness", c4d.CORONA_PHYSICAL_MATERIAL_METALLIC_MODE_TEXTURE)
+            if anisotropy:
+                tr.AddBitmapShader(anisotropy, "Anisotropy", c4d.CORONA_PHYSICAL_MATERIAL_BASE_ANISOTROPY_TEXTURE)
+            if specular:
+                tr.material[c4d.CORONA_PHYSICAL_MATERIAL_BASE_BUMPMAPPING_ENABLE] = 1
+                tr.AddNormalShader(specular, "Specular", c4d.CORONA_PHYSICAL_MATERIAL_BASE_EDGECOLOR_TEXTURE)
         if roughness:
             tr.AddBitmapShader(roughness, "Roughness", c4d.CORONA_PHYSICAL_MATERIAL_BASE_ROUGHNESS_TEXTURE)
             tr.material[c4d.CORONA_PHYSICAL_MATERIAL_ROUGHNESS_MODE] = 0
+        if sheen:
+            tr.material[c4d.CORONA_PHYSICAL_MATERIAL_SHEEN] = 1
+            tr.AddNormalShader(sheen, "Sheen", c4d.CORONA_PHYSICAL_MATERIAL_SHEEN_AMOUNT_TEXTURE)
         if bump:  
             tr.AddBitmapShader(bump, "Bump", c4d.CORONA_PHYSICAL_MATERIAL_BASE_BUMPMAPPING_TEXTURE)
         if normal:  
@@ -854,3 +1029,4 @@ def CoronaPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
     
     except Exception as e:
         raise RuntimeError(f"Failed to create the material {e}")
+

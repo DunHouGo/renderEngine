@@ -8,4 +8,3 @@ from typing import Union, Optional
 import Renderer
 from Renderer.utils.node_helper import NodeGraghHelper, EasyTransaction
 from Renderer.utils.texture_helper import TextureHelper
-from Renderer.utils import material_maker as MaterialMaker

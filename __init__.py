@@ -37,6 +37,7 @@ from Renderer.constants.common_id import *
 from Renderer.utils.node_helper import NodeGraghHelper, EasyTransaction
 from Renderer.utils.texture_helper import TextureHelper
 from Renderer.utils import material_maker as MaterialMaker
+from Renderer.utils.material_maker import PBRPackage
 
 # import moudule if plugin installed
 if c4d.plugins.FindPlugin(ID_REDSHIFT, type=c4d.PLUGINTYPE_ANY) is not None:
