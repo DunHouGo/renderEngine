@@ -590,7 +590,7 @@ class MaterialHelper(NodeGraghHelper):
 
         shader: maxon.GraphNode = self.graph.AddChild("", "com.chaos.vray_node.texnormalbump", maxon.DataDictionary())
         type_port = self.GetPort(shader, 'com.chaos.vray_node.texnormalbump.map_type')
-        type_port.SetDefaultValue(bump_mode)
+        self.SetPortData(type_port, bump_mode)
 
         if input_port:
             if isinstance(input_port, maxon.GraphNode):
@@ -659,13 +659,13 @@ class MaterialHelper(NodeGraghHelper):
 
         # tex path
         if filepath is not None:
-            texPort.SetDefaultValue(filepath)
+            self.SetPortData(texPort, filepath)
         
         # color space
         if raw:
-            colorspacePort.SetDefaultValue(0)
+            self.SetPortData(colorspacePort, 0)
         else:
-            colorspacePort.SetDefaultValue(1)
+            self.SetPortData(colorspacePort, 1)
         
         # target connect
         if target_port:
@@ -688,7 +688,7 @@ class MaterialHelper(NodeGraghHelper):
         input1 = layerNode.GetInputs().FindChild('com.chaos.vray_node.texlayeredmax.texture_layers').FindChild("_0").FindChild("com.chaos.vray.portbundle.texture_layer.texture")
         input2 = layerNode.GetInputs().FindChild('com.chaos.vray_node.texlayeredmax.texture_layers').FindChild("_1").FindChild("com.chaos.vray.portbundle.texture_layer.texture")
         blendNode:maxon.GraphNode = layerNode.GetInputs().FindChild('com.chaos.vray_node.texlayeredmax.texture_layers').FindChild("_1").FindChild("com.chaos.vray.portbundle.texture_layer.blend_mode")
-        blendNode.SetDefaultValue(blend)
+        self.SetPortData(blendNode,blend)
 
         if inputA is not None:
             inputA.Connect(input1)

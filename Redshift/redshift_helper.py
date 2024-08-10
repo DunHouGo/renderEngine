@@ -1,16 +1,9 @@
-###  ==========  Author INFO  ==========  ###
-
-__author__ = "DunHouGo"
-__copyright__ = "Copyright (C) 2023 Boghma"
-__website__ = "https://www.boghma.com/"
-__license__ = "Apache-2.0 License"
-__version__ = "2023.2.1"
-
 ###  ==========  Import Libs  ==========  ###
 import c4d
 import maxon
 import Renderer
-import redshift
+if c4d.plugins.FindPlugin(Renderer.ID_REDSHIFT, type=c4d.PLUGINTYPE_ANY) is not None:
+    import redshift
 import os
 import random
 from typing import Union,Optional
@@ -559,7 +552,7 @@ class MaterialHelper(NodeGraghHelper):
 
         redshiftMaterial = self
         # modification has to be done within a transaction
-        with EasyTransaction(redshiftMaterial):
+        with EasyTransaction(redshiftMaterial) as tr:
 
             # Find brdf node (in this case : standard surface)
             # 查找Standard Surface节点
@@ -595,7 +588,8 @@ class MaterialHelper(NodeGraghHelper):
                     if "Glossiness" in tex_data:
                         self.AddTextureTree(filepath=tex_data['Glossiness'], shadername="Glossiness", target_port=roughnessPort)
                         isglossinessPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
-                        isglossinessPort.SetDefaultValue(True)
+
+                        tr.SetPortData(isglossinessPort, True)
 
                     elif "Roughness" in tex_data:
                         roughnessNode = self.AddTextureTree(filepath=tex_data['Roughness'], shadername="Roughness", scaleramp=True, target_port=roughnessPort)
@@ -610,7 +604,8 @@ class MaterialHelper(NodeGraghHelper):
                     elif "Glossiness" in tex_data:
                         self.AddTextureTree(filepath=tex_data['Glossiness'], shadername="Glossiness", scaleramp=True, target_port=roughnessPort)
                         isglossinessPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
-                        isglossinessPort.SetDefaultValue(True)                    
+ 
+                        tr.SetPortData(isglossinessPort, True)                  
 
                 if "Normal" in tex_data:
                     self.AddBumpTree(filepath=tex_data['Normal'], shadername="Normal")
@@ -1116,7 +1111,7 @@ class MaterialHelper(NodeGraghHelper):
         nodeId = "bumpmap"
         shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core." + nodeId, maxon.DataDictionary())
         type_port = self.GetPort(shader, 'com.redshift3d.redshift4c4d.nodes.core.bumpmap.inputtype')
-        type_port.SetDefaultValue(bump_mode)
+        self.SetPortData(type_port,bump_mode)
 
         if input_port:
             if isinstance(input_port, maxon.GraphNode):
@@ -1389,16 +1384,16 @@ class MaterialHelper(NodeGraghHelper):
         texFilenamePort: maxon.GraphNode = texPort.FindChild('path')
         colorspacePort: maxon.GraphNode = texPort.FindChild("colorspace")
         gammaPort: maxon.GraphNode = self.GetPort(shader,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.tex0_gamma")
-        gammaPort.SetDefaultValue(int(gamma))
+        self.SetPortData(gammaPort, gamma)
         # tex path
         if filepath is not None:
-            texFilenamePort.SetDefaultValue(filepath)
+            self.SetPortData(texFilenamePort, filepath)
         
         # color space
         if raw:
-            colorspacePort.SetDefaultValue("RS_INPUT_COLORSPACE_RAW")
+            self.SetPortData(colorspacePort, "RS_INPUT_COLORSPACE_RAW")
         else:
-            colorspacePort.SetDefaultValue("RS_INPUT_COLORSPACE_SRGB")
+            self.SetPortData(colorspacePort, "RS_INPUT_COLORSPACE_SRGB")
         
         # target connect
         if target_port:
@@ -1617,8 +1612,8 @@ class MaterialHelper(NodeGraghHelper):
         NodeInnerOutput_rotate_out.Connect(groupPortOut_rotate)
 
         # Set default value
-        NodeInnerInput_uni_scale_in.SetDefaultValue(1)
-        NodeInnerInput_scale2D_in.SetDefaultValue(1)
+        self.SetPortData(NodeInnerInput_uni_scale_in, 1)
+        self.SetPortData(NodeInnerInput_scale2D_in, 1)
 
         # Hide input ports
         self.RemovePort(groupRoot, groupPortIn_scale)
@@ -1718,8 +1713,8 @@ class MaterialHelper(NodeGraghHelper):
         NodeInnerOutput_rotate_out.Connect(groupPortOut_rotate)
 
         # Set default value
-        NodeInnerInput_uni_scale_in.SetDefaultValue(1)
-        NodeInnerInput_scale2D_in.SetDefaultValue(1)
+        self.SetPortData(NodeInnerInput_uni_scale_in, 1)
+        self.SetPortData(NodeInnerInput_scale2D_in, 1)
 
         # Hide input ports
         self.RemovePort(groupRoot, groupPortIn_scale)
@@ -1742,7 +1737,6 @@ class MaterialHelper(NodeGraghHelper):
                 groupPortOut_rotate.Connect(tex_rotate)
 
         return groupRoot
-
 
 
 class SceneHelper:

@@ -408,7 +408,9 @@ class TextureHelper:
                                 "path")
                         if pathPort.IsNullValue():
                             continue
-                        pathPort.SetDefaultValue(filename)
+                        
+                        if c4d.GetC4DVersion() >= 2024400: pathPort.SetPortValue(filename)
+                        else: pathPort.SetDefaultValue(filename)
 
                     elif (nodeSpace == Renderer.STANDARD_NODESPACE and 
                         node.GetId().ToString().split("@")[0] == "image"):
@@ -417,7 +419,8 @@ class TextureHelper:
                                 "path")
                         if pathPort.IsNullValue():
                             continue
-                        pathPort.SetDefaultValue(filename)
+                        if c4d.GetC4DVersion() >= 2024400: pathPort.SetPortValue(filename)
+                        else: pathPort.SetDefaultValue(filename)
 
                     elif (nodeSpace == Renderer.AR_NODESPACE and 
                         node.GetId().ToString().split("@")[0] == "image"):
@@ -426,7 +429,8 @@ class TextureHelper:
                                 "path")
                         if pathPort.IsNullValue():
                             continue
-                        pathPort.SetDefaultValue(filename)              
+                        if c4d.GetC4DVersion() >= 2024400: pathPort.SetPortValue(filename)
+                        else: pathPort.SetDefaultValue(filename)
 
                     elif (nodeSpace == Renderer.VR_NODESPACE and 
                         node.GetId().ToString().split("@")[0] == "texbitmap"):
@@ -435,7 +439,8 @@ class TextureHelper:
                                 "path")
                         if pathPort.IsNullValue():
                             continue
-                        pathPort.SetDefaultValue(filename)        
+                        if c4d.GetC4DVersion() >= 2024400: pathPort.SetPortValue(filename)
+                        else: pathPort.SetDefaultValue(filename)        
             
                     # Here you would have to implement other node spaces as for example the standard 
                     # space, Arnold, etc.

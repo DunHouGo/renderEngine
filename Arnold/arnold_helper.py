@@ -534,7 +534,7 @@ class MaterialHelper(NodeGraghHelper):
                     if "Glossiness" in tex_data:
                         self.AddTextureTree(filepath=tex_data['Glossiness'], shadername="Glossiness", target_port=roughnessPort)
                         isglossinessPort = self.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
-                        isglossinessPort.SetDefaultValue(True)
+                        self.SetPortData(isglossinessPort, True)
 
                     elif "Roughness" in tex_data:
                         roughnessNode = self.AddTextureTree(filepath=tex_data['Roughness'], shadername="Roughness", target_port=roughnessPort)
@@ -549,7 +549,7 @@ class MaterialHelper(NodeGraghHelper):
                     elif "Glossiness" in tex_data:
                         self.AddTextureTree(filepath=tex_data['Glossiness'], shadername="Glossiness", target_port=roughnessPort)
                         isglossinessPort = self.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
-                        isglossinessPort.SetDefaultValue(True)                    
+                        self.SetPortData(isglossinessPort, True)
 
                 if "Normal" in tex_data:
                     self.AddBumpTree(filepath=tex_data['Normal'], shadername="Normal")
@@ -1091,13 +1091,13 @@ class MaterialHelper(NodeGraghHelper):
 
         # tex path
         if filepath is not None:
-            texPort.SetDefaultValue(filepath)
+            self.SetPortData(texPort, filepath)
         
         # color space
         if raw:
-            colorspacePort.SetDefaultValue("raw")
+            self.SetPortData(colorspacePort, "raw")
         else:
-            colorspacePort.SetDefaultValue("sRGB")
+            self.SetPortData(colorspacePort, "sRGB")
         
         # target connect
         if target_port:

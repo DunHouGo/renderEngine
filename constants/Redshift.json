@@ -584,7 +584,7 @@
         "output":"com.redshift3d.redshift4c4d.nodes.core.toonmaterial.outcolor"
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.triplanar":{
-        "input":"com.redshift3d.redshift4c4d.nodes.core.triplanar.image", 
+        "input":"com.redshift3d.redshift4c4d.nodes.core.triplanar.imagex",
         "output":"com.redshift3d.redshift4c4d.nodes.core.triplanar.outcolor"
     }, 
     "com.redshift3d.redshift4c4d.nodes.core.uvprojection":{

@@ -9,3 +9,4 @@ from Renderer.constants.octane_id import *
 from Renderer.constants.arnold_id import *
 from Renderer.constants.vray_id import *
 from Renderer.constants.corona_id import *
+from Renderer.constants.centileo_id import *

@@ -1,7 +1,7 @@
 import c4d
 import maxon
 import Renderer
-from Renderer import Redshift, Arnold, Octane, Vray, EasyTransaction, TextureHelper
+from Renderer import Redshift, Arnold, Octane, Vray, CentiLeo, EasyTransaction, TextureHelper
 from pprint import pprint
 
 """ 
@@ -247,3 +247,4 @@ if __name__ == '__main__':
     # access_material_data()
     # modify_octane_material()
     # ConvertTest()
+    c4d.EventAdd()

@@ -12,6 +12,8 @@ ID_ARNOLD: int = 1029988 # Arnold
 ID_VRAY: int = 1053272
 ID_CORONA: int = 1030480
 ID_LOOKS: int = 1054755
+ID_CENTILEO: int = 1036821
+
 
 # Buildin ID
 ID_PREFERENCES_NODE = 465001632 # Prefs ID
@@ -30,6 +32,8 @@ AR_SHADER_PREFIX: str = "com.autodesk.arnold.shader."
 STANDARD_NODESPACE: str = "net.maxon.nodespace.standard"
 VR_NODESPACE: str = "com.chaos.class.vray_node_renderer_nodespace"
 
+CL_NODESPACE: str = "com.centileo.class.nodespace"
+
 ARNOLD_SHADER_NETWORK = 1033991
 REDSHIFT_SHADER_NETWORK = 1036224
 
@@ -41,3 +45,10 @@ DATATYPE_FLOAT64: maxon.Id = maxon.Id("float64")
 # align
 ALIGNALLNODES: int = 465002363
 ALIGNNODES: int = 465002311
+# new at R2025
+ALIGNBOTTOM: int = 1063229
+ALIGNTOP: int = 1063227
+ALIGNLEFT: int = 1063230
+ALIGNRIGHT: int = 1063232
+ALIGNCENTERV: int = 1063228
+ALIGNCENTERH: int = 1063231

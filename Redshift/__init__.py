@@ -1,4 +1,4 @@
-#!c4dpy
+ #!c4dpy
 # -*- coding: utf-8 -*-
 
 """Provides classes that expose commonly used constants as immutable objects.

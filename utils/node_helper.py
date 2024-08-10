@@ -272,6 +272,87 @@ class ConverterPorts:
 
         return output
 
+    @staticmethod
+    def InitCentiLeoData() -> dict[dict[str]]:
+        """
+        Get the basic data, then save the date and modity it.
+        This should be used if the data is missing or you want to customizd
+
+        Returns:
+            dict[dict[str]]: teh data we want
+        """
+        repo: maxon.AssetRepositoryRef = maxon.AssetInterface.GetUserPrefsRepository()
+        if repo.IsNullValue():
+            raise RuntimeError("Could not access the user preferences repository.")
+
+        # latest version assets
+        nodeTemplateDescriptions: list[maxon.AssetDescription] = repo.FindAssets(
+            maxon.Id("net.maxon.node.assettype.nodetemplate"), maxon.Id(), maxon.Id(),
+            maxon.ASSET_FIND_MODE.LATEST)
+
+        allShaders: list[str] =  [
+            str(item.GetId())  # asset ID.
+            for item in nodeTemplateDescriptions
+            if str(item.GetId()).startswith("com.centileo.node.")  # Only Vr ones
+        ]
+        # pprint(allShaders)
+        output = {}
+
+        def _GetOutput(shader):
+            out_ids = ['result','out','result_id','root_uvw','output','result_material']
+
+            for out in out_ids:
+                port_id = f"{str(shader.GetValue('net.maxon.node.attribute.assetid'))[1:].split(',')[0]}.{out}"
+                port: maxon.GraphNode = shader.GetOutputs().FindChild(port_id)
+                if not port.IsNullValue():
+                    return str(port.GetId())
+            return ""
+
+        def _GetInput(shader):
+            out_ids = ['filename','surface_material', 'diffuse_color','emission_color', 'materialref', 'material1', 'material0','mtl_direct'
+                       'map_yz','color1','input_map','uvw_map','tex_direct','displacement_map','input_color',
+                       'math_a', 'in', 'distance_map','float_a',"map90",'uvw_offset','seed_map','uvw_projection',
+                       'input1','x', 'default', 'attribute', "texture_map", "basemap"
+                       ]
+
+            for out in out_ids:
+                port_id = f"{str(shader.GetValue('net.maxon.node.attribute.assetid'))[1:].split(',')[0]}.{out}"
+                port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
+                if not port.IsNullValue():
+                    return str(port.GetId())
+            return ""
+
+        NodeSpaceId: maxon.Id = maxon.Id(CL_NODESPACE)
+        if c4d.GetActiveNodeSpaceId() != NodeSpaceId:
+            raise RuntimeError("Make RS the active renderer and node space to run this script.")
+
+        material: c4d.BaseMaterial = c4d.BaseMaterial(c4d.Mmaterial)
+        if not material:
+            raise MemoryError(f"{material = }")
+
+        nodeMaterial: c4d.NodeMaterial = material.GetNodeMaterialReference()
+        graph: maxon.NodesGraphModelInterface = nodeMaterial.CreateEmptyGraph(NodeSpaceId)
+        if graph.IsNullValue():
+            raise RuntimeError("Could not add graph to material.")
+
+        with graph.BeginTransaction() as gt:
+            for nodeId in allShaders:
+                data = {}
+                try:
+                    node = graph.AddChild(maxon.Id(), maxon.Id(nodeId))
+                    data["input"] = str(_GetInput(node))
+                    data["output"] = str(_GetOutput(node))
+                    output[f"{str(node.GetValue('net.maxon.node.attribute.assetid'))[1:].split(',')[0]}"] = data
+                except:
+                    pass
+
+            gt.Commit()
+
+        c4d.documents.GetActiveDocument().InsertMaterial(material)
+        c4d.EventAdd()
+
+        return output
+
     # todo
     @staticmethod 
     def InitBasicData() -> dict[dict[str]]:
@@ -367,7 +448,8 @@ class NodeGraghHelper:
             "net.maxon.nodespace.standard",
             "com.autodesk.arnold.nodespace",
             "com.redshift3d.redshift4c4d.class.nodespace",
-            "com.chaos.class.vray_node_renderer_nodespace"
+            "com.chaos.class.vray_node_renderer_nodespace",
+            "com.centileo.class.nodespace"
         ]
 
         if not isinstance(material, c4d.BaseMaterial):
@@ -721,11 +803,6 @@ class NodeGraghHelper:
 
         return port.SetValue("net.maxon.description.data.base.defaultvalue", self._ConvertData(value))
 
-        # if c4d.GetC4DVersion() >= 2024400:
-        #     return port.SetPortValue(maxon_value)
-        
-        # return port.SetDefaultValue(maxon_value)
-
     # 获取所有Shader ==> ok
     def GetAllShaders(self, mask: Union[str,maxon.Id] = None) -> list[maxon.GraphNode]:
         """
@@ -1070,22 +1147,30 @@ class NodeGraghHelper:
     def AddShaderAfter(self, sourceNode: maxon.GraphNode, newNode: Union[str,maxon.GraphNode],
                        source_out: Union[str,maxon.GraphNode]=None, new_input: Union[str,maxon.GraphNode]=None) -> Optional[maxon.GraphNode]:
         """Add a shader after the given source node."""
-        if source_out is None:
-            port_out: maxon.GraphNode = self.GetPort(sourceNode, self.GetConvertOutput(sourceNode))
-            if not self.IsPortValid(port_out):
-                return False
+        out = self.GetConnectedPortsAfter(sourceNode)
+        if out is not None:
+            try:
+                node = self.InsertShader(newNode, self.GetConnectedPortsAfter(sourceNode),self.GetConvertInput(newNode),self.GetConvertOutput(newNode))
+                return node
+            except:
+                pass
         else:
-            port_out: maxon.GraphNode = self.GetPort(sourceNode, source_out)
-            
-        node = self.AddShader(newNode)
-        if new_input is None:
-            port_in : maxon.GraphNode= self.GetPort(node, self.GetConvertInput(node))
-            if not self.IsPortValid(port_in):
-                return False
-        else:
-            port_out: maxon.GraphNode = self.GetPort(sourceNode, source_out)
+            if source_out is None:
+                port_out: maxon.GraphNode = self.GetPort(sourceNode, self.GetConvertOutput(sourceNode))
+                if not self.IsPortValid(port_out):
+                    return False
+            else:
+                port_out: maxon.GraphNode = self.GetPort(sourceNode, source_out)
+                
+            node = self.AddShader(newNode)
+            if new_input is None:
+                port_in : maxon.GraphNode= self.GetPort(node, self.GetConvertInput(node))
+                if not self.IsPortValid(port_in):
+                    return False
+            else:
+                port_out: maxon.GraphNode = self.GetPort(sourceNode, source_out)
 
-        self.ConnectPorts(port_out, port_in)
+            self.ConnectPorts(port_out, port_in)
         return node
 
     # 删除Shader ==> ok
@@ -2085,6 +2170,11 @@ class EasyTransaction:
             elif self.nodespaceId == VR_NODESPACE:
                 self.helper= Renderer.Vray.Material(material)
                 self.graph: maxon.GraphModelInterface = self.helper.graph
+
+            elif self.nodespaceId == CL_NODESPACE:
+                self.helper= Renderer.CentiLeo.Material(material)
+                self.graph: maxon.GraphModelInterface = self.helper.graph   
+
             if self.graph.IsNullValue():
                 raise ValueError("Cannot retrieve the graph of this nimbus NodeSpace.")
 

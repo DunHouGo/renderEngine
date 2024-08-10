@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 import Renderer
 # from Renderer.constants.arnold_id import *
-from Renderer.constants.common_id import ID_REDSHIFT, ID_ARNOLD, ID_OCTANE, ID_VRAY, ID_CORONA
+from Renderer.constants.common_id import ID_REDSHIFT, ID_ARNOLD, ID_OCTANE, ID_VRAY, ID_CORONA, ID_CENTILEO
 from Renderer.utils.node_helper import NodeGraghHelper, EasyTransaction
 if c4d.plugins.FindPlugin(ID_REDSHIFT, type=c4d.PLUGINTYPE_ANY) is not None:
     from Renderer import Redshift
@@ -20,6 +20,8 @@ if c4d.plugins.FindPlugin(ID_VRAY, type=c4d.PLUGINTYPE_ANY) is not None:
     from Renderer import Vray
 if c4d.plugins.FindPlugin(ID_CORONA, type=c4d.PLUGINTYPE_ANY) is not None:
     from Renderer import Corona
+if c4d.plugins.FindPlugin(ID_CENTILEO, type=c4d.PLUGINTYPE_ANY) is not None:
+    from Renderer import CentiLeo
 
 regex_dif: str = '[^a-zA-Z0-9^\s](diff|dif|diffuse|albedo|color|col|base.?color)'
 regex_spec: str = '[^a-zA-Z0-9^\s](spec|specular|edgetint)'

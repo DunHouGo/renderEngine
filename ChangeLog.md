@@ -41,5 +41,9 @@
   - Add **MaterialMaker** and add methods into **PBRPackage**.
   - Fix some ids and json data
   - some fixes
+- ### 1.0.8
+  - some fixes
+- ### 1.0.9
+  - Add Basic **CentiLeo** Material support
 ---
 - __coming soon...__
