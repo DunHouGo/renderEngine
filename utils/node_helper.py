@@ -40,7 +40,9 @@ class ConverterPorts:
         if self.nodespaceId == AR_NODESPACE:
             self.dataPath = os.path.join(parent_dir, 'constants', "Arnold.json")
         if self.nodespaceId == VR_NODESPACE:
-            self.dataPath = os.path.join(parent_dir, 'constants', "Vray.json")      
+            self.dataPath = os.path.join(parent_dir, 'constants', "Vray.json")   
+        if self.nodespaceId == CL_NODESPACE:
+            self.dataPath = os.path.join(parent_dir, 'constants', "CentiLeo.json")
         if not os.path.exists(self.dataPath): 
             raise FileExistsError(f"the Convertor data is not exsit at {self.dataPath}")
 
