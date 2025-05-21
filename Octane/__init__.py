@@ -63,7 +63,7 @@ def OpenIPR() -> None:
     Open Live Viewer.
     """
     c4d.CallCommand(ID_OCTANE_LIVEPLUGIN)  # Octane Live Viewer Window
-    
+
 # 打开材质编辑器
 def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
     """
@@ -72,24 +72,29 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
     if not actmat:
         doc = c4d.documents.GetActiveDocument()
         actmat = doc.GetActiveMaterial()
-
-    elif isinstance(actmat, Material):
-        actmat = actmat.material
-
     else:
+        if isinstance(actmat, Material):
+            actmat = actmat.material
+        elif isinstance(actmat, c4d.BaseMaterial):
+            if not actmat:
+                raise ValueError("Failed to retrieve a octane item.")
+
+        elif isinstance(actmat, c4d.BaseTag):
+            if actmat.GetType() == ID_OCTANE_OBJECTTAG:
+                cid = 1520
+            elif actmat.GetType() == ID_OCTANE_ENVIRONMENT_TAG:
+                cid = 1329
+            elif actmat.GetType() == ID_OCTANE_DAYLIGHT_TAG:
+                cid = 1325
+            c4d.CallButton(actmat, cid)
+            return
         doc = actmat.GetDocument()
-
-    doc.AddUndo(c4d.UNDOTYPE_BITS,actmat)
-    actmat.SetBit(c4d.BIT_ACTIVE)
-    
-    if not actmat:
-        raise ValueError("Failed to retrieve a Material.")
-
-
-    c4d.CallCommand(1033872) # Octane Node Editor
-    # Only scroll to the material if material manager is opened
-    if c4d.IsCommandChecked(Renderer.ID_MATERIAL_MANAGER):
-        c4d.CallCommand(16297) # Scroll To Selection
+        doc.AddUndo(c4d.UNDOTYPE_BITS,actmat)
+        actmat.SetBit(c4d.BIT_ACTIVE)
+        c4d.CallCommand(1033872) # Octane Node Editor
+        # Only scroll to the material if material manager is opened
+        if c4d.IsCommandChecked(Renderer.ID_MATERIAL_MANAGER):
+            c4d.CallCommand(16297) # Scroll To Selection
 
 # 打开aov管理器
 def AovManager() -> None:

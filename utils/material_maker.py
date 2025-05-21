@@ -23,22 +23,22 @@ if c4d.plugins.FindPlugin(ID_CORONA, type=c4d.PLUGINTYPE_ANY) is not None:
 if c4d.plugins.FindPlugin(ID_CENTILEO, type=c4d.PLUGINTYPE_ANY) is not None:
     from Renderer import CentiLeo
 
-regex_dif: str = '[^a-zA-Z0-9^\s](diff|dif|diffuse|albedo|color|col|base.?color)'
-regex_spec: str = '[^a-zA-Z0-9^\s](spec|specular|edgetint)'
-regex_metal: str = '[^a-zA-Z0-9^\s](metal|metallic|metalness)'
-regex_rough: str = '[^a-zA-Z0-9^\s](rough|roughness)'
-regex_gloss: str = '[^a-zA-Z0-9^\s](gloss|glossiness)'
-regex_ao: str = '[^a-zA-Z0-9^\s](ao|ambient.?occlusion|occlusion|occ|mixed.?ao)'
-regex_alpha: str = '[^a-zA-Z0-9^\s](alpha|opacity)'
-regex_bump: str = '[^a-zA-Z0-9^\s](bump)'
-regex_normal: str = '[^a-zA-Z0-9^\s](normal|nrm|normaldx|normalgl|nor|nor.?dx|nor.?gl|opengl|directx)'
-regex_emission: str = '[^a-zA-Z0-9^\s](emission|emissive|emis)'
-regex_disp: str = '[^a-zA-Z0-9^\s](displacement|height|disp|depth|dis|displace)'
-regex_trans: str = '[^a-zA-Z0-9^\s](trans|transmission|translucency|sss)'
-regex_sheen: str = '[^a-zA-Z0-9^\s](sheen)'
-regex_anisotropy: str = '[^a-zA-Z0-9^\s](anisotropy|anis)'
+regex_dif: str = r'[^a-zA-Z0-9^\s](diff|dif|diffuse|albedo|color|col|base.?color)'
+regex_spec: str = r'[^a-zA-Z0-9^\s](spec|specular|edgetint)'
+regex_metal: str = r'[^a-zA-Z0-9^\s](metal|metallic|metalness)'
+regex_rough: str = r'[^a-zA-Z0-9^\s](rough|roughness)'
+regex_gloss: str = r'[^a-zA-Z0-9^\s](gloss|glossiness)'
+regex_ao: str = r'[^a-zA-Z0-9^\s](ao|ambient.?occlusion|occlusion|occ|mixed.?ao)'
+regex_alpha: str = r'[^a-zA-Z0-9^\s](alpha|opacity)'
+regex_bump: str = r'[^a-zA-Z0-9^\s](bump)'
+regex_normal: str = r'[^a-zA-Z0-9^\s](normal|nrm|normaldx|normalgl|nor|nor.?dx|nor.?gl|opengl|directx)'
+regex_emission: str = r'[^a-zA-Z0-9^\s](emission|emissive|emis)'
+regex_disp: str = r'[^a-zA-Z0-9^\s](displacement|height|disp|depth|dis|displace)'
+regex_trans: str = r'[^a-zA-Z0-9^\s](trans|transmission|translucency|sss)'
+regex_sheen: str = r'[^a-zA-Z0-9^\s](sheen)'
+regex_anisotropy: str = r'[^a-zA-Z0-9^\s](anisotropy|anis)'
 
-regex_PBR: str = '[^a-zA-Z0-9^\s](diff|dif|diffuse|albedo|color|col|base.?color|spec|specular|metal|metallic|metalness|rough|roughness|gloss|glossiness|ao|ambient.?occlusion|occlusion|occ|mixed.?ao|alpha|opacity|bump|normal|nrm|normaldx|normalgl|nor|nor.?dx|nor.?gl|opengl|directx|emisson|emissive|emis|displacement|height|disp|depth|dis|displace|trans|transmission|translucy)'
+regex_PBR: str = r'[^a-zA-Z0-9^\s](diff|dif|diffuse|albedo|color|col|base.?color|spec|specular|metal|metallic|metalness|rough|roughness|gloss|glossiness|ao|ambient.?occlusion|occlusion|occ|mixed.?ao|alpha|opacity|bump|normal|nrm|normaldx|normalgl|nor|nor.?dx|nor.?gl|opengl|directx|emisson|emissive|emis|displacement|height|disp|depth|dis|displace|trans|transmission|translucy)'
 
 regex_extensions: str = '.(jpg|jpeg|png|exr|tif|tiff|tga|psd|tx|hdr|exr|bmp|b3d|dds|dpx|iff|psb|rla|rpf|pict)'
 
@@ -100,7 +100,8 @@ class PBRPackage:
 
     folder: str = field(default=None, repr=False)
     name: str = field(default=None)
-
+    res: str = field(default=None)
+    
     def __post_init__(self) -> None:
         if not os.path.exists(self.folder):
             raise FileNotFoundError(f'Folder {self.folder} does not exist')
@@ -120,6 +121,7 @@ class PBRPackage:
         self.transmission: Optional[str] = None
         self.sheen: Optional[str] = None
         self.anisotropy: Optional[str] = None
+        self.res = str(self.res)
 
     def __eq__(self, other):
         if isinstance(other, PBRPackage):
@@ -175,7 +177,11 @@ class PBRPackage:
         """Returns the texture if it matches the regex"""
         if regex is not None:
             if re.search(regex, text, re.IGNORECASE) is not None:
-                return text
+                if self.res is not None:
+                    if self.res in text:
+                        return text
+                else:
+                    return text
     
     @property
     def metalness_roughness_flow(self) -> bool:

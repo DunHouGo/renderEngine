@@ -18,7 +18,7 @@ __license__ = "MIT license"
 import c4d
 import os
 import typing
-from typing import Union, Optional, Callable
+from typing import Generator, Union, Optional, Callable
 import functools
 import time
 import random
@@ -324,7 +324,7 @@ def get_all_nodes(doc: c4d.documents.BaseDocument) -> list[c4d.BaseObject] :
     Returns:
         list[c4d.BaseObject]: A List of all objects
     """
-    def iterate(node: c4d.BaseObject) -> c4d.BaseObject:
+    def iterate(node: c4d.BaseObject) -> Generator[c4d.BaseObject, None, None]:
         while isinstance(node, c4d.BaseObject):
             yield node
 
@@ -353,7 +353,8 @@ def get_nodes(doc: c4d.documents.BaseDocument, TRACKED_TYPES : list[int]) -> Uni
     Returns:
         list[c4d.BaseObject]: A List of all find objects
     """
-    def iterate(node: c4d.BaseObject) -> c4d.BaseObject:
+    def iterate(node: c4d.BaseObject) -> Generator[c4d.BaseObject, None, None]:
+        # Iterate over all nodes
         while isinstance(node, c4d.BaseObject):
             if node.GetType() in TRACKED_TYPES:
                 yield node
