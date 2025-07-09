@@ -1018,7 +1018,7 @@ class NodeGraghHelper:
         return result
 
     # 创建Shader ==> ok
-    def AddShader(self, nodeId: Union[str, maxon.Id]) -> maxon.GraphNode:
+    def AddShader(self, nodeId: Union[str, maxon.Id], name: str=None) -> maxon.GraphNode:
         """
         Adds a new shader to the graph.
 
@@ -1028,7 +1028,9 @@ class NodeGraghHelper:
         Returns:
             maxon.GraphNode: the shader we added.
         """
-        return self.graph.AddChild(childId=maxon.Id(), nodeId=nodeId, args=maxon.DataDictionary())
+        shader = self.graph.AddChild(childId=maxon.Id(), nodeId=nodeId, args=maxon.DataDictionary())
+        if name: self.SetName(shader, name)
+        return shader
     
     # 创建Shader 可以提供链接 ==> ok
     def AddConnectShader(self, nodeID: Union[str, maxon.Id] = None, 
@@ -2217,5 +2219,4 @@ class EasyTransaction:
     def __exit__(self, type, value, traceback) -> None:
         if self.transaction is not None:
             self.transaction.Commit(self.setting)
-
 

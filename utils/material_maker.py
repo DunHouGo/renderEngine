@@ -125,12 +125,10 @@ class PBRPackage:
 
     def __eq__(self, other):
         if isinstance(other, PBRPackage):
-            # 定义何时两个PBRPackage实例应被视为相等
             return self.diffuse == other.diffuse
         return False
 
     def __hash__(self):
-        # 返回一个基于对象属性计算的整数，用于哈希值
         return hash(self.diffuse)
 
     @lru_cache(maxsize=128, typed=False)
@@ -923,7 +921,7 @@ def OctanePbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
     try:
         # 
         if albedo:
-            albedoNode = mat.AddImageTexture(texturePath=albedo, nodeName="Albedo", isFloat=False, gamma=2.2)
+            albedoNode = mat.AddImagTexture(texturePath=albedo, nodeName="Albedo", isFloat=False, gamma=2.2)
             if albedoNode:
                 ccAlbedoNode = mat.AddCC(albedoNode)
                 if ao:

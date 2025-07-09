@@ -31,7 +31,10 @@ def IsNodeBased() -> bool:
     """
     Check if Arnold use node material mode.
     """
-    return not GetPreference()[c4d.PARNOLD_MATERIAL_SYSTEM]
+    try:
+        return not GetPreference()[c4d.PARNOLD_MATERIAL_SYSTEM]
+    except:
+        return True
 
 # 获取渲染器版本
 def GetVersion(document: c4d.documents.BaseDocument = None) -> str :

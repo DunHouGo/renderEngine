@@ -1,10 +1,27 @@
-#!c4dpy
 # -*- coding: utf-8 -*-
+"""This is a custom module for render engines in Maxon Cinema 4D.
 
+It contains sub-modules named as render engines, and each sub-modules has classes in them,
+at least two: 
+
+    AOV: uesd for create and modify aovs
+    Material: uesd for create and modify materials
+
+and an optional class:
+
+    Scene: uesd for create and modify scenes objects/tags/and etcs.
+
+
+Note: Material class more focus on #maxon.GraphNode, aka the new node editor material, but not the old legacy
+and not on active devlopment expresso material graph.
+
+
+
+"""
 ###  ==========  INFO  ==========  ###
 
 __author__ = "DunHou"
-__version__ = "0.3.0"
+__version__ = "1.1.0"
 __website__ = "https://www.boghma.com/"
 __license__ = "MIT license"
 
@@ -16,178 +33,43 @@ __license__ = "MIT license"
 """
 
 import c4d
+C4D_VERSION: int = c4d.GetC4DVersion()
+
+if C4D_VERSION <= 2023200:
+    print("NOTE: This module better compatible with Cinema 4D R2024 and above.")
+    
 import os
 import typing
-from typing import Generator, Union, Optional, Callable
-import functools
-import time
+from typing import Generator, Union, Optional
 import random
 
-try:
-    import maxon
-except Exception as error:
-    print("import maxon error: ", error)
-
-# if c4d.GetC4DVersion() <= 2023000:
-#     print("This module better compatible with Cinema 4D R2023 and above.")
-
 # import Renderer package
-from Renderer import constants, utils
-from Renderer.constants.common_id import *
-from Renderer.utils.node_helper import NodeGraghHelper, EasyTransaction
-from Renderer.utils.texture_helper import TextureHelper
-from Renderer.utils import material_maker as MaterialMaker
-from Renderer.utils.material_maker import PBRPackage
+from . import constants, utils
+from .constants.common_id import *
+from .utils.node_helper import NodeGraghHelper, EasyTransaction
+from .utils.texture_helper import TextureHelper
+from .utils import material_maker as MaterialMaker
+from .utils.description_material import DescriptionMaterialMaker
+from .utils.description_material import PackageData
+from .utils.material_maker import PBRPackage
+from .utils import decorators
 
 # import moudule if plugin installed
 if c4d.plugins.FindPlugin(ID_REDSHIFT, type=c4d.PLUGINTYPE_ANY) is not None:
-    from Renderer import Redshift
+    from . import Redshift
 if c4d.plugins.FindPlugin(ID_ARNOLD, type=c4d.PLUGINTYPE_ANY) is not None:
-    from Renderer import Arnold
+    from . import Arnold
 if c4d.plugins.FindPlugin(ID_OCTANE, type=c4d.PLUGINTYPE_ANY) is not None:
-    from Renderer import Octane
+    from . import Octane
 if c4d.plugins.FindPlugin(ID_VRAY, type=c4d.PLUGINTYPE_ANY) is not None:
-    from Renderer import Vray
+    from . import Vray
 if c4d.plugins.FindPlugin(ID_CORONA, type=c4d.PLUGINTYPE_ANY) is not None:
-    from Renderer import Corona
+    from . import Corona
 if c4d.plugins.FindPlugin(ID_CENTILEO, type=c4d.PLUGINTYPE_ANY) is not None:
-    from Renderer import CentiLeo
+    from . import CentiLeo
 
 SUPPORT_RENDERER: list[int] = [ID_REDSHIFT, ID_ARNOLD, ID_OCTANE, ID_CORONA, ID_VRAY]
 IMAGE_EXTENSIONS: tuple[str] = ('.png', '.jpg', '.jpeg', '.tga', '.bmp', ".exr", ".hdr", ".tif", ".tiff","iff", ".psd", ".tx",  ".b3d", ".dds", ".dpx", ".psb", ".rla", ".rpf", ".pict")
-
-###  ==========  Decorators  ==========  ###
-
-# decorator 装饰器 状态栏信息
-def Statusbar(msg: str) -> None:
-    """A decorator for indicating a computationally expensive process in the *Cinema4D* status bar. 
-
-    Will set the status bar text to the argument ``msg`` and start the spinning gadget in the status bar before the function/method is being called and then clear out the status bar after the scope of the function/method has been left.
-
-    Note:
-        This decorator performs *GUI* operations and therefor is bound by the threading limitations of *Cinema4D*. It should not be used on objects that are called in a threaded context.
-
-    Args:
-        msg (``any``): The message to be displayed in the status bar while the decorated function/method is running. Will be cast into a string with ``str()``.
-
-    Returns:
-        ``any``: The return value of the decorated function/method.
-
-    **Example**
-        Indicating the execution of an expensive method. Using `statusbar` as a class decorator will work analogously.
-
-        .. code-block:: python
-            
-            @Statusbar("This might take a while ...")
-            def some_expensive_method(self, *args, **kwargs):
-                pass
-    """
-    def decorator(f):
-        """
-        """
-        @functools.wraps(f)
-        def wrapper(*args, **kwargs):
-            """
-            """
-            c4d.StatusSetText(str(msg))
-            c4d.StatusSetSpin()
-            result = f(*args, **kwargs)
-            c4d.StatusClear()
-            return result
-        return wrapper
-    return decorator
-
-# decorator 装饰器 打印函数名称和返回值
-def PirntMe(func) -> None:
-    """
-    decorator to print the function name and the return value.
-
-    **Example**
-
-    .. code-block:: python
-
-        @PirntMe
-        def GetAssetId(self, *args, **kwargs):
-            pass
-
-    """
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        result = func(*args, **kwargs)
-        print(f"Function {func.__name__} return : {result = }")
-        return result
-    return wrapper
-
- # - Functions --------------------------------------------------------------
-
-# decorator 装饰器 计时器
-def TimeIt(func) -> None:
-    """Provides a makeshift decorator for timing functions executions.
-    """
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        """Wraps and measures the execution time of the wrapped function.
-        """
-        t0: int = time.perf_counter()
-        result: typing.Any = func(*args, **kwargs)
-        print(f"Executing {func.__name__}() took {(time.perf_counter() - t0):.4f} seconds.")
-        return result
-    return wrapper
-
-# decorator 装饰器 检查某个参数的类型
-# @CheckArgType("arg_name", (type, tuple))
-def CheckArgType(arg_name: str, expected_type: Union[type, tuple]) -> callable:  
-    def decorator(func):  
-        @functools.wraps(func)  
-        def wrapper(*args, **kwargs):  
-            # 获取参数位置  
-            arg_positions = [i for i, param in enumerate(func.__code__.co_varnames) if param == arg_name]  
-              
-            # 检查位置参数  
-            for pos in arg_positions:  
-                if pos < len(args):  
-                    arg_value = args[pos]  
-                    break  
-            else:  
-                # 检查关键字参数  
-                arg_value = kwargs.get(arg_name)  
-                if arg_value is None:  
-                    raise TypeError(f"Missing required argument '{arg_name}'")  
-  
-            # 检查参数类型  
-            if not isinstance(arg_value, expected_type):  
-                raise TypeError(f"Argument '{arg_name}' should be of type {expected_type}, got {type(arg_value)}")  
-              
-            return func(*args, **kwargs)  
-          
-        return wrapper  
-      
-    return decorator 
-
-
-# decorator 装饰器 检查某个参数是否符合指定条件
-# @CheckArgCallback("node", lambda node: isinstance(node, maxon.GraphNode) and node.GetKind() != maxon.NODE_KIND.NODE)
-def CheckArgCallback(arg_name: str, callback: Callable):
-
-    def decorator(func):
-        @functools.wraps(func)  
-        def wrapper(*args, **kwargs):
-            # 检查参数是否存在
-            if arg_name in kwargs:
-                # 获取参数值
-                param_value = kwargs[arg_name]
-                # 使用回调函数判断参数是否符合条件
-                if callback(param_value):
-                    # 如果符合条件，则调用原始函数
-                    return func(*args, **kwargs)
-                else:
-                    # 如果不符合条件，则抛出异常
-                    raise ValueError(f"Invalid type for parameter '{param_value}' with {type(param_value)} for parameter '{arg_name}'")
-            else:
-                # 如果参数不存在，则抛出异常
-                raise ValueError(f"Parameter '{arg_name}' is missing")
-        return wrapper
-    return decorator
 
 ###  ==========  Functions  ==========  ###
 
@@ -298,7 +180,6 @@ def ChangeRenderer(document: c4d.documents.BaseDocument = None, videopost: int =
     rdata[c4d.RDATA_RENDERENGINE] = videopost
     AddVideoPost(document, videopost)
 
-
 # Check if the file is an image
 def IsImageFile(file: str) -> bool:
     """Check if the file is an image"""
@@ -313,7 +194,7 @@ def IsImageFile(file: str) -> bool:
 #=============================================
 # Util
 #=============================================
-    
+
 # 获取所有对象
 def get_all_nodes(doc: c4d.documents.BaseDocument) -> list[c4d.BaseObject] :
     """
