@@ -1595,15 +1595,15 @@ class SceneHelper:
         osky = c4d.BaseObject(c4d.Osky)
         env = osky.MakeTag(ID_OCTANE_ENVIRONMENT_TAG)
         image = c4d.BaseList2D(ID_OCTANE_IMAGE_TEXTURE)
-        img[1118] = 2
-        img[c4d.IMAGETEXTURE_GAMMA] = 1.0
+        image[1118] = 2
+        image[c4d.IMAGETEXTURE_GAMMA] = 1.0
         env.InsertShader(image)
         env[c4d.ENVIRONMENTTAG_TEXTURE] = image
         self.doc.InsertObject(osky)
         self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,osky)
         osky.SetName('Octane HDR Dome')
         
-        if texture_path:        
+        if texture_path:
             env = [i for i in osky.GetTags() if i.CheckType(ID_OCTANE_ENVIRONMENT_TAG)][0]
             img = env[c4d.ENVIRONMENTTAG_TEXTURE]
             img[c4d.IMAGETEXTURE_FILE] = texture_path

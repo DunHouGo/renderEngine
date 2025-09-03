@@ -65,7 +65,7 @@ def OpenIPR() -> None:
     c4d.CallCommand(ID_OCTANE_LIVEPLUGIN)  # Octane Live Viewer Window
 
 # 打开材质编辑器
-def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
+def OpenNodeEditor(actmat = None) -> None:
     """
     Open Node Editor for given material.
     """
@@ -73,27 +73,49 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
         doc = c4d.documents.GetActiveDocument()
         actmat = doc.GetActiveMaterial()
     else:
-        if isinstance(actmat, Material):
-            actmat = actmat.material
-        elif isinstance(actmat, c4d.BaseMaterial):
+        cid = 0
+        # if isinstance(actmat, Material):
+        #     actmat = actmat.material
+        if isinstance(actmat, c4d.BaseMaterial):
             if not actmat:
                 raise ValueError("Failed to retrieve a octane item.")
 
         elif isinstance(actmat, c4d.BaseTag):
-            if actmat.GetType() == ID_OCTANE_OBJECTTAG:
-                cid = 1520
-            elif actmat.GetType() == ID_OCTANE_ENVIRONMENT_TAG:
+            
+            if actmat.GetType() == 1029603:
+                cid = 1527
+            elif actmat.GetType() == 1029643:
                 cid = 1329
-            elif actmat.GetType() == ID_OCTANE_DAYLIGHT_TAG:
+            elif actmat.GetType() == 1029754:
                 cid = 1325
-            c4d.CallButton(actmat, cid)
-            return
+            elif actmat.GetType() == 1029526:
+                cid = 1207
+            elif actmat.GetType() == 1029524:
+                cid = 1742
+            if cid:
+                c4d.CallButton(actmat, cid)
+                return
+        elif isinstance(actmat, c4d.BaseObject):
+            if actmat.GetType() == 1035961:
+                cid = 12013
+            elif actmat.GetType() == 1065204:
+                cid = 10281                
+            elif actmat.GetType() == 1035792:
+                cid = 23               
+            elif actmat.GetType() == 1050417:
+                cid = 4130
+            elif actmat.GetType() == 1065727:
+                cid = 10281
+            if cid:
+                c4d.CallButton(actmat, cid)
+                return   
+
         doc = actmat.GetDocument()
         doc.AddUndo(c4d.UNDOTYPE_BITS,actmat)
         actmat.SetBit(c4d.BIT_ACTIVE)
         c4d.CallCommand(1033872) # Octane Node Editor
         # Only scroll to the material if material manager is opened
-        if c4d.IsCommandChecked(Renderer.ID_MATERIAL_MANAGER):
+        if c4d.IsCommandChecked(12159):
             c4d.CallCommand(16297) # Scroll To Selection
 
 # 打开aov管理器
