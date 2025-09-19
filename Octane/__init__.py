@@ -117,6 +117,7 @@ def OpenNodeEditor(actmat = None) -> None:
         # Only scroll to the material if material manager is opened
         if c4d.IsCommandChecked(12159):
             c4d.CallCommand(16297) # Scroll To Selection
+    c4d.EventAdd()
 
 # 打开aov管理器
 def AovManager() -> None:
