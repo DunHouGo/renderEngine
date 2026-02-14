@@ -3,9 +3,10 @@
 
 """Provides classes that expose commonly used constants as immutable objects.
 """
-import Renderer
-from Renderer.constants.corona_id import *
-from Renderer.Corona.corona_helper import MaterialHelper as Material, AOVHelper as AOV
+from ..constants.corona_id import *
+from .scene import SceneHelper as Scene
+from .material import MaterialHelper as Material
+from .aov import AOVHelper as AOV
 
 # 获取渲染器
 def GetRenderEngine(document: c4d.documents.BaseDocument = None) -> int :
@@ -18,7 +19,7 @@ def GetRenderEngine(document: c4d.documents.BaseDocument = None) -> int :
 
 def IsCoronaMaterial(material: c4d.BaseMaterial) -> bool:
     if isinstance(material, c4d.BaseMaterial):
-        if material.GetType() in Renderer.constants.ID_VALID_MATERIALS:
+        if material.GetType() in ID_VALID_MATERIALS:
             return True
     return False
 

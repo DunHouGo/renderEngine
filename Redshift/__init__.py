@@ -1,12 +1,13 @@
- #!c4dpy
-# -*- coding: utf-8 -*-
+# coding=utf-8
 
 """Provides classes that expose commonly used constants as immutable objects.
 """
-import Renderer
+from ..constants.common_id import RS_NODESPACE
 from ..constants.redshift_id import *
-from ..Redshift.redshift_helper import AOVHelper as AOV, MaterialHelper as Material, SceneHelper as Scene
-REDSHIFT_SHADER_NETWORK = 1036224
+from .scene import SceneHelper as Scene
+from .material import MaterialHelper as Material
+from .aov import AOVHelper as AOV
+
 
 def GetPreference() -> c4d.BaseList2D:
     """
@@ -27,8 +28,7 @@ def GetPreference() -> c4d.BaseList2D:
 def IsRedshiftMaterial(material: c4d.BaseMaterial) -> bool:
     if material is None:
         return False
-    return material.CheckType(REDSHIFT_SHADER_NETWORK) or material.GetNodeMaterialReference().HasSpace(Renderer.RS_NODESPACE)
-
+    return material.CheckType(REDSHIFT_SHADER_NETWORK) or material.GetNodeMaterialReference().HasSpace(RS_NODESPACE)
 
 # 首选项设置为Node材质
 def IsNodeBased():
@@ -87,10 +87,10 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
         actmat = doc.GetActiveMaterial()
     else:
         doc = actmat.GetDocument()
-    doc.AddUndo(c4d.UNDOTYPE_BITS,actmat)
-    actmat.SetBit(c4d.BIT_ACTIVE)
-    if not actmat:
-        raise ValueError("Failed to retrieve a Material.")
+    # 设置激活材质
+    if actmat:
+        doc.AddUndo(c4d.UNDOTYPE_BITS, actmat)
+        actmat.SetBit(c4d.BIT_ACTIVE)
         
     if Renderer.GetRenderEngine() == ID_REDSHIFT_VIDEO_POST:
         if IsNodeBased():
@@ -118,3 +118,5 @@ def TextureManager() -> None:
     Open Redshift Texture Manager.
     """
     c4d.CallCommand(1038683) # Redshift Asset Manager
+
+

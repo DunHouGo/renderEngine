@@ -67,11 +67,11 @@ def Retry(count: int = 3, delay: float = 1, withOutput: bool = True) -> Callable
                 try:
                     return func(*args, **kwargs)
                 except Exception as e:
-                    if withOutput: print(f"Retry: {func.__name__} {i} times")
-                    if i == count:
-                        break
-                    else:
-                        time.sleep(delay)
+                    if withOutput:
+                        print(f"Retry: {func.__name__} {i+1}/{count}: {e}")
+                    if i == count - 1:
+                        raise
+                    time.sleep(delay)
         return wrapper
     return decorator
 

@@ -5,9 +5,11 @@
 """
 from typing import Union, Optional
 import c4d
-import Renderer
-from Renderer.constants.centileo_id import *
-from Renderer.CentiLeo.centileo_helper import AOVHelper as AOV, MaterialHelper as Material
+from ..constants import *
+from .scene import SceneHelper as Scene
+from .material import MaterialHelper as Material
+from .aov import AOVHelper as AOV
+from ..utils import GetRenderEngine
 
 ID_PREFERENCES_NODE = 465001632 # Prefs ID
 ID_MATERIAL_MANAGER: int = 12159 # Material Manager
@@ -73,10 +75,10 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
     if not actmat:
         raise ValueError("Failed to retrieve a Material.")
         
-    if Renderer.GetRenderEngine() == ID_CENTILEO:
+    if GetRenderEngine() == ID_CENTILEO:
         if IsNodeBased():
-            if not c4d.IsCommandChecked(Renderer.CID_NODE_EDITOR):
-                c4d.CallCommand(Renderer.CID_NODE_EDITOR) # Node Editor...
+            if not c4d.IsCommandChecked(CID_NODE_EDITOR):
+                c4d.CallCommand(CID_NODE_EDITOR) # Node Editor...
                 c4d.CallCommand(465002360) # Material
         else:
             c4d.CallCommand(1033989) # CentiLeo Shader Graph Editor
@@ -102,3 +104,4 @@ def TextureManager() -> None:
 # 打开灯光管理器
 def LightManager():
     pass
+

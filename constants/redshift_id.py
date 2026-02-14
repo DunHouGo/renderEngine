@@ -184,3 +184,9 @@ REDSHIFT_BRDF_IDS = [
     "com.redshift3d.redshift4c4d.nodes.core.materialblender",
     "com.redshift3d.redshift4c4d.nodes.core.materiallayer"
 ]
+
+REDSHIFT_SHADER_NETWORK = 1036224
+# convert to node material
+REDSHIFT_CONVERT_TO_NODE_ALL = 1040226
+REDSHIFT_CONVERT_TO_NODE_ALL = 1040226
+

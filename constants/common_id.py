@@ -52,3 +52,7 @@ ALIGNLEFT: int = 1063230
 ALIGNRIGHT: int = 1063232
 ALIGNCENTERV: int = 1063228
 ALIGNCENTERH: int = 1063231
+
+IMAGE_EXTENSIONS: tuple[str] = ('.png', '.jpg', '.jpeg', '.tga', '.bmp', ".exr", ".hdr", ".tif", ".tiff","iff", ".psd", ".tx",  ".b3d", ".dds", ".dpx", ".psb", ".rla", ".rpf", ".pict")
+
+

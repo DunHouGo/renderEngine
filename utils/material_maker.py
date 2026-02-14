@@ -9,7 +9,7 @@ from functools import lru_cache
 import Renderer
 # from Renderer.constants.arnold_id import *
 from Renderer.constants.common_id import ID_REDSHIFT, ID_ARNOLD, ID_OCTANE, ID_VRAY, ID_CORONA, ID_CENTILEO
-from Renderer.utils.node_helper import NodeGraghHelper, EasyTransaction
+from Renderer import EasyTransaction
 if c4d.plugins.FindPlugin(ID_REDSHIFT, type=c4d.PLUGINTYPE_ANY) is not None:
     from Renderer import Redshift
 if c4d.plugins.FindPlugin(ID_ARNOLD, type=c4d.PLUGINTYPE_ANY) is not None:
@@ -37,8 +37,9 @@ regex_disp: str = r'[^a-zA-Z0-9^\s](displacement|height|disp|depth|dis|displace)
 regex_trans: str = r'[^a-zA-Z0-9^\s](trans|transmission|translucency|sss)'
 regex_sheen: str = r'[^a-zA-Z0-9^\s](sheen)'
 regex_anisotropy: str = r'[^a-zA-Z0-9^\s](anisotropy|anis)'
+regex_arm: str = r'[^a-zA-Z0-9^\s](arm|ARM)'
 
-regex_PBR: str = r'[^a-zA-Z0-9^\s](diff|dif|diffuse|albedo|color|col|base.?color|spec|specular|metal|metallic|metalness|rough|roughness|gloss|glossiness|ao|ambient.?occlusion|occlusion|occ|mixed.?ao|alpha|opacity|bump|normal|nrm|normaldx|normalgl|nor|nor.?dx|nor.?gl|opengl|directx|emisson|emissive|emis|displacement|height|disp|depth|dis|displace|trans|transmission|translucy)'
+regex_PBR: str = r'[^a-zA-Z0-9^\s](diff|dif|diffuse|albedo|color|col|base.?color|spec|specular|metal|metallic|metalness|rough|roughness|gloss|glossiness|ao|ambient.?occlusion|occlusion|occ|mixed.?ao|alpha|opacity|bump|normal|nrm|normaldx|normalgl|nor|nor.?dx|nor.?gl|opengl|directx|emisson|emissive|emis|displacement|height|disp|depth|dis|displace|trans|transmission|translucency|arm|ARM)'
 
 regex_extensions: str = '.(jpg|jpeg|png|exr|tif|tiff|tga|psd|tx|hdr|exr|bmp|b3d|dds|dpx|iff|psb|rla|rpf|pict)'
 
@@ -121,6 +122,7 @@ class PBRPackage:
         self.transmission: Optional[str] = None
         self.sheen: Optional[str] = None
         self.anisotropy: Optional[str] = None
+        self.arm: Optional[str] = None
         self.res = str(self.res)
 
     def __eq__(self, other):
@@ -168,7 +170,9 @@ class PBRPackage:
                 self.sheen: str = i
             elif self.get_texture(i, regex_anisotropy) is not None:
                 self.anisotropy: str = i
+            elif self.get_texture(i, regex_arm) is not None:
 
+                self.arm: str = i
         return self
 
     def get_texture(self, text: str, regex: str = None) -> str:

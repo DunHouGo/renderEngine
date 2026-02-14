@@ -10,14 +10,13 @@ Provide helper class for convenient access AOV , Material , Scene Object(Object/
 Happy Rendering and Scpriting!
 
 ## Supported Renderer
-- Octane
 - Node Materials with the new GraphNode model
 - Redshift ( Only Node Material for Material Helper)
 - Arnold ( Only Node Material for Material Helper)
 - Vray ( Only Node Material for Material Helper)
 - CentiLeo ( Only Node Material for Material Helper)
+- Octane
 - Corona
-- Waiting for more...
 
 ## About Boghma
 
