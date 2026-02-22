@@ -105,6 +105,8 @@ class NodeGraghHelper:
         Returns:
             maxon.data: the converted data
         """
+        if isinstance(data, c4d.Vector):
+            return maxon.Vector(data)
         
         return maxon.MaxonConvert(data, maxon.CONVERSIONMODE.TOMAXON)
 
