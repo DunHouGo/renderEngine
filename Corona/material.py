@@ -6,6 +6,12 @@ import sys
 from ..constants import *
 from ..utils import iterate
 
+def IsCoronaMaterial(material: c4d.BaseMaterial) -> bool:
+    if isinstance(material, c4d.BaseMaterial):
+        if material.GetType() in ID_VALID_MATERIALS:
+            return True
+    return False
+
 class MaterialHelper:
 
     #=============================================
@@ -632,5 +638,6 @@ class MaterialHelper:
         return shader
 
 __all__ = [
-    "MaterialHelper"
+    "MaterialHelper",
+    "IsCoronaMaterial",
 ]

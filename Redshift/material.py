@@ -7,6 +7,12 @@ from ..utils import EasyTransaction
 from typing import Union, TypeAlias 
 NodeInput: TypeAlias = Union[str, maxon.GraphNode]
 
+def IsRedshiftMaterial(material: c4d.BaseMaterial) -> bool:
+    if material is None:
+        return False
+    return material.CheckType(REDSHIFT_SHADER_NETWORK) or material.GetNodeMaterialReference().HasSpace(RS_NODESPACE)
+
+
 class MaterialHelper(NodeGraghHelper):
     """
     Custom helper to easier modify Redshift Material.
@@ -1384,5 +1390,6 @@ class MaterialHelper(NodeGraghHelper):
         return groupRoot
 
 __all__ = [
-    "MaterialHelper"
+    "MaterialHelper",
+    "IsCoronaMaterial",
 ]

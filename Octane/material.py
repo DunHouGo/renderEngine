@@ -5,6 +5,11 @@ from typing import Any
 from ..constants import *
 from ..utils import iterate
 
+def IsOctaneMaterial(material: c4d.BaseMaterial) -> bool:
+    if isinstance(material, c4d.BaseMaterial):
+        if material.GetType() in OCTANE_MATERIALS:
+            return True
+    return False
 
 class MaterialHelper:
     """
@@ -1058,3 +1063,8 @@ class MaterialHelper:
             mysha = self.AddShader(ID_OCTANE_TRIPLANAR)
             self.AddConnectShader(shader, mysha, c4d.TRIPTEX_TEXTURE1)
         self.UniProjection(effectiveShaders, 6)
+
+__all__ = [
+    "MaterialHelper",
+    "IsCoronaMaterial",
+]

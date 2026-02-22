@@ -8,6 +8,12 @@ from ..constants import *
 from ..utils.node_helper import NodeGraghHelper
 from ..utils import EasyTransaction
 
+def IsVrayMaterial(material: c4d.BaseMaterial) -> bool:
+    if material is None:
+        return False
+    return (material.GetType() in ID_LAYER_TYPE_MATERIAL) or material.GetNodeMaterialReference().HasSpace(VR_NODESPACE)
+
+
 class MaterialHelper(NodeGraghHelper):
 
     # 初始化 ==> OK
@@ -478,5 +484,6 @@ class MaterialHelper(NodeGraghHelper):
         self.AddNormal(input_port=tex_out, target_port=target_port, bump_mode=bump_mode)
 
 __all__ = [
-    "MaterialHelper"
+    "MaterialHelper",
+    "IsCoronaMaterial",
 ]

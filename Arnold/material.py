@@ -7,6 +7,10 @@ from ..constants import *
 from ..utils.node_helper import NodeGraghHelper
 from ..utils import EasyTransaction
 
+def IsArnoldMaterial(material: c4d.BaseMaterial) -> bool:
+    if material is None:
+        return False
+    return material.CheckType(ARNOLD_SHADER_NETWORK) or material.GetNodeMaterialReference().HasSpace(AR_NODESPACE)
 
 class MaterialHelper(NodeGraghHelper):
 
@@ -912,5 +916,6 @@ class MaterialHelper(NodeGraghHelper):
         return self.AddConnection(soure_node, outPort, rsoutput, rsoutputPort) is not None
 
 __all__ = [
-    "MaterialHelper"
+    "MaterialHelper", 
+    "IsArnoldMaterial",
 ]

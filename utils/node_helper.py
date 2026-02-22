@@ -537,6 +537,55 @@ class NodeGraghHelper:
         res = ConverterPorts(self.nodespaceId).GetConvertOutput(node)
         return res if res != "" else None
 
+    # 获取端口的BaseList2D
+    def GetBaseList(self, port: maxon.GraphNode) -> Optional[c4d.BaseList2D]:
+        """
+        Get the BaseList2D for a port.
+
+        Args:
+            port (maxon.GraphNode): the port to get the BaseList2D for.
+
+        Returns:
+            Optional[c4d.BaseList2D]: the BaseList2D for the port, or None if not found.
+        """
+        if not self.IsPortValid(port):
+            raise ValueError(f"Input {port} is not a valid port")
+        true_node = self.GetTrueNode(port)        
+        if true_node is None:
+            raise ValueError(f"Cannot find the true node for {port}")
+        bl2d: c4d.BaseList2D = self.nodeMaterial.GetBaseListForNode(self.nodespaceId, true_node.GetPath())
+        return bl2d
+    
+    # 获取端口对应的动画轨道
+    def GetTrack(self, port: maxon.GraphNode, color: bool=False) -> Optional[c4d.CTrack]:
+        """
+        Get the animation track for a port.
+
+        Args:
+            port (maxon.GraphNode): the port to get the animation track for.
+            color (bool, optional): whether the port is a color. Defaults to False.
+
+        Returns:
+            Optional[c4d.CTrack]: the animation track for the port, or None if not found.
+        """
+        bl2d = self.GetBaseList(port)
+        if bl2d is None:
+            raise ValueError(f"Cannot find the BaseList2D for {port}")
+        did: c4d.DescID = self.nimbusRef.GetDescID(port.GetPath())
+
+        # As this parameter is a color, the parameter will have one track per sub channel.
+        # The last level of the descID must be added.
+        if color: 
+            descLevelsRGB: list[c4d.DescLevel] = [
+                c4d.DescLevel(c4d.COLOR_R, c4d.DTYPE_REAL, 0),
+                c4d.DescLevel(c4d.COLOR_G, c4d.DTYPE_REAL, 0),
+                c4d.DescLevel(c4d.COLOR_B, c4d.DTYPE_REAL, 0)
+            ]
+            for subChannelDescLevel in descLevelsRGB:
+                did.PushId(subChannelDescLevel)
+        track: c4d.CTrack = bl2d.FindCTrack(did)
+        return track
+
     #=============================================
     # Node
     #=============================================~~
@@ -1663,3 +1712,5 @@ class NodeGraghHelper:
             return port.GetValue("value").GetType()
         else:
             return port.GetDefaultValue().GetType()
+
+
