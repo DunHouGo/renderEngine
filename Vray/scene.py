@@ -3,7 +3,7 @@
 import c4d
 
 class SceneHelper:
-   def __init__(self, scene: c4d.BaseDocument = None):
+   def __init__(self, scene: c4d.documents.BaseDocument = None):
         self.scene = scene if scene else c4d.documents.GetActiveDocument()
    
 
