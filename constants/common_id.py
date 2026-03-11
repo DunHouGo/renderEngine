@@ -1,6 +1,4 @@
-import c4d
-import typing
-from typing import Union, Optional
+
 import maxon
 
 ###  ==========  Ids  ==========  ###

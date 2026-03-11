@@ -3,9 +3,8 @@ import maxon
 import os
 import sys
 import re
-from typing import Optional
+from typing import Optional, Any
 from dataclasses import dataclass, field
-from functools import lru_cache
 import Renderer
 # from Renderer.constants.arnold_id import *
 from Renderer.constants.common_id import ID_REDSHIFT, ID_ARNOLD, ID_OCTANE, ID_VRAY, ID_CORONA, ID_CENTILEO
@@ -23,218 +22,269 @@ if c4d.plugins.FindPlugin(ID_CORONA, type=c4d.PLUGINTYPE_ANY) is not None:
 if c4d.plugins.FindPlugin(ID_CENTILEO, type=c4d.PLUGINTYPE_ANY) is not None:
     from Renderer import CentiLeo
 
-regex_dif: str = r'[^a-zA-Z0-9^\s](diff|dif|diffuse|albedo|color|col|base.?color)'
-regex_spec: str = r'[^a-zA-Z0-9^\s](spec|specular|edgetint)'
-regex_metal: str = r'[^a-zA-Z0-9^\s](metal|metallic|metalness)'
-regex_rough: str = r'[^a-zA-Z0-9^\s](rough|roughness)'
-regex_gloss: str = r'[^a-zA-Z0-9^\s](gloss|glossiness)'
-regex_ao: str = r'[^a-zA-Z0-9^\s](ao|ambient.?occlusion|occlusion|occ|mixed.?ao)'
-regex_alpha: str = r'[^a-zA-Z0-9^\s](alpha|opacity)'
-regex_bump: str = r'[^a-zA-Z0-9^\s](bump)'
-regex_normal: str = r'[^a-zA-Z0-9^\s](normal|nrm|normaldx|normalgl|nor|nor.?dx|nor.?gl|opengl|directx)'
-regex_emission: str = r'[^a-zA-Z0-9^\s](emission|emissive|emis)'
-regex_disp: str = r'[^a-zA-Z0-9^\s](displacement|height|disp|depth|dis|displace)'
-regex_trans: str = r'[^a-zA-Z0-9^\s](trans|transmission|translucency|sss)'
-regex_sheen: str = r'[^a-zA-Z0-9^\s](sheen)'
-regex_anisotropy: str = r'[^a-zA-Z0-9^\s](anisotropy|anis)'
-regex_arm: str = r'[^a-zA-Z0-9^\s](arm|ARM)'
+from .pbr_helper import (
+    PBRPackage,
+    IsImageFile,
+    GetPBRName,
+    InPackage,
+    GetPBRImages,
+    GetPackageNames,
+    pbr_from_file,
+    pbr_from_folder
+)
 
-regex_PBR: str = r'[^a-zA-Z0-9^\s](diff|dif|diffuse|albedo|color|col|base.?color|spec|specular|metal|metallic|metalness|rough|roughness|gloss|glossiness|ao|ambient.?occlusion|occlusion|occ|mixed.?ao|alpha|opacity|bump|normal|nrm|normaldx|normalgl|nor|nor.?dx|nor.?gl|opengl|directx|emisson|emissive|emis|displacement|height|disp|depth|dis|displace|trans|transmission|translucency|arm|ARM)'
+C4D_VERSION: int = c4d.GetC4DVersion()
 
-regex_extensions: str = '.(jpg|jpeg|png|exr|tif|tiff|tga|psd|tx|hdr|exr|bmp|b3d|dds|dpx|iff|psb|rla|rpf|pict)'
+RS_NODESPACE: str = "com.redshift3d.redshift4c4d.class.nodespace"
+AR_NODESPACE: str = "com.autodesk.arnold.nodespace" 
+VR_NODESPACE: str = "com.chaos.class.vray_node_renderer_nodespace"
 
-IMAGE_EXTENSIONS: tuple[str] = ('.png', '.jpg', '.jpeg', '.tga', '.bmp', ".exr", ".hdr", ".tif", ".tiff","iff", ".psd", ".tx",  ".b3d", ".dds", ".dpx", ".psb", ".rla", ".rpf", ".pict")
+def GetRenderEngine(document: c4d.documents.BaseDocument = None) -> int:
+    """Get the current render engine ID."""
+    document = document or c4d.documents.GetActiveDocument()
+    return document.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]
 
-#=============================================
-# PBR Package
-#=============================================
-# Check if the file is an image
-def IsImageFile(file: str) -> bool:
-    """Check if the file is an image"""
-    if not file:
+def is_valid_path(path: Any) -> bool:
+    """Check if a path exists."""
+    if path is None:
         return False
-    if not os.path.exists(file):
+    return os.path.exists(str(path))
+
+def _ApplyPBRDescription(material: c4d.BaseMaterial, nodespace: str, data: dict, doc: c4d.documents.BaseDocument) -> bool:
+    """Internal helper to apply graph description to a material."""
+    if C4D_VERSION < 2024200:
         return False
-    if not os.path.isfile(file):
+    
+    graph = maxon.GraphDescription.GetGraph(material, nodespace)
+    if graph.IsNullValue():
         return False
-    return file.lower().endswith(IMAGE_EXTENSIONS)
+        
+    maxon.GraphDescription.ApplyDescription(graph, data)
+    material.Message(c4d.MSG_UPDATE)
+    
+    if material.GetDocument() is None:
+        doc.InsertMaterial(material)
+    
+    doc.SetActiveMaterial(material)
+    material.Update(True, True)
+    return True
 
-# Get the real name of the pbr texture
-def GetPBRName(text: str) -> Optional[str]:
-    regex_object: re.Match = re.search(regex_PBR, text, re.IGNORECASE)
-    if regex_object is None:
-        return None
-    return text[:regex_object.start()]
+# =========================================================
+# Description Generators
+# =========================================================
 
-# Check if the texture is in the package
-def InPackage(text: str, name: str) -> bool:
-    return text.startswith(name)
-
-# Get the pbr images from the folder with a name
-def GetPBRImages(folder: str, name: str) -> list[str]:
-    if not os.path.exists(folder):
-        raise FileNotFoundError(f'Folder {folder} does not exist')
-    if not os.path.isdir(folder):
-        raise NotADirectoryError(f'{folder} is not a folder')
-    data: list = []
-    for file in os.listdir(folder):
-        if InPackage(file, name):            
-            data.append(os.path.join(folder, file))
+def GetArnoldDescription(asset: PBRPackage) -> dict:
+    """Returns Arnold Graph Description dictionary for a PBRPackage."""
+    data = {
+        "$type": "#com.autodesk.arnold.material",
+        "#<shader": { "$type": "#com.autodesk.arnold.shader.standard_surface" }
+    }
+    mat_desc = data["#<shader"]
+    if is_valid_path(asset.diffuse):
+        mat_desc["#<base_color"] = {
+            "$type": "#com.autodesk.arnold.shader.color_correct",
+            "#<input": {
+                "$type": "#com.autodesk.arnold.shader.image",
+                "#<filename": asset.diffuse, 
+                "#<multiply": {"$type": "#com.autodesk.arnold.shader.image", "#<filename": asset.ao} if is_valid_path(asset.ao) else maxon.Vector(1, 1, 1)
+            }
+        }
+    if is_valid_path(asset.metalness): mat_desc["#<metalness"] = { "$type": "#com.autodesk.arnold.shader.image", "#<filename": asset.metalness }
+    if is_valid_path(asset.roughness): mat_desc["#<specular_roughness"] = { "$type": "#com.autodesk.arnold.shader.image", "#<filename": asset.roughness }
+    if is_valid_path(asset.alpha): mat_desc["#<opacity"] = { "$type": "#com.autodesk.arnold.shader.image", "#<filename": asset.alpha }
+    if is_valid_path(asset.transmission): mat_desc["#<transmission_color"] = { "$type": "#com.autodesk.arnold.shader.image", "#<filename": asset.transmission }
+    if is_valid_path(asset.emission): mat_desc["#<emission_color"] = { "$type": "#com.autodesk.arnold.shader.image", "#<filename": asset.emission }
+    if is_valid_path(asset.normal):
+        mat_desc["#<normal"] = {
+            "$type": "#com.autodesk.arnold.shader.normal_map",
+            "#<input": { "$type": "#com.autodesk.arnold.shader.image", "#<filename": asset.normal }
+        }
+    if is_valid_path(asset.displacement):
+        data["#<displacement"] = {
+            "$type": "#com.autodesk.arnold.shader.displacement",
+            "#<normal_displacement_input": { "$type": "#com.autodesk.arnold.shader.image", "#<filename": asset.displacement }
+        }
     return data
 
-# Get all pbr names in the folder
-def GetPackageNames(folder: str) -> list[str]:
-    if not os.path.exists(folder):
-        raise FileNotFoundError(f'Folder {folder} does not exist')
-    if not os.path.isdir(folder):
-        raise NotADirectoryError(f'{folder} is not a folder')
-    data: list = []
-    for file in os.listdir(folder):
-        if (name := GetPBRName(file)) is not None:
-            if name not in data:
-                data.append(name)
+def GetRedshiftDescription(asset: PBRPackage) -> dict:
+    """Returns Redshift Graph Description dictionary for a PBRPackage."""
+    data = {
+        "$type": "#~.output",
+        "#~.surface": { "$type": "#~.standardmaterial" }
+    }
+    mat_desc = data["#~.surface"]
+    if is_valid_path(asset.diffuse):
+        mat_desc["#~.base_color"] = {
+            "$type": "#~.rscolorcorrection",
+            "#~.input": {
+                "$type": "#~.texturesampler",
+                "#~.tex0/path": asset.diffuse,
+                "#~.color_multiplier": {"$type": "#~.texturesampler", "#~.tex0/path": asset.ao} if is_valid_path(asset.ao) else maxon.Vector(1, 1, 1)
+            }
+        }
+    if is_valid_path(asset.metalness): mat_desc["#~.metalness"] = { "$type": "#~.texturesampler", "#~.tex0/path": asset.metalness }
+    if is_valid_path(asset.roughness): mat_desc["#~.refl_roughness"] = { "$type": "#~.texturesampler", "#~.tex0/path": asset.roughness }
+    if is_valid_path(asset.alpha): mat_desc["#~.opacity_color"] = { "$type": "#~.texturesampler", "#~.tex0/path": asset.alpha }
+    if is_valid_path(asset.normal):
+        mat_desc["#~.bump_input"] = {
+            "$type": "#~.bumpmap", "#~.inputtype": 1,
+            "#~.input": { "$type": "#~.texturesampler", "#~.tex0/path": asset.normal }
+        }
+    if is_valid_path(asset.displacement):
+        data["#~.displacement"] = {
+            "$type": "#~displacement",
+            "#~.texmap": { "$type": "#~.texturesampler", "#~.tex0/path": asset.displacement }
+        }
     return data
+
+def GetVRayDescription(asset: PBRPackage) -> dict:
+    """Returns VRay Graph Description dictionary for a PBRPackage."""
+    data = {
+        "$type": "#~.mtlsinglebrdf",
+        "#~.brdf": { "$type": "#~.brdfvraymtl" }
+    }
+    mat_desc = data["#~.brdf"]
+    if is_valid_path(asset.diffuse):
+        mat_desc["#~.diffuse"] = {
+            "$type": "#~.colorcorrection",
+            "#~.texture_map": {
+                "$type": "#~.texbitmap",
+                "#~.file": asset.diffuse,
+                "#~.color_mult": {"$type": "#~.texbitmap", "#~.file": asset.ao} if is_valid_path(asset.ao) else maxon.Vector(1, 1, 1)
+            }
+        }
+    if is_valid_path(asset.metalness): mat_desc["#~.metalness"] = { "$type": "#~.texbitmap", "#~.file": asset.metalness }
+    if is_valid_path(asset.roughness):
+        mat_desc["#~.reflect_glossiness"] = { "$type": "#~.texbitmap", "#~.file": asset.roughness }
+        mat_desc["#~.option_use_roughness"] = True
+    if is_valid_path(asset.alpha): mat_desc["#~.opacity_color"] = { "$type": "#~.texbitmap", "#~.file": asset.alpha }
+    if is_valid_path(asset.normal):
+        mat_desc["#~.bump_map"] = {
+            "$type": "#~.texnormalbump", "#~.map_type": 1,
+            "#~.bump_tex_color": { "$type": "#~.texbitmap", "#~.file": asset.normal }
+        }
+    return data
+
+# =========================================================
+# Standalone Functions (Description from Package)
+# =========================================================
+
+def ArnoldDescriptionFromPackage(folder: str, name: str, res: str = None, doc: Optional[c4d.documents.BaseDocument] = None) -> Optional[c4d.BaseMaterial]:
+    doc = doc or c4d.documents.GetActiveDocument()
+    maker = DescriptionMaterialMaker(folder, name, res)
+    if not maker._data or not maker._data.IsValid: return None
+    material = c4d.BaseMaterial(c4d.Mmaterial)
+    material.SetName(f"{name}_{res}" if res else name)
+    if _ApplyPBRDescription(material, AR_NODESPACE, GetArnoldDescription(maker._data), doc):
+        return material
+    return None
+
+def RedshiftDescriptionFromPackage(folder: str, name: str, res: str = None, doc: Optional[c4d.documents.BaseDocument] = None) -> Optional[c4d.BaseMaterial]:
+    doc = doc or c4d.documents.GetActiveDocument()
+    maker = DescriptionMaterialMaker(folder, name, res)
+    if not maker._data or not maker._data.IsValid: return None
+    material = c4d.BaseMaterial(c4d.Mmaterial)
+    material.SetName(f"{name}_{res}" if res else name)
+    if _ApplyPBRDescription(material, RS_NODESPACE, GetRedshiftDescription(maker._data), doc):
+        return material
+    return None
+
+def VRayDescriptionFromPackage(folder: str, name: str, res: str = None, doc: Optional[c4d.documents.BaseDocument] = None) -> Optional[c4d.BaseMaterial]:
+    doc = doc or c4d.documents.GetActiveDocument()
+    maker = DescriptionMaterialMaker(folder, name, res)
+    if not maker._data or not maker._data.IsValid: return None
+    material = c4d.BaseMaterial(c4d.Mmaterial)
+    material.SetName(f"{name}_{res}" if res else name)
+    if _ApplyPBRDescription(material, VR_NODESPACE, GetVRayDescription(maker._data), doc):
+        return material
+    return None
+
+# =========================================================
+# Standalone Functions (Description Material - Direct Slots)
+# =========================================================
+
+def _ConstructPackage(name: str, **kwargs) -> PBRPackage:
+    pkg = PBRPackage(name)
+    for slot, path in kwargs.items():
+        if path: pkg.selected[slot] = path
+    return pkg
+
+def ArnoldDescriptionMaterial(name: str, diffuse: str = None, normal: str = None, roughness: str = None, 
+                             metalness: str = None, ao: str = None, alpha: str = None, displacement: str = None,
+                             emission: str = None, transmission: str = None, doc: Optional[c4d.documents.BaseDocument] = None) -> Optional[c4d.BaseMaterial]:
+    doc = doc or c4d.documents.GetActiveDocument()
+    pkg = _ConstructPackage(name, diffuse=diffuse, normal=normal, roughness=roughness, metalness=metalness, ao=ao, alpha=alpha, displacement=displacement, emission=emission, transmission=transmission)
+    material = c4d.BaseMaterial(c4d.Mmaterial)
+    material.SetName(name)
+    if _ApplyPBRDescription(material, AR_NODESPACE, GetArnoldDescription(pkg), doc):
+        return material
+    return None
+
+def RedshiftDescriptionMaterial(name: str, diffuse: str = None, normal: str = None, roughness: str = None, 
+                               metalness: str = None, ao: str = None, alpha: str = None, displacement: str = None,
+                               doc: Optional[c4d.documents.BaseDocument] = None) -> Optional[c4d.BaseMaterial]:
+    doc = doc or c4d.documents.GetActiveDocument()
+    pkg = _ConstructPackage(name, diffuse=diffuse, normal=normal, roughness=roughness, metalness=metalness, ao=ao, alpha=alpha, displacement=displacement)
+    material = c4d.BaseMaterial(c4d.Mmaterial)
+    material.SetName(name)
+    if _ApplyPBRDescription(material, RS_NODESPACE, GetRedshiftDescription(pkg), doc):
+        return material
+    return None
+
+def VRayDescriptionMaterial(name: str, diffuse: str = None, normal: str = None, roughness: str = None, 
+                            metalness: str = None, ao: str = None, alpha: str = None,
+                            doc: Optional[c4d.documents.BaseDocument] = None) -> Optional[c4d.BaseMaterial]:
+    doc = doc or c4d.documents.GetActiveDocument()
+    pkg = _ConstructPackage(name, diffuse=diffuse, normal=normal, roughness=roughness, metalness=metalness, ao=ao, alpha=alpha)
+    material = c4d.BaseMaterial(c4d.Mmaterial)
+    material.SetName(name)
+    if _ApplyPBRDescription(material, VR_NODESPACE, GetVRayDescription(pkg), doc):
+        return material
+    return None
+
+# =========================================================
+# Main Creator Class
+# =========================================================
 
 @dataclass
-class PBRPackage:
-    """A representation of a PBR texture package, containing slot info and its texture"""
-
-    folder: str = field(default=None, repr=False)
-    name: str = field(default=None)
+class DescriptionMaterialMaker:
+    """
+    A class for creating and modifying materials using graph descriptions.
+    """
+    folder: str = field(repr=False)
+    name: str
     res: str = field(default=None)
-    
+    triplaner: bool = False
+    _data: Optional[PBRPackage] = field(init=False, default=None)
+
     def __post_init__(self) -> None:
-        if not os.path.exists(self.folder):
-            raise FileNotFoundError(f'Folder {self.folder} does not exist')
-        if not os.path.isdir(self.folder):
-            raise NotADirectoryError(f'{self.folder} is not a folder')
-        self.diffuse: Optional[str] = None
-        self.specular: Optional[str] = None
-        self.metalness: Optional[str] = None
-        self.roughness: Optional[str] = None
-        self.glossiness: Optional[str] = None
-        self.ao: Optional[str] = None
-        self.alpha: Optional[str] = None
-        self.bump: Optional[str] = None
-        self.normal: Optional[str] = None
-        self.emission: Optional[str] = None
-        self.displacement: Optional[str] = None
-        self.transmission: Optional[str] = None
-        self.sheen: Optional[str] = None
-        self.anisotropy: Optional[str] = None
-        self.arm: Optional[str] = None
-        self.res = str(self.res)
+        target_res = None
+        if self.res:
+            try:
+                val = int(self.res)
+                target_res = val * 1024 if val < 32 else val
+            except (ValueError, TypeError): pass
+        self._data = pbr_from_folder(self.folder, self.name, target_res)
 
-    def __eq__(self, other):
-        if isinstance(other, PBRPackage):
-            return self.diffuse == other.diffuse
-        return False
-
-    def __hash__(self):
-        return hash(self.diffuse)
-
-    @lru_cache(maxsize=128, typed=False)
-    def build(self, folder: str = None, name: str = None) -> None:
-        """Builds the PBR package data"""
-        if folder is None:
-            folder = self.folder
-        if name is None:
-            name = self.name
-        data =  GetPBRImages(folder, name)
-        for i in data:
-            if self.get_texture(i, regex_dif) is not None:
-                self.diffuse: str = i
-            elif self.get_texture(i, regex_spec) is not None:
-                self.specular: str = i
-            elif self.get_texture(i, regex_metal) is not None:
-                self.metalness: str = i
-            elif self.get_texture(i, regex_rough) is not None:
-                self.roughness: str = i
-            elif self.get_texture(i, regex_gloss) is not None:
-                self.glossiness: str = i
-            elif self.get_texture(i, regex_ao) is not None:
-                self.ao: str = i
-            elif self.get_texture(i, regex_alpha) is not None:
-                self.alpha: str = i
-            elif self.get_texture(i, regex_bump) is not None:
-                self.bump: str = i
-            elif self.get_texture(i, regex_normal) is not None:
-                self.normal: str = i
-            elif self.get_texture(i,regex_emission) is not None:
-                self.emission: str = i
-            elif self.get_texture(i, regex_disp) is not None:
-                self.displacement: str = i
-            elif self.get_texture(i, regex_trans) is not None:
-                self.transmission: str = i
-            elif self.get_texture(i, regex_sheen) is not None:
-                self.sheen: str = i
-            elif self.get_texture(i, regex_anisotropy) is not None:
-                self.anisotropy: str = i
-            elif self.get_texture(i, regex_arm) is not None:
-
-                self.arm: str = i
-        return self
-
-    def get_texture(self, text: str, regex: str = None) -> str:
-        """Returns the texture if it matches the regex"""
-        if regex is not None:
-            if re.search(regex, text, re.IGNORECASE) is not None:
-                if self.res is not None:
-                    if self.res in text:
-                        return text
-                else:
-                    return text
-    
-    @property
-    def metalness_roughness_flow(self) -> bool:
-        return (self.metalness is not None) and (self.roughness is not None)
-
-    @property
-    def use_ao(self) -> bool:
-        return self.ao is not None
-
-    @property
-    def IsValid(self) -> bool:
-        data = self.get_data()
-        for key, value in data.items():
-            if value is not None:
-                return True
-        return False
-
-    def get_data(self) -> dict[Optional[str]]:
-        return {
-            "diffuse": self.diffuse,
-            "specular": self.specular,
-            "metalness": self.metalness,
-            "roughness": self.roughness,
-            "glossiness": self.glossiness,
-            "ao": self.ao,
-            "alpha": self.alpha,
-            "bump": self.bump,
-            "normal": self.normal,
-            "emission": self.emission,
-            "displacement": self.displacement,
-            "transmission": self.transmission,
-            "sheen": self.sheen,
-            "anisotropy": self.anisotropy
-        }
-
-    def get_valid_dict(self) -> dict:
-        data = self.get_data()
-        res = {}
-        for key, value in data.items():
-            if value is not None:
-                res[key] = value
-        return res
+    def MakeMaterial(self, doc: Optional[c4d.documents.BaseDocument] = None) -> Optional[c4d.BaseMaterial]:
+        if C4D_VERSION < 2024200: return None
+        if not self._data or not self._data.IsValid: return None
+        doc = doc or c4d.documents.GetActiveDocument()
+        engine = GetRenderEngine(doc)
+        if engine == ID_ARNOLD: return ArnoldDescriptionFromPackage(self.folder, self.name, self.res, doc)
+        if engine == ID_REDSHIFT: return RedshiftDescriptionFromPackage(self.folder, self.name, self.res, doc)
+        if engine == ID_VRAY: return VRayDescriptionFromPackage(self.folder, self.name, self.res, doc)
+        return None
 
 #=============================================
-# PBR Material from package
+# PBR Material from package (Legacy/Standard API)
 #=============================================
 def ArnoldPbrFromPackage(folder: str, pbr_name: str, triplanar: bool = True, use_displacement: bool = False, doc: c4d.documents.BaseDocument=None) -> Optional[c4d.BaseMaterial]:
     if doc is None:
         doc = c4d.documents.GetActiveDocument()
-    pbrInstance = PBRPackage(folder, pbr_name)
-    pbrInstance.build()
+    pbrInstance = pbr_from_folder(folder, pbr_name)
+    if not pbrInstance:
+        return None
     data = pbrInstance.get_valid_dict()
     material = Arnold.Material(pbr_name)
 
@@ -326,8 +376,9 @@ def ArnoldPbrFromPackage(folder: str, pbr_name: str, triplanar: bool = True, use
 def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_displacement: bool = False, doc: c4d.documents.BaseDocument=None) -> Optional[c4d.BaseMaterial]:
     if doc is None:
         doc = c4d.documents.GetActiveDocument()    
-    pbrInstance = PBRPackage(folder, pbr_name)
-    pbrInstance.build()
+    pbrInstance = pbr_from_folder(folder, pbr_name)
+    if not pbrInstance:
+        return None
     data = pbrInstance.get_valid_dict()
     material = Redshift.Material(pbr_name)
 
@@ -418,8 +469,9 @@ def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, u
 def OctanePbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_displacement: bool = False, doc: c4d.documents.BaseDocument=None) -> Optional[c4d.BaseMaterial]:
     if doc is None:
         doc = c4d.documents.GetActiveDocument()
-    pbrInstance = PBRPackage(folder, pbr_name)
-    pbrInstance.build()
+    pbrInstance = pbr_from_folder(folder, pbr_name)
+    if not pbrInstance:
+        return None
     data = pbrInstance.get_valid_dict()
     tr = Octane.Material(pbr_name)
 
@@ -482,8 +534,9 @@ def OctanePbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use
 def CoronaPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_displacement: bool = False, doc: c4d.documents.BaseDocument=None) -> Optional[c4d.BaseMaterial]:
     if doc is None:
         doc = c4d.documents.GetActiveDocument()
-    pbrInstance = PBRPackage(folder, pbr_name)
-    pbrInstance.build()
+    pbrInstance = pbr_from_folder(folder, pbr_name)
+    if not pbrInstance:
+        return None
     data = pbrInstance.get_valid_dict()
     tr = Corona.Material(pbr_name)
 
@@ -534,8 +587,9 @@ def CoronaPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use
 def VrayPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_displacement: bool = False, doc: c4d.documents.BaseDocument=None) -> Optional[c4d.BaseMaterial]:
     if doc is None:
         doc = c4d.documents.GetActiveDocument()
-    pbrInstance = PBRPackage(folder, pbr_name)
-    pbrInstance.build()
+    pbrInstance = pbr_from_folder(folder, pbr_name)
+    if not pbrInstance:
+        return None
     data = pbrInstance.get_valid_dict()
     material = Vray.Material(pbr_name)
 
@@ -987,7 +1041,6 @@ def OctanePbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
     
     except Exception as e:
         pass
-        # raise RuntimeError(f"Failed to create the material {e}")
     
 def CoronaPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo: str=None, ao: str=None, 
                       metalness: str=None, roughness: str=None, alpha: str=None, bump: str=None, normal: str=None, displacement: str=None, 

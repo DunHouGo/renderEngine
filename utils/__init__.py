@@ -155,9 +155,6 @@ class EasyTransaction:
         if self.transaction is not None:
             self.transaction.Commit(self.setting)
 
-
-ID_PREFERENCES_NODE = 465001632  # prefs ID
-
 ###  ==========  Functions  ==========  ###
 
 # Arrange All Nodes
