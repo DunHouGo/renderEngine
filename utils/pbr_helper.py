@@ -199,8 +199,8 @@ def detect_asset_name(tokens: list[str]) -> str:
     all_keywords = set(KEYWORD_TO_TYPE.keys()) | {"dx", "gl", "opengl", "directx"}
     
     for t in tokens:
-        # 排除纯数字、分辨率标识、UDIM 标识以及所有已知的 PBR 关键字
-        if t.isdigit() or t.endswith("k") or UDIM_PATTERN.match(t) or t in all_keywords:
+        # Keep tokens unless they are PBR keywords, resolution tags (e.g., '4k'), or UDIMs.
+        if t in all_keywords or re.fullmatch(r"\d+k", t) or UDIM_PATTERN.fullmatch(t):
             continue
         filtered.append(t)
 
@@ -270,7 +270,7 @@ def InPackage(filename: str, package_name: str) -> bool:
     """Legacy wrapper for is_in_package."""
     return is_in_package(filename, package_name)
 
-def GetPBRImages(folder_path: str, package_name: str) -> list[str]:
+def GetPBRImages(folder_path: str, package_name: str = "") -> list[str]:
     """
     Find all texture files in a folder belonging to a specific PBR package.
     
@@ -289,12 +289,21 @@ def GetPBRImages(folder_path: str, package_name: str) -> list[str]:
     if not folder.is_dir():
         return []
     
+    # If the package_name refers to a subfolder, we prioritize scanning THAT folder
+    search_folder = base_folder
+    search_package = package_name
+    
+    if package_name:
+        sub_folder = base_folder / package_name
+        if sub_folder.is_dir():
+            search_folder = sub_folder
+            search_package = ""  # Within its own folder, accept all relevant images
+            
     results = []
-    # Check if folder exists and IS a directory
     try:
-        for item in folder.iterdir():
+        for item in search_folder.iterdir():
             if item.is_file() and item.suffix.lower() in IMAGE_EXTENSIONS:
-                if not package_name or is_in_package(item.name, package_name):
+                if not search_package or is_in_package(item.name, search_package):
                     results.append(str(item.absolute()))
     except (OSError, PermissionError):
         pass
@@ -322,10 +331,14 @@ def GetPackageNames(folder_path: str) -> list[str]:
     names = set()
     try:
         for item in folder.iterdir():
+            # 1. Collect asset names from PBR files in the root
             if item.is_file() and item.suffix.lower() in IMAGE_EXTENSIONS:
                 name = GetPBRName(item.name)
                 if name:
                     names.add(name)
+            # 2. Collect subfolder names (commonly used for PBR packages)
+            elif item.is_dir() and not item.name.startswith((".", "_")) and "Thumbnail" not in item.name:
+                names.add(item.name)
     except (OSError, PermissionError):
         pass
                 

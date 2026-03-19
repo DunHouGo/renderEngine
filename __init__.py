@@ -47,12 +47,10 @@ import random
 from . import constants, utils
 from .constants.common_id import *
 from .utils import NodeGraghHelper, EasyTransaction
-from .utils.texture_helper import TextureHelper
+from .utils.texture_helper import TextureHelper, g_texture_helper
 
 from .utils import material_maker as MaterialMaker
-from .utils.description_material import DescriptionMaterialMaker
-from .utils.description_material import PackageData
-from .utils.material_maker import PBRPackage
+from .utils.material_maker import PBRPackage, DescriptionMaterialMaker
 from .utils import decorators
 
 # New unified PBR pipeline (preferred for new code)

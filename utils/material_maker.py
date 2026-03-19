@@ -1,12 +1,8 @@
 import c4d
 import maxon
 import os
-import sys
-import re
 from typing import Optional, Any
 from dataclasses import dataclass, field
-import Renderer
-# from Renderer.constants.arnold_id import *
 from Renderer.constants.common_id import ID_REDSHIFT, ID_ARNOLD, ID_OCTANE, ID_VRAY, ID_CORONA, ID_CENTILEO
 from Renderer import EasyTransaction
 if c4d.plugins.FindPlugin(ID_REDSHIFT, type=c4d.PLUGINTYPE_ANY) is not None:
@@ -30,7 +26,8 @@ from .pbr_helper import (
     GetPBRImages,
     GetPackageNames,
     pbr_from_file,
-    pbr_from_folder
+    pbr_from_folder,
+    IMAGE_EXTENSIONS
 )
 
 C4D_VERSION: int = c4d.GetC4DVersion()
@@ -166,7 +163,7 @@ def GetVRayDescription(asset: PBRPackage) -> dict:
     return data
 
 # =========================================================
-# Standalone Functions (Description from Package)
+# Description from Package
 # =========================================================
 
 def ArnoldDescriptionFromPackage(folder: str, name: str, res: str = None, doc: Optional[c4d.documents.BaseDocument] = None) -> Optional[c4d.BaseMaterial]:
@@ -200,7 +197,7 @@ def VRayDescriptionFromPackage(folder: str, name: str, res: str = None, doc: Opt
     return None
 
 # =========================================================
-# Standalone Functions (Description Material - Direct Slots)
+# Description Material - Direct Slots
 # =========================================================
 
 def _ConstructPackage(name: str, **kwargs) -> PBRPackage:
@@ -250,6 +247,10 @@ def VRayDescriptionMaterial(name: str, diffuse: str = None, normal: str = None, 
 class DescriptionMaterialMaker:
     """
     A class for creating and modifying materials using graph descriptions.
+
+    Example:
+        >>> maker = DescriptionMaterialMaker("path/to/folder", "material_name")
+        >>> material = maker.MakeMaterial()
     """
     folder: str = field(repr=False)
     name: str
@@ -339,7 +340,7 @@ def ArnoldPbrFromPackage(folder: str, pbr_name: str, triplanar: bool = True, use
                 node = tr.AddTextureTree(filepath=data['roughness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplanar)
 
             elif "glossiness" in data and "roughness" not in data:
-                node = tr.AddTextureTree(filepath=data['roughness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplanar)
+                node = tr.AddTextureTree(filepath=data['glossiness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplanar)
 
             if "normal" in data:
                 tr.AddNormalTree(filepath=data['normal'], shadername="Normal", triplaner_node=triplanar)
@@ -518,7 +519,7 @@ def OctanePbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use
         tr.AddImageTexture(texturePath=emission, nodeName="Emission", gamma=1, parentNode=emission[c4d.TEXEMISSION_EFFIC_OR_TEX])
 
     if "transmission" in data:
-        tr.AddImageTexture(texturePath=data['rransmission'], nodeName="Transmission", gamma=1, parentNode=c4d.OCT_MATERIAL_TRANSMISSION_LINK)
+        tr.AddImageTexture(texturePath=data['transmission'], nodeName="Transmission", gamma=1, parentNode=c4d.OCT_MATERIAL_TRANSMISSION_LINK)
         tr.material[c4d.UNIVMAT_TRANSMISSION_TYPE] = 1
     tr.material.SetName(pbr_name)
 
@@ -649,9 +650,9 @@ def VrayPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_d
                 node = tr.AddTexture(filepath=data['roughness'], shadername="Roughness",target_port=roughnessPort)
                 if triplaner:
                     tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
-            elif "glossiness" in data and "glossiness" not in data:
+            elif "glossiness" in data and "roughness" not in data:
                 tr.SetPortData(useRoughness, False)
-                node = tr.AddTexture(filepath=data['roughness'], shadername="Roughness",target_port=roughnessPort)
+                node = tr.AddTexture(filepath=data['glossiness'], shadername="Roughness",target_port=roughnessPort)
                 if triplaner:
                     tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
 

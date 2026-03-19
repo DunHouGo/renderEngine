@@ -50,7 +50,11 @@ class SceneHelper:
         if texture_path:
             light[c4d.REDSHIFT_LIGHT_DOME_TEX0,c4d.REDSHIFT_FILE_PATH] = texture_path
         light[c4d.REDSHIFT_LIGHT_DOME_TEX0,c4d.REDSHIFT_FILE_COLORSPACE] = color_space
-        light[c4d.REDSHIFT_LIGHT_DOME_BACKGROUND_ENABLE] = seen_by_cam
+        # RS Dome Light Background改版
+        try:
+            light[c4d.REDSHIFT_LIGHT_DOME_BACKGROUND_ENABLE] = seen_by_cam
+        except:
+            pass
         
         return light
 

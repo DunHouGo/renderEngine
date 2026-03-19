@@ -9,7 +9,7 @@ from typing import Iterator, Optional, Union
 
 import random
 from .node_helper import NodeGraghHelper
-from .texture_helper import TextureHelper
+from .texture_helper import TextureHelper, g_texture_helper
 from .converter_ports import ConverterPorts
 from ..constants import *
 import os

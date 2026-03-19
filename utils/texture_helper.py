@@ -615,3 +615,5 @@ class TextureHelper:
         tex_data = dict(zip(channels, textures))
         return tex_data
 
+
+g_texture_helper = TextureHelper()

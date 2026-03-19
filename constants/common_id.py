@@ -13,6 +13,25 @@ ID_LOOKS: int = 1054755
 ID_CENTILEO: int = 1036821
 
 
+class NodeSpaces:
+    RS: str = "com.redshift3d.redshift4c4d.class.nodespace"
+    AR: str = "com.autodesk.arnold.nodespace"
+    STANDARD: str = "net.maxon.nodespace.standard"
+    VR: str = "com.chaos.class.vray_node_renderer_nodespace"
+    CL: str = "com.centileo.class.nodespace"
+
+class RenderEngineIDs:
+    VIEWPORT = 300001061
+    STANDARD = 0
+    PHYSICAL = 1023342
+    OCTANE = 1029525
+    REDSHIFT = 1036219
+    ARNOLD = 1029988
+    VRAY = 1053272
+    CORONA = 1030480
+    CENTILEO = 1036821
+
+
 # Buildin ID
 ID_PREFERENCES_NODE = 465001632 # Prefs ID
 CID_ASSET_BROWSER = 1054225 # Asset Browser
