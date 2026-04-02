@@ -290,11 +290,11 @@ def GetPBRImages(folder_path: str, package_name: str = "") -> list[str]:
         return []
     
     # If the package_name refers to a subfolder, we prioritize scanning THAT folder
-    search_folder = base_folder
+    search_folder = folder_path
     search_package = package_name
     
     if package_name:
-        sub_folder = base_folder / package_name
+        sub_folder = folder_path / package_name
         if sub_folder.is_dir():
             search_folder = sub_folder
             search_package = ""  # Within its own folder, accept all relevant images

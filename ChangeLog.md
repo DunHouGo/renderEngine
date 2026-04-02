@@ -45,5 +45,10 @@
   - some fixes
 - ### 1.0.9
   - Add Basic **CentiLeo** Material support
+- ### 1.1.0
+- Add short name match to **GetPort**, we can use "base_color" or full idto get the port.
+- Add some version checks.
+- split render engine to **aov**, **material**, **scene**.
+- Add **HidePreivew** method to **NodeGraphHelper**.
 ---
 - __coming soon...__

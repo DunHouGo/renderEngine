@@ -2,12 +2,17 @@
 import c4d
 import maxon
 import functools
-from typing import Union, Optional, Any
+from typing import Union, Optional, Any, Iterator
 from pprint import pprint
 from ..constants.common_id import *
 from .converter_ports import ConverterPorts
 import os, sys, json
 
+def iterTree(node: maxon.GraphNode) -> Iterator[maxon.GraphNode]:
+    yield node
+    for child in node.GetChildren():
+        for item in iterTree(child):
+            yield item
 
 # Custom Helper for New Node Materials Graph
 class NodeGraghHelper:
@@ -65,7 +70,11 @@ class NodeGraghHelper:
             if self.graph.IsNullValue():
                 raise ValueError("Cannot retrieve the graph of this nimbus NodeSpace.")
             
-            self.root: maxon.GraphNode = self.graph.GetRoot()
+            if c4d.GetC4DVersion() < 202500:
+                self.root: maxon.GraphNode = self.graph.GetRoot()
+            else:
+                self.root: maxon.GraphNode = self.graph.GetViewRoot()
+
 
     def __str__(self):
         return (f"A {self.__class__.__name__} Instance with Material : {self.material.GetName()}")
@@ -1171,11 +1180,18 @@ class NodeGraghHelper:
             true_port.SetValue(maxon.NODE.ATTRIBUTE.HIDEPORTINNODEGRAPH, maxon.Bool(True))
 
         return true_port
- 
+
+
     # 获取节点上端口 ==> ok
     def GetPort(self, shader: maxon.GraphNode, port_id :str = None) -> Union[maxon.GraphNode,bool]:
         """
-        Get a port from a Shader node.if port id is None,try to find out port.
+        Get a port from a Shader node, you can specify the port id, or just fill sort of the port name,
+        if port id is None,try to find out port.
+        
+        .. code-block:: python
+            GetPort(shader, "base_color")
+            GetPort(shader, "com.redshift3d.redshift4c4d.nodes.core.standardmaterial.base_color")
+            GetPort(shader) # try to get the output port
 
         Args:
             shader (maxon.GraphNode): the host shader
@@ -1187,48 +1203,14 @@ class NodeGraghHelper:
         if not shader:
             raise ValueError(f'Expected a maxon.GraphNode, got {type(shader)}')
         
-        out_ids = ['outcolor','output','out']
-         
-        if self.nodespaceId == RS_NODESPACE:
-            if port_id == None:
-                for out in out_ids:
-                    port_id = f"{self.GetAssetId(shader)}.{out}"
-                    port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
-                    if port.IsNullValue():
-                        port = shader.GetOutputs().FindChild(port_id)
-                    if not port.IsNullValue():
-                        return port
-            else:
-                port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
-                if port.IsNullValue():
-                    port = shader.GetOutputs().FindChild(port_id)
-                    if port.IsNullValue():
-                        return False
-            return port
+        out_ids = ['outcolor','output','out', 'default','result', 'result_id', 'root_uvw', 'result_material']
+        target = str(port_id) if port_id else None
         
-        if self.nodespaceId == AR_NODESPACE:
-            if port_id == None:
-                for out in out_ids:                               
-                    port: maxon.GraphNode = shader.GetInputs().FindChild(out)
-                    if port.IsNullValue():
-                        port = shader.GetOutputs().FindChild(out)
-                    if not port.IsNullValue():
-                        return port
-            else:
-                port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
-                if port.IsNullValue():
-                    port = shader.GetOutputs().FindChild(port_id)
-                    if port.IsNullValue():
-                        return False
-            return port
-        else:
-            port: maxon.GraphNode = shader.GetInputs().FindChild(port_id)
-            if port.IsNullValue():
-                port = shader.GetOutputs().FindChild(port_id)
-                if port.IsNullValue():
-                    return False
-            return port
-
+        for port in iterTree(shader):
+            pid = str(port.GetId())
+            last = pid.split('.')[-1].lower()
+            if (not target and last in out_ids) or pid == target or last == target.lower():
+                return port
 
     # 获取端口所在节点 ==> ok
     def GetTrueNode(self, port: maxon.GraphNode) -> maxon.GraphNode:
@@ -1715,4 +1697,22 @@ class NodeGraghHelper:
         else:
             return port.GetDefaultValue().GetType()
 
+    #=============================================
+    # Helper methods
+    #=============================================
 
+    def HidePreivew(self, hide: bool = True) -> None:
+        """
+        Hide the preview of the node.
+
+        Args:
+            hide (bool, optional): True to hide, False to show. Defaults to True.
+        """
+        for node in self.root.GetInnerNodes(mask=maxon.NODE_KIND.NODE, includeThis=False):
+            # not hide output preview
+            if node == self.GetOutput():
+                continue
+            node.SetValue(maxon.NODE.BASE.DISPLAYPREVIEW  , maxon.Bool(hide))
+
+
+    

@@ -1,6 +1,9 @@
-/__pycache__
+**/__pycache__/
 /metadata.json
 /.windsurf
 /docs
 /pbr
 /_dev/
+**/*.pyc
+**/*.pyd
+/Renderer2/

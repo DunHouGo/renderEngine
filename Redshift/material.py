@@ -18,6 +18,11 @@ class MaterialHelper(NodeGraghHelper):
     Custom helper to easier modify Redshift Material.
     """
 
+    standard_mat = "com.redshift3d.redshift4c4d.nodes.core.standardmaterial"
+    redshift_mat = "com.redshift3d.redshift4c4d.nodes.core.material"
+    openpbr_mat = "com.redshift3d.redshift4c4d.nodes.core.openpbrmaterial"
+    valid_mat = [standard_mat, redshift_mat, openpbr_mat]
+
     # 初始化 ==> OK
     def __init__(self, material: c4d.BaseMaterial|str = None):
         
@@ -325,24 +330,20 @@ class MaterialHelper(NodeGraghHelper):
             maxon.GraphNode: the BRDF node
         """
 
-        standard_mat = "com.redshift3d.redshift4c4d.nodes.core.standardmaterial"
-        rs_mat = "com.redshift3d.redshift4c4d.nodes.core.material"
-        valid_mat = [standard_mat, rs_mat]
-
         endNode = self.GetOutput()
         if not endNode: return None
 
         # only one direct brdf
         predecessor = list()
         maxon.GraphModelHelper.GetDirectPredecessors(endNode, maxon.NODE_KIND.NODE, predecessor)
-        rootshader = [i for i in predecessor if self.GetAssetId(i) in valid_mat]
+        rootshader = [i for i in predecessor if self.GetAssetId(i) in self.valid_mat]
         if rootshader:
             return rootshader[0]
 
         # find brdf by filter
         else:
             nodes = []
-            for i in valid_mat:
+            for i in self.valid_mat:
                 nodes += self.GetNodes(i)
             # By Name
             if isinstance(filter, str):
@@ -778,8 +779,15 @@ class MaterialHelper(NodeGraghHelper):
 
         else:
             material = self.GetRootBRDF()
-            bump_port = self.GetPort(material,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.bump_input")
-            output.Connect(bump_port)
+            if self.GetAssetId(material) == self.standard_mat:
+                bump_port = self.GetPort(material,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.bump_input")
+                output.Connect(bump_port)
+            elif self.GetAssetId(material) == self.redshift_mat:
+                bump_port = self.GetPort(material,"com.redshift3d.redshift4c4d.nodes.core.material.bump_input")
+                output.Connect(bump_port)
+            elif self.GetAssetId(material) == self.openpbr_mat:
+                bump_port = self.GetPort(material,"com.redshift3d.redshift4c4d.nodes.core.openpbrmaterial.geometry_normal")
+                output.Connect(bump_port)
         return shader
     
     # 创建Bump Blender ==> OK
