@@ -728,8 +728,8 @@ def ArnoldPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
                     aoNode = tr.AddTexture(filepath=ao, shadername="AO")
                     if albedo:
                         tr.AddTextureTree(filepath=albedo, shadername="Albedo", raw=False, color_mode=True, color_mutiplier=aoNode,triplaner_node=triplanar, target_port=albedoPort)
-                else:
-                    tr.AddTextureTree(filepath=albedo, shadername="Albedo", raw=False, target_port=albedoPort,triplaner_node=triplanar)
+                elif albedo:
+                    tr.AddTextureTree(filepath=albedo, shadername="Albedo", raw=False, color_mode=True, target_port=albedoPort,triplaner_node=triplanar)
                 
                 if metalness:
                     node = tr.AddTexture(filepath=metalness, shadername="Metalness",target_port=metalnessPort)
@@ -816,11 +816,8 @@ def RedshiftPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, al
                     aoNode = tr.AddTexture(filepath=ao, shadername="AO")
                     if albedo:
                         tr.AddTextureTree(filepath=albedo, shadername="Albedo", raw=False, color_mode=True, color_mutiplier=aoNode,triplaner_node=triplanar, target_port=albedoPort)
-                else:
-                    tr.AddTextureTree(filepath=albedo, shadername="Albedo", raw=False, target_port=albedoPort,triplaner_node=triplanar)
-
-                if albedo and ao is not None: 
-                    tr.AddTextureTree(filepath=albedo, shadername="Albedo", raw=False, color_mode=True, target_port=albedoPort)
+                elif albedo:
+                    tr.AddTextureTree(filepath=albedo, shadername="Albedo", raw=False, color_mode=True, target_port=albedoPort,triplaner_node=triplanar)
                 
                 if metalness:
                     node = tr.AddTexture(filepath=metalness, shadername="Metalness",target_port=metalnessPort)
@@ -912,8 +909,8 @@ def VrayPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo
                 aoNode = tr.AddTexture(filepath=ao, shadername="AO")
                 if albedo:
                     tr.AddTextureTree(filepath=albedo, shadername="Albedo", raw=False, color_mode=True, color_mutiplier=aoNode,triplaner_node=triplanar, target_port=albedoPort)
-            else:
-                tr.AddTextureTree(filepath=albedo, shadername="Albedo", raw=False, target_port=albedoPort,triplaner_node=triplanar)
+            elif albedo:
+                tr.AddTextureTree(filepath=albedo, shadername="Albedo", raw=False, color_mode=True, target_port=albedoPort,triplaner_node=triplanar)
             
             if metalness:
                 node = tr.AddTexture(filepath=metalness, shadername="Metalness",target_port=metalnessPort)
