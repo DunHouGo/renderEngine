@@ -7,7 +7,7 @@ from ..constants.redshift_id import *
 from .scene import SceneHelper as Scene
 from .material import MaterialHelper as Material
 from .aov import AOVHelper as AOV
-
+from ..constants import CID_NODE_EDITOR, ID_MATERIAL_MANAGER
 
 def GetPreference() -> c4d.BaseList2D:
     """
@@ -91,19 +91,18 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
     if actmat:
         doc.AddUndo(c4d.UNDOTYPE_BITS, actmat)
         actmat.SetBit(c4d.BIT_ACTIVE)
-        
-    if Renderer.GetRenderEngine() == ID_REDSHIFT_VIDEO_POST:
-        if IsNodeBased():
-            if not c4d.IsCommandChecked(Renderer.CID_NODE_EDITOR):
-                c4d.CallCommand(Renderer.CID_NODE_EDITOR) # Node Editor...
-                c4d.CallCommand(465002360) # Material
 
-        else:
-            c4d.CallCommand(1036229) # Redshift Shader Graph Editor
-            # Only scroll to the material if material manager is opened
-            
-        if c4d.IsCommandChecked(Renderer.ID_MATERIAL_MANAGER):  
-            c4d.CallCommand(16297) # Scroll To Selection
+    if IsNodeBased():
+        if not c4d.IsCommandChecked(CID_NODE_EDITOR):
+            c4d.CallCommand(CID_NODE_EDITOR) # Node Editor...
+            c4d.CallCommand(465002360) # Material
+
+    else:
+        c4d.CallCommand(1036229) # Redshift Shader Graph Editor
+        # Only scroll to the material if material manager is opened
+        
+    if c4d.IsCommandChecked(ID_MATERIAL_MANAGER):  
+        c4d.CallCommand(16297) # Scroll To Selection
 
 # 打开aov管理器
 def AovManager() -> None:

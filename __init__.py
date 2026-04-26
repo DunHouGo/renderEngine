@@ -39,9 +39,66 @@ if C4D_VERSION <= 2023200:
     print("NOTE: This module better compatible with Cinema 4D R2024 and above.")
     
 import os
+import importlib
+import sys
 import typing
 from typing import Generator, Union, Optional
 import random
+
+
+def _reload_loaded_submodules(
+    package_name: str,
+    skip_modules: Optional[set[str]] = None,
+) -> list[str]:
+    """Reload loaded submodules of the current package.
+
+    Args:
+        package_name (str): The package name that owns the submodules.
+        skip_modules (Optional[set[str]]): Module names to skip. Defaults to None.
+
+    Returns:
+        list[str]: The reloaded module names in execution order.
+
+    Example:
+        .. code-block:: python
+
+            import Renderer
+            from importlib import reload
+
+            reload(Renderer)
+    """
+    if skip_modules is None:
+        skip_modules = set()
+
+    prefix: str = f"{package_name}."
+    module_names: list[str] = [
+        module_name
+        for module_name in sys.modules
+        if module_name.startswith(prefix) and module_name not in skip_modules
+    ]
+
+    # 先重载更深层的模块，避免父模块过早绑定旧对象
+    module_names.sort(key=lambda module_name: module_name.count("."), reverse=True)
+
+    reloaded_module_names: list[str] = []
+    for module_name in module_names:
+        module = sys.modules.get(module_name)
+        if module is None:
+            continue
+        importlib.reload(module)
+        reloaded_module_names.append(module_name)
+
+    return reloaded_module_names
+
+
+# 在包被 reload(Renderer) 时，先深度重载已加载的 Renderer 子模块
+if globals().get("_RENDERER_PACKAGE_INITIALIZED", False):
+    _RELOADED_SUBMODULES: list[str] = _reload_loaded_submodules(
+        __name__,
+        skip_modules={__name__},
+    )
+else:
+    _RELOADED_SUBMODULES = []
 
 # import Renderer package
 from . import constants, utils
@@ -78,6 +135,8 @@ if c4d.plugins.FindPlugin(ID_CENTILEO, type=c4d.PLUGINTYPE_ANY) is not None:
     from . import CentiLeo
 
 SUPPORT_RENDERER: list[int] = [ID_REDSHIFT, ID_ARNOLD, ID_OCTANE, ID_CORONA, ID_VRAY, ID_CENTILEO]
+
+_RENDERER_PACKAGE_INITIALIZED = True
 
 
 # todo

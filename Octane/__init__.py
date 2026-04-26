@@ -77,13 +77,8 @@ def OpenNodeEditor(actmat: c4d.BaseList2D = None) -> None:
         actmat = doc.GetActiveMaterial()
     else:
         cid = 0
-        # if isinstance(actmat, Material):
-        #     actmat = actmat.material
-        if isinstance(actmat, c4d.BaseMaterial):
-            if not actmat:
-                raise ValueError("Failed to retrieve a octane item.")
 
-        elif isinstance(actmat, c4d.BaseTag):
+        if isinstance(actmat, c4d.BaseTag):
             # todo: tag 需要修复
             if actmat.GetType() == 1029603: # object tag 
                 if GetVersion() < 15000002:
@@ -131,13 +126,15 @@ def OpenNodeEditor(actmat: c4d.BaseList2D = None) -> None:
                 c4d.CallButton(actmat, cid)
                 return   
 
-        doc = actmat.GetDocument()
-        doc.AddUndo(c4d.UNDOTYPE_BITS,actmat)
-        actmat.SetBit(c4d.BIT_ACTIVE)
-        c4d.CallCommand(1033872) # Octane Node Editor
-        # Only scroll to the material if material manager is opened
-        if c4d.IsCommandChecked(12159):
-            c4d.CallCommand(16297) # Scroll To Selection
+        doc:c4d.documents.BaseDocument = actmat.GetDocument()
+        doc.SetActiveMaterial(actmat)
+        actmat = doc.GetActiveMaterial()
+        # doc.AddUndo(c4d.UNDOTYPE_BITS,actmat)
+        # actmat.SetBit(c4d.BIT_ACTIVE)
+    c4d.CallCommand(1033872) # Octane Node Editor
+    # Only scroll to the material if material manager is opened
+    if c4d.IsCommandChecked(12159):
+        c4d.CallCommand(16297) # Scroll To Selection
     c4d.EventAdd()
 
 # 打开aov管理器

@@ -82,7 +82,32 @@ class MaterialHelper(NodeGraghHelper):
             crypto_out.Connect(end_shader_in)
 
         return ts.material
-    
+
+    @staticmethod
+    def CreateOpenPBR(name: str = "OpenPBR Material") -> c4d.BaseMaterial:
+        """
+        Creates a MaterialHelper instance for OpenPBRMaterial.
+
+        Parameters
+        ----------
+        name : str
+            The Material entry name.
+        """
+        from maxon import GraphDescription
+        material: c4d.BaseMaterial = c4d.BaseMaterial(c4d.Mmaterial)
+        material.SetName(name)
+        graph: maxon.NodesGraphModelRef = maxon.GraphDescription.GetGraph(material, nodeSpaceId=AR_NODESPACE)
+        GraphDescription.ApplyDescription(
+            graph, {
+                GraphDescription.Type: "#com.autodesk.arnold.material",
+                "shader": {
+                    GraphDescription.Type: "#com.autodesk.arnold.shader.openpbr_surface",
+                }
+            }
+        )
+        return material
+
+
     # 创建Standard Surface
     # @staticmethod
     def CreateStandardSurface(self, name: str = 'Standard Surface'):

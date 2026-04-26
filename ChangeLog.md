@@ -50,5 +50,7 @@
 - Add some version checks.
 - split render engine to **aov**, **material**, **scene**.
 - Add **HidePreivew** method to **NodeGraphHelper**.
+- ### 1.1.1
+  - Add package-level recursive reload support, so `reload(Renderer)` also reloads loaded `Renderer.*` submodules.
 ---
 - __coming soon...__

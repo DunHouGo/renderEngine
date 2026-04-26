@@ -57,8 +57,23 @@ class MaterialHelper(NodeGraghHelper):
     
     # =====  Material  ===== #
 
+    @staticmethod
+    def _getversion() -> str :
+        """
+        Get the version number of Redshift.
+
+        Returns:
+            str: The version number
+        """
+        try:
+            import redshift
+            return redshift.GetCoreVersion()
+        except:
+            return str(0)
+
+
     # 创建材质(Standard Surface) ==> OK
-    def Create(self, name: str = "Standard Surface") -> c4d.BaseMaterial:
+    def Create(self, name: str = "") -> c4d.BaseMaterial:
         """
         Creates a new Redshift Node Material with a NAME.
 
@@ -68,11 +83,20 @@ class MaterialHelper(NodeGraghHelper):
             The Material entry name.
 
         """
+        if MaterialHelper._getversion() >= '2026.4.0':
+            try:
+                return self.CreateOpenPBR(name)
+            except:
+                return self.CreateDefault(name)
+        else:
+            return self.CreateDefault(name)
 
+    @staticmethod
+    def CreateDefault(name: str = "") -> c4d.BaseMaterial:
         material = c4d.BaseMaterial(c4d.Mmaterial)
         if material is None:
             raise ValueError("Cannot create a BaseMaterial")
-                 
+        name = name if name else "Standard Surface"
         material.SetName(name)
 
         nodeMaterial = material.GetNodeMaterialReference()
@@ -93,10 +117,10 @@ class MaterialHelper(NodeGraghHelper):
             tr.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color")
 
         return material
-
+    
     # 创建RS Material
     @staticmethod
-    def CreateRSMaterial(name):
+    def CreateRSMaterial(name: str = "") -> c4d.BaseMaterial:
         """
         Creates a new Redshift Material with a NAME.
 
@@ -109,7 +133,7 @@ class MaterialHelper(NodeGraghHelper):
         standardMaterial = MaterialHelper.Create(name)
         if standardMaterial is None or standardMaterial is None:
             raise Exception("Failed to create Redshift Standard Surface Material")
-
+        name = name if name else "Redshift Material"
         with EasyTransaction(standardMaterial) as tr:
             oldrs = tr.GetRootBRDF()
 
@@ -125,6 +149,38 @@ class MaterialHelper(NodeGraghHelper):
             tr.AddPort(tr.GetRootBRDF(),'com.redshift3d.redshift4c4d.nodes.core.material.transl_weight')
         return standardMaterial
 
+    @staticmethod
+    def CreateOpenPBR(name: str = "") -> c4d.BaseMaterial:
+        """
+        Creates a MaterialHelper instance for OpenPBRMaterial.
+
+        Parameters
+        ----------
+        name : str
+            The Material entry name.
+        """
+        from maxon import GraphDescription
+        material: c4d.BaseMaterial = c4d.BaseMaterial(c4d.Mmaterial)
+        name = name if name else "OpenPBR Material"
+        material.SetName(name)
+        graph: maxon.NodesGraphModelRef = maxon.GraphDescription.GetGraph(material, nodeSpaceId=maxon.NodeSpaceIdentifiers.RedshiftMaterial)
+        GraphDescription.ApplyDescription(
+            graph, {
+                GraphDescription.Type: "#~.output",
+                "#~.surface": {
+                    GraphDescription.Type: "#com.redshift3d.redshift4c4d.nodes.core.openpbrmaterial",
+                }
+            }
+        )
+        with EasyTransaction(material) as tr:
+
+            brdf: maxon.GraphNode = tr.GetRootBRDF()
+            tr.SetName(brdf, name)
+            tr.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.openpbrmaterial.geometry_opacity")
+            tr.AddPort(brdf,"geometry_normal")
+
+        return material
+    
     # 暴露常用接口
     def ExposeUsefulPorts(self):
         if self.graph is None:
@@ -1397,7 +1453,8 @@ class MaterialHelper(NodeGraghHelper):
 
         return groupRoot
 
+
+
 __all__ = [
-    "MaterialHelper",
-    "IsCoronaMaterial",
+    "MaterialHelper"
 ]

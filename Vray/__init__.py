@@ -42,16 +42,14 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
     actmat.SetBit(c4d.BIT_ACTIVE)
     if not actmat:
         raise ValueError("Failed to retrieve a Material.")
-    
-    from .. import GetRenderEngine, CID_NODE_EDITOR
-    if GetRenderEngine() == ID_VRAY:
-        if IsNodeBased(actmat):
-            if not c4d.IsCommandChecked(CID_NODE_EDITOR):
-                c4d.CallCommand(CID_NODE_EDITOR) # Node Editor...
-                c4d.CallCommand(465002360) # Material
-            
-        if c4d.IsCommandChecked(ID_MATERIAL_MANAGER):  
-            c4d.CallCommand(16297) # Scroll To Selection
+
+    if IsNodeBased(actmat):
+        if not c4d.IsCommandChecked(CID_NODE_EDITOR):
+            c4d.CallCommand(CID_NODE_EDITOR) # Node Editor...
+            c4d.CallCommand(465002360) # Material
+        
+    if c4d.IsCommandChecked(ID_MATERIAL_MANAGER):  
+        c4d.CallCommand(16297) # Scroll To Selection
 
 # 打开aov管理器
 def AovManager() -> None:

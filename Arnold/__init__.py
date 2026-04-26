@@ -97,18 +97,16 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
     if not actmat:
         raise ValueError("Failed to retrieve a Material.")
     
-    from .. import GetRenderEngine
-    if GetRenderEngine() == ARNOLD_RENDERER:
-        if IsNodeBased():
-            if not c4d.IsCommandChecked(constants.CID_NODE_EDITOR):
-                c4d.CallCommand(constants.CID_NODE_EDITOR) # Node Editor...
-                c4d.CallCommand(465002360) # Material
-        else:
-            c4d.CallCommand(1033989) # Arnold Shader Graph Editor
-            # Only scroll to the material if material manager is opened
-            
-        if c4d.IsCommandChecked(ID_MATERIAL_MANAGER):  
-            c4d.CallCommand(16297) # Scroll To Selection
+    if IsNodeBased():
+        if not c4d.IsCommandChecked(constants.CID_NODE_EDITOR):
+            c4d.CallCommand(constants.CID_NODE_EDITOR) # Node Editor...
+            c4d.CallCommand(465002360) # Material
+    else:
+        c4d.CallCommand(1033989) # Arnold Shader Graph Editor
+        # Only scroll to the material if material manager is opened
+        
+    if c4d.IsCommandChecked(ID_MATERIAL_MANAGER):  
+        c4d.CallCommand(16297) # Scroll To Selection
 
 # 打开材质编辑器
 def AovManager(document: c4d.documents.BaseDocument = None, driverType: Union[str,c4d.BaseObject,None] = None) -> None:
