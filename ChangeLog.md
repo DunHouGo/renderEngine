@@ -52,5 +52,9 @@
 - Add **HidePreivew** method to **NodeGraphHelper**.
 - ### 1.1.1
   - Add package-level recursive reload support, so `reload(Renderer)` also reloads loaded `Renderer.*` submodules.
+- ### 1.1.2
+  - Fix `MaterialMaker` direct PBR material creation when both roughness and glossiness are provided.
+  - Fix Redshift glossiness mode port from refraction glossiness to reflection glossiness.
+  - Fix Octane direct PBR albedo texture creation typo.
 ---
 - __coming soon...__

@@ -394,7 +394,7 @@ def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, u
         opacityPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.opacity_color')
         reflectionPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color')
         emissionPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_color')
-        gloss2roughPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_isglossiness')
+        gloss2roughPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
         specularPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color')
         sheenPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.material.sheen_color')
         anisotropyPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.material.refl_aniso')
@@ -419,9 +419,10 @@ def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, u
                     if triplaner:
                         tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
 
-            if "roughness" in data and "glossiness" not in data:
+            if "roughness" in data:
+                tr.SetPortData(gloss2roughPort, False)
                 node = tr.AddTextureTree(filepath=data['roughness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplaner)
-            elif "glossiness" in data and "roughness" not in data:
+            elif "glossiness" in data:
                 tr.SetPortData(gloss2roughPort,True)
                 node = tr.AddTextureTree(filepath=data['glossiness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplaner)
 
@@ -804,7 +805,7 @@ def RedshiftPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, al
                 opacityPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.opacity_color')
                 reflectionPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color')
                 emissionPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_color')
-                gloss2roughPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_isglossiness')
+                gloss2roughPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
                 specularPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color')
                 sheenPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.material.sheen_color')
                 anisotropyPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.material.refl_aniso')
@@ -832,9 +833,10 @@ def RedshiftPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, al
                         if triplanar:
                             tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
 
-                if roughness and not glossiness:
+                if roughness:
+                    tr.SetPortData(gloss2roughPort, False)
                     tr.AddTextureTree(filepath=roughness, shadername="Roughness",triplaner_node=triplanar, target_port=roughnessPort)               
-                elif glossiness and not roughness:
+                elif glossiness:
                     tr.SetPortData(gloss2roughPort,True)
                     node = tr.AddTextureTree(filepath=glossiness, shadername="Roughness", target_port=roughnessPort, triplaner_node=triplanar)
             
@@ -925,10 +927,10 @@ def VrayPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo
                     if triplanar:
                         tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
 
-            if roughness and not glossiness:
+            if roughness:
                 tr.SetPortData(useRoughness, True)
                 tr.AddTextureTree(filepath=roughness, shadername="Roughness",triplaner_node=triplanar, target_port=roughnessPort)   
-            elif glossiness and not roughness:
+            elif glossiness:
                 tr.SetPortData(useRoughness, False)
                 tr.AddTextureTree(filepath=glossiness, shadername="Glossiness",triplaner_node=triplanar, target_port=roughnessPort)
 
@@ -977,7 +979,7 @@ def OctanePbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
     try:
         # 
         if albedo:
-            albedoNode = mat.AddImagTexture(texturePath=albedo, nodeName="Albedo", isFloat=False, gamma=2.2)
+            albedoNode = mat.AddImageTexture(texturePath=albedo, nodeName="Albedo", isFloat=False, gamma=2.2)
             if albedoNode:
                 ccAlbedoNode = mat.AddCC(albedoNode)
                 if ao:
