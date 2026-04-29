@@ -54,7 +54,7 @@ MAP_KEYWORDS: dict[str, tuple[str, ...]] = {
     "metalness": ("metal", "metallic", "metalness", "m"),
     "specular": ("spec", "specular", "edgetint", "spec_level"),
     "ao": ("ao", "ambientocclusion", "occlusion", "occ", "mixed_ao"),
-    "displacement": ("disp", "displacement", "height", "heightmap", "depth", "displace", "dis"),
+    "displacement": ("disp", "disp16", "displacement", "height", "heightmap", "depth", "displace", "dis"),
     "bump": ("bump", "b"),
     "alpha": ("alpha", "opacity", "opacity_mask", "mask"),
     "emission": ("emission", "emissive", "emit", "emis", "light"),
@@ -96,6 +96,25 @@ def tokenize(filename: str) -> list[str]:
     name = Path(filename).stem
     return list(filter(None, re.split(r"[._\-\s]+", name.lower())))
 
+def _normalize_texture_token(token: str) -> str:
+    """
+    Normalize common texture tokens before PBR slot detection.
+
+    Args:
+        token: The raw filename token.
+
+    Returns:
+        A normalized token that can be matched by ``MAP_KEYWORDS``.
+
+    Example:
+        >>> _normalize_texture_token("disp16")
+        'disp16'
+    """
+    if re.fullmatch(r"disp\d+", token):
+        return "disp16"
+    return token
+
+
 def detect_map_type(tokens: list[str]) -> Optional[str]:
     """
     Identifies the PBR map type from filename tokens using keyword matching.
@@ -114,6 +133,7 @@ def detect_map_type(tokens: list[str]) -> Optional[str]:
     """
     # 遍历令牌，利用全局展平的字典快速查找
     for token in tokens:
+        token = _normalize_texture_token(token)
         if token in KEYWORD_TO_TYPE:
             return KEYWORD_TO_TYPE[token]
     return None
@@ -200,7 +220,8 @@ def detect_asset_name(tokens: list[str]) -> str:
     
     for t in tokens:
         # Keep tokens unless they are PBR keywords, resolution tags (e.g., '4k'), or UDIMs.
-        if t in all_keywords or re.fullmatch(r"\d+k", t) or UDIM_PATTERN.fullmatch(t):
+        normalized = _normalize_texture_token(t)
+        if normalized in all_keywords or re.fullmatch(r"\d+k", t) or UDIM_PATTERN.fullmatch(t):
             continue
         filtered.append(t)
 
