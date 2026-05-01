@@ -77,7 +77,7 @@ def _reload_loaded_submodules(
         if module_name.startswith(prefix) and module_name not in skip_modules
     ]
 
-    # 先重载更深层的模块，避免父模块过早绑定旧对象
+    # 先重载更深层的模块，避免父模块过早绑定旧对象。
     module_names.sort(key=lambda module_name: module_name.count("."), reverse=True)
 
     reloaded_module_names: list[str] = []
@@ -91,7 +91,7 @@ def _reload_loaded_submodules(
     return reloaded_module_names
 
 
-# 在包被 reload(Renderer) 时，先深度重载已加载的 Renderer 子模块
+# 在包被 reload(Renderer) 时，先深度重载已加载的 Renderer 子模块。
 if globals().get("_RENDERER_PACKAGE_INITIALIZED", False):
     _RELOADED_SUBMODULES: list[str] = _reload_loaded_submodules(
         __name__,

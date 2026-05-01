@@ -216,7 +216,7 @@ def GetVideoPost(document: c4d.documents.BaseDocument = None, videopost: int = I
     return theVp
 
 # 添加渲染器VideoPost
-def AddVideoPost(document: c4d.documents.BaseDocument = None, videopost: int = ID_REDSHIFT) -> None:
+def AddVideoPost(document: c4d.documents.BaseDocument = None, videopost: int = ID_REDSHIFT) -> Optional[c4d.documents.BaseVideoPost]:
     """
     Add the videopost of given render engine of filled document.
 
@@ -232,13 +232,15 @@ def AddVideoPost(document: c4d.documents.BaseDocument = None, videopost: int = I
 
     while vpost:
         if vpost.GetType() == int(videopost):
-            vpost.Remove()
+            return vpost
 
         vpost = vpost.GetNext()
 
-    if not vpost:
-        vpost = c4d.documents.BaseVideoPost(videopost)
-        rdata.InsertVideoPostLast(vpost)
+    vpost = c4d.documents.BaseVideoPost(videopost)
+    if vpost is None:
+        return None
+
+    rdata.InsertVideoPostLast(vpost)
     return vpost
 
 # 切换渲染器VideoPost
@@ -257,12 +259,21 @@ def ChangeRenderer(document: c4d.documents.BaseDocument = None, videopost: int =
     if GetRenderEngine(document) == videopost and (new_vp := GetVideoPost(document, videopost)) is not None:
         return new_vp
 
-    if not document:
-        document = c4d.documents.GetActiveDocument()
-
     rdata: c4d.documents.RenderData = document.GetActiveRenderData()
     rdata[c4d.RDATA_RENDERENGINE] = videopost
-    AddVideoPost(document, videopost)
+
+    # 参考 Maxon 官方示例，先收集再移除，避免遍历 VideoPost 链表时原地删除节点。
+    remove_vps: list[c4d.documents.BaseVideoPost] = []
+    current_vp: c4d.documents.BaseVideoPost = rdata.GetFirstVideoPost()
+    while current_vp:
+        if current_vp.GetType() != int(videopost) and not current_vp.RenderEngineCheck(videopost):
+            remove_vps.append(current_vp)
+        current_vp = current_vp.GetNext()
+
+    for current_vp in remove_vps:
+        current_vp.Remove()
+
+    return AddVideoPost(document, videopost)
 
 # Check if the file is an image
 def IsImageFile(file: str) -> bool:

@@ -21,6 +21,7 @@ class NodeGraghHelper:
     Custom helper for NodeGragh Material in Cinema 4D Node Editor.
     Warp with maxon api and add some daliy functions.
     """
+    debug: bool = False
 
     #=============================================
     # Basic
@@ -78,6 +79,11 @@ class NodeGraghHelper:
 
     def __str__(self):
         return (f"A {self.__class__.__name__} Instance with Material : {self.material.GetName()}")
+
+    def _DebugPrint(self, message: str) -> None:
+        """Print debug information when ``debug`` is enabled."""
+        if getattr(self, "debug", False):
+            print(f"[Renderer.NodeGraghHelper] {message}")
 
     # decorator 装饰器 打印函数名称和返回值
     def PirntMe(func) -> None:
@@ -800,8 +806,10 @@ class NodeGraghHelper:
             try:
                 node = self.InsertShader(newNode, self.GetConnectedPortsAfter(sourceNode),self.GetConvertInput(newNode),self.GetConvertOutput(newNode))
                 return node
-            except:
-                pass
+            except Exception as error:
+                self._DebugPrint(
+                    f"AddShaderAfter fallback for source={sourceNode}, newNode={newNode}: {error}"
+                )
         else:
             if source_out is None:
                 port_out: maxon.GraphNode = self.GetPort(sourceNode, self.GetConvertOutput(sourceNode))

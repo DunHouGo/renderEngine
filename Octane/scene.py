@@ -555,9 +555,9 @@ class SceneHelper:
         vdb[c4d.VOLUMEOBJECT_VDB_FILE] = vdb_path
         if animation: # Animation.
             c4d.CallButton(vdb, c4d.VOLUMEOBJECT_VDB_SEQ_CALC)
-        vdb_obj = self.doc.InsertObject(vdb)
-        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,vdb_obj)
-        return vdb_obj
+        self.doc.InsertObject(vdb)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, vdb)
+        return vdb
 
     def iso_to_group(self, nodes : list[c4d.BaseObject]) -> c4d.documents.BaseDocument :
         
@@ -627,15 +627,18 @@ class SceneHelper:
 
         return path
 
-    def add_orbx(self, filePath: str):
-        if c4d.plugins.FindPlugin(Renderer.ID_OCTANE, type=c4d.PLUGINTYPE_ANY) is not None: 
-            doc = c4d.documents.GetActiveDocument()
-            proxy = c4d.BaseObject(ID_ORBX_LOADER)
-            doc.InsertObject(proxy,checknames=True)
-            name = os.path.splitext(os.path.basename(filePath))[0]
-            proxy.SetName(name)
-            proxy[c4d.ORBXLOADER_FILENAME] = filePath
-            proxy[c4d.ORBXLOADER_BBOX] = True
+    def add_orbx(self, filePath: str) -> c4d.BaseObject:
+        if c4d.plugins.FindPlugin(ID_OCTANE, type=c4d.PLUGINTYPE_ANY) is None:
+            raise RuntimeError("Octane plugin is not installed.")
+
+        proxy = c4d.BaseObject(ID_ORBX_LOADER)
+        self.doc.InsertObject(proxy, checknames=True)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, proxy)
+        name = os.path.splitext(os.path.basename(filePath))[0]
+        proxy.SetName(name)
+        proxy[c4d.ORBXLOADER_FILENAME] = filePath
+        proxy[c4d.ORBXLOADER_BBOX] = True
+        return proxy
 
     # 傻瓜导出
     def auto_proxy(self, nodes : Union[list[c4d.BaseObject], c4d.BaseObject], remove_objects=False):
@@ -660,7 +663,7 @@ class SceneHelper:
             for node in nodes:
                 node.Remove()
         
-        self.add_orbx(file)
+        return self.add_orbx(file)
 
 __all__ = [
     "SceneHelper"

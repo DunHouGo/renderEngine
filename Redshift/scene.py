@@ -315,9 +315,9 @@ class SceneHelper:
                 vdb[c4d.REDSHIFT_VOLUME_CHANNELS] = 'density\ntemperature\nvelocity\n'
             except:
                 pass
-        vdb_obj = self.doc.InsertObject(vdb)
+        self.doc.InsertObject(vdb)
         self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ,vdb)
-        return vdb_obj
+        return vdb
 
     def add_proxy(self, name: str = None, proxy_path: str = None, mesh: bool = True, mode: int = None) -> c4d.BaseObject :
         proxy = c4d.BaseObject(ID_REDSHIFT_PROXY)
@@ -416,7 +416,7 @@ class SceneHelper:
         self.doc.AddUndo(c4d.UNDOTYPE_DELETEOBJ, node)
         proxy.Remove()
         self.doc.InsertObject(proxy_clone, pred=node, checknames=True)
-        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, proxy)   
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, proxy_clone)
         proxy_clone.SetName(node.GetName() + "_Proxy")
         proxy_clone.SetMg(node.GetMg())
         

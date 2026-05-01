@@ -18,7 +18,7 @@ class SceneHelper:
     Class for Secne Objects, Tags, Lights, Proxy and so on.
     """
 
-    def __init__(self, document: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()):
+    def __init__(self, document: c4d.documents.BaseDocument = None):
         if document is None:
             document: c4d.documents.BaseDocument = c4d.documents.GetActiveDocument()
         self.doc: c4d.documents.BaseDocument = document
@@ -335,8 +335,9 @@ class SceneHelper:
         vdb = c4d.BaseObject(ARNOLD_VOLUME) # Create the object.
         vdb.SetName('Arnold Volume') # Set name.
         vdb[C4DAIP_VOLUME_FILENAME] =vdb_path
-        vdb_obj = self.doc.InsertObject(vdb)
-        return vdb_obj
+        self.doc.InsertObject(vdb)
+        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, vdb)
+        return vdb
    
     ### Util ### 
     def add_proxy(self, name: str = None, proxy_path: str = None, mesh: bool = True, mode: int = None) -> c4d.BaseObject :

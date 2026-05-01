@@ -56,5 +56,12 @@
   - Fix `MaterialMaker` direct PBR material creation when both roughness and glossiness are provided.
   - Fix Redshift glossiness mode port from refraction glossiness to reflection glossiness.
   - Fix Octane direct PBR albedo texture creation typo.
+- ### 1.1.3
+  - 修复 `ChangeRenderer` 切换渲染器后未返回 VideoPost 的问题，并参考 Maxon 官方做法清理不兼容的 VideoPost。
+  - 修复 Octane/Redshift/Arnold 场景工具中误用 `InsertObject` 返回值的问题。
+  - 修复 Octane ORBX 加载器引用未定义 `Renderer` 的问题，并返回创建的代理对象。
+  - 修复 Arnold `SceneHelper` 默认参数过早绑定活动文档的问题。
+  - 修复 `Renderer.__init__` 中已确认语义的乱码中文注释。
+  - 优化 `NodeGraghHelper.AddShaderAfter`，在调试模式下记录自动插入节点失败原因。
 ---
 - __coming soon...__
