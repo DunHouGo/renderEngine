@@ -128,7 +128,8 @@ def OpenNodeEditor(actmat: c4d.BaseList2D = None) -> None:
 
         doc:c4d.documents.BaseDocument = actmat.GetDocument()
         doc.SetActiveMaterial(actmat)
-        actmat = doc.GetActiveMaterial()
+        actmat: c4d.BaseMaterial = doc.GetActiveMaterial()
+        actmat.Message(c4d.EVMSG_MATERIALSELECTION)
         # doc.AddUndo(c4d.UNDOTYPE_BITS,actmat)
         # actmat.SetBit(c4d.BIT_ACTIVE)
     c4d.CallCommand(1033872) # Octane Node Editor

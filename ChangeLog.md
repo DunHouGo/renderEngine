@@ -64,4 +64,9 @@
   - 修复 `Renderer.__init__` 中已确认语义的乱码中文注释。
   - 优化 `NodeGraghHelper.AddShaderAfter`，在调试模式下记录自动插入节点失败原因。
 ---
+- ### 1.1.4
+  - Fix `GetPBRImages` path handling so string and `Path` inputs both work when scanning package subfolders.
+  - Improve PBR package name matching for mixed-case names and normalized separators.
+  - Detect `normaldx` and `normalgl` normal map tokens.
+  - Fix `PBRPackage.to_dict` return typing.
 - __coming soon...__

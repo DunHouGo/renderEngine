@@ -78,7 +78,7 @@ RESOLUTION_PATTERN = re.compile(r"(?P<k_val>\d+)[kK]|(?P<num_val>512|1024|2048|4
 UDIM_PATTERN = re.compile(r"1\d{3}")           # 匹配 UDIM 标准格式 (1001-1999)
 
 
-def tokenize(filename: str) -> list[str]:
+def tokenize(filename: str | Path) -> list[str]:
     """
     Split filename into lowercase tokens for easier identification.
 
@@ -95,6 +95,21 @@ def tokenize(filename: str) -> list[str]:
     # 移除后缀并根据常见分隔符（点、下划线、空格、横杠）分割字符串
     name = Path(filename).stem
     return list(filter(None, re.split(r"[._\-\s]+", name.lower())))
+
+def _normalize_package_name(package_name: str | Path) -> str:
+    """
+    Normalize a package name so UI labels, folder names and parsed texture names can be compared.
+
+    Args:
+        package_name: Package name or path-like value to normalize.
+
+    Returns:
+        A lowercase asset name joined by underscores.
+    """
+    tokens = tokenize(Path(package_name).stem)
+    if not tokens:
+        return ""
+    return detect_asset_name(tokens)
 
 def _normalize_texture_token(token: str) -> str:
     """
@@ -197,8 +212,8 @@ def detect_normal_format(tokens: list[str]) -> Optional[str]:
         >>> detect_normal_format(['stone', 'normal', 'dx'])
         'directx'
     """
-    if any(k in tokens for k in ("dx", "directx", "nrm_dx")): return "directx"
-    if any(k in tokens for k in ("gl", "opengl", "nrm_gl")): return "opengl"
+    if any(k in tokens for k in ("dx", "directx", "nrm_dx", "normaldx")): return "directx"
+    if any(k in tokens for k in ("gl", "opengl", "nrm_gl", "normalgl")): return "opengl"
     return None
 
 def detect_asset_name(tokens: list[str]) -> str:
@@ -232,7 +247,7 @@ def detect_asset_name(tokens: list[str]) -> str:
 # Legacy & Helper Functions
 # =========================================================
 
-def IsImageFile(file_path: str) -> bool:
+def IsImageFile(file_path: str | Path) -> bool:
     """
     Check if the file is a supported image format and exists.
     
@@ -249,7 +264,7 @@ def IsImageFile(file_path: str) -> bool:
     path = Path(file_path)
     return path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
 
-def GetPBRName(filename: str) -> Optional[str]:
+def GetPBRName(filename: str | Path) -> Optional[str]:
     """
     Extract the base asset name from a filename by stripping PBR suffixes.
     
@@ -270,7 +285,7 @@ def GetPBRName(filename: str) -> Optional[str]:
         return None
     return detect_asset_name(tokens)
 
-def is_in_package(filename: str, package_name: str) -> bool:
+def is_in_package(filename: str | Path, package_name: str | Path) -> bool:
     """
     Verify if a filename belongs to a specific PBR package.
     
@@ -285,13 +300,16 @@ def is_in_package(filename: str, package_name: str) -> bool:
         >>> is_in_package("Metal02_normal.tga", "metal02")
         True
     """
-    return GetPBRName(filename) == package_name
+    pbr_name = GetPBRName(filename)
+    if not pbr_name:
+        return False
+    return _normalize_package_name(pbr_name) == _normalize_package_name(package_name)
 
-def InPackage(filename: str, package_name: str) -> bool:
+def InPackage(filename: str | Path, package_name: str | Path) -> bool:
     """Legacy wrapper for is_in_package."""
     return is_in_package(filename, package_name)
 
-def GetPBRImages(folder_path: str, package_name: str = "") -> list[str]:
+def GetPBRImages(folder_path: str | Path, package_name: str | Path = "") -> list[str]:
     """
     Find all texture files in a folder belonging to a specific PBR package.
     
@@ -310,12 +328,12 @@ def GetPBRImages(folder_path: str, package_name: str = "") -> list[str]:
     if not folder.is_dir():
         return []
     
-    # If the package_name refers to a subfolder, we prioritize scanning THAT folder
-    search_folder = folder_path
-    search_package = package_name
+    # 如果包名对应子文件夹，优先扫描该子文件夹。
+    search_folder: Path = folder
+    search_package = str(package_name)
     
     if package_name:
-        sub_folder = folder_path / package_name
+        sub_folder = folder / str(package_name)
         if sub_folder.is_dir():
             search_folder = sub_folder
             search_package = ""  # Within its own folder, accept all relevant images
@@ -331,7 +349,7 @@ def GetPBRImages(folder_path: str, package_name: str = "") -> list[str]:
                 
     return results
 
-def GetPackageNames(folder_path: str) -> list[str]:
+def GetPackageNames(folder_path: str | Path) -> list[str]:
     """
     Scan a directory and return all unique PBR asset names found.
     
@@ -481,7 +499,7 @@ class PBRPackage:
         """
         return {slot: path for slot, path in self.selected.items() if slot in PBR_SLOTS}
 
-    def to_dict(self) -> dict[str, ...]:
+    def to_dict(self) -> dict[str, object]:
         """
         Serialize package information.
 
@@ -517,7 +535,7 @@ class PBRLibraryScanner:
         >>> for pkg in scanner.packages.values():
         ...     print(pkg.name, pkg.resolution)
     """
-    def __init__(self, root: str):
+    def __init__(self, root: str | Path):
         self.root = root
         self.packages: dict[str, PBRPackage] = {}
 
@@ -610,7 +628,7 @@ def _build_package_from_paths(paths: list[str], asset_name: str, resolution: Opt
         return package
     return None
 
-def pbr_from_file(file_path: str, resolution: Optional[int] = None) -> Optional[PBRPackage]:
+def pbr_from_file(file_path: str | Path, resolution: Optional[int] = None) -> Optional[PBRPackage]:
     """
     Given an absolute path to a single texture, find all related textures in the same folder 
     and return a resolved PBRPackage.
@@ -627,10 +645,10 @@ def pbr_from_file(file_path: str, resolution: Optional[int] = None) -> Optional[
     asset_name = detect_asset_name(tokens)
     
     # Get all sibling images belonging to this asset
-    paths = GetPBRImages(str(path.parent), asset_name)
+    paths = GetPBRImages(path.parent, asset_name)
     return _build_package_from_paths(paths, asset_name, resolution)
 
-def pbr_from_folder(folder: str, name: str, resolution: Optional[int] = None) -> Optional[PBRPackage]:
+def pbr_from_folder(folder: str | Path, name: str, resolution: Optional[int] = None) -> Optional[PBRPackage]:
     """
     Creates a resolved PBRPackage by scanning a folder for textures matching a specific asset name.
     
