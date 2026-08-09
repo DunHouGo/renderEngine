@@ -219,7 +219,7 @@ class AOVHelper:
         # read
         aov_type = aov[RNDAOV_TYPE]
         
-        if aov_name is None:
+        if not aov_name:
             aov[RNDAOV_NAME] = AOV_SYMBOLS[aov_type]
         else:
             aov[RNDAOV_NAME] = aov_name

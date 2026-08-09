@@ -829,7 +829,7 @@ class NodeGraghHelper:
                 if not self.IsPortValid(port_in):
                     return False
             else:
-                port_out: maxon.GraphNode = self.GetPort(sourceNode, source_out)
+                port_in: maxon.GraphNode = self.GetPort(node, new_input)
 
             self.ConnectPorts(port_out, port_in)
         return node
@@ -1222,7 +1222,7 @@ class NodeGraghHelper:
         for port in iterTree(shader):
             pid = str(port.GetId())
             last = pid.split('.')[-1].lower()
-            if (not target and last in out_ids) or pid == target or last == target.lower():
+            if (not target and last in out_ids) or pid == target or (target is not None and last == target.lower()):
                 return port
 
     # 获取端口所在节点 ==> ok
@@ -1491,10 +1491,10 @@ class NodeGraghHelper:
         Returns:
             Union[list[maxon.GraphNode],maxon.GraphNode,None]: the port or the list of ports
         """
-        # Bail when the passed node is not a true node.
-        if port.GetKind() != maxon.NODE_KIND.INPORT or port.GetKind() != maxon.NODE_KIND.OUTPORT:
+        # Bail when the passed port is neither an input nor an output port.
+        if port.GetKind() != maxon.NODE_KIND.INPORT and port.GetKind() != maxon.NODE_KIND.OUTPORT:
             return
-        
+
         result = list()
 
         if port.GetKind() != maxon.NODE_KIND.INPORT:

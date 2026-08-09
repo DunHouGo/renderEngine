@@ -289,8 +289,10 @@ class AOVHelper:
         """        
         if self.vp is None:
             raise RuntimeError(f"Can't get the {self.vpname} VideoPost")
-        
+
         aovs = self.get_aovs(driver)
+        if not aovs:
+            return
         aovs[0].Remove()
         
     # 删除全部aov ==> ok
@@ -319,7 +321,9 @@ class AOVHelper:
             raise RuntimeError(f"Can't get the {self.vpname} VideoPost")
         
         aov = self.get_aov(driver,aov_type)
-        aov.Remove()        
+        if aov is None:
+            return
+        aov.Remove()
 
     # 设置Cryptomatte ==> ok
     def setup_cryptomatte(self, driver: c4d.BaseObject=None):

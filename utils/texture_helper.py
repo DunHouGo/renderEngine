@@ -143,7 +143,7 @@ class TextureHelper:
             maxon.AssetTypes.File(), trueID, maxon.Id(), maxon.ASSET_FIND_MODE.LATEST)
         if assetDescription is None:
             raise RuntimeError("Could not find the asset.")
-        if maxon.AssetInterface.IsAssetValid(assetDescription) and assetDescription.IsNullValue():
+        if maxon.AssetInterface.IsAssetValid(assetDescription) and not assetDescription.IsNullValue():
             return assetDescription
     
     def IsAsset(self, asset) -> bool:
@@ -265,7 +265,7 @@ class TextureHelper:
                     textureSuffix = textureURL.GetSuffix()
                     textureURL.ClearSuffix()
                     assetID = textureURL.GetName().replace('~','')
-                    collectState = self.CollectAssetTextures(new_file_path,assetID,name)
+                    collectState = self.CollectAssetTextures(new_file_path,assetID,assetName)
                     # 设置
                     if collectState == True:
                         textureOwner[textureParam] = assetName

@@ -74,12 +74,13 @@ class EasyTransaction:
     # Enable this to merge all the change within the Transaction
     MERGE_UNDO: bool = True
 
-    def __init__(self, material: c4d.BaseMaterial):
+    def __init__(self, material: c4d.BaseMaterial, nodespaceId: maxon.Id = None):
         """
         Creates a new EasyTransaction class with a material.
 
         Args:
             material (c4d.BaseMaterial): the host material
+            nodespaceId (maxon.Id, optional): the nodespace to use, fill none to use the active NodeSpace.
         """
 
         # if the matreial is not a NodeGraghHelper instance, we get the gragh of it
@@ -87,7 +88,7 @@ class EasyTransaction:
 
             self.nodeMaterial: c4d.NodeMaterial = material.GetNodeMaterialReference()
             # node
-            self.nodespaceId: maxon.Id = c4d.GetActiveNodeSpaceId()
+            self.nodespaceId: maxon.Id = nodespaceId if nodespaceId is not None else c4d.GetActiveNodeSpaceId()
             if self.nodespaceId is None:
                 raise ValueError("Cannot retrieve the NodeSpace.")
             self.nimbusRef: maxon.NimbusBaseRef = material.GetNimbusRef(self.nodespaceId)

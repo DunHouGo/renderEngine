@@ -219,7 +219,7 @@ class AOVHelper:
         for aov in allaovs:
             if aov.GetParameter(c4d.REDSHIFT_AOV_TYPE) == aov_type:
                 aov_update_list.append(aov)
-        aovs_temp = [allaovs.remove(aov_update) for aov_update in aov_update_list]
+        aovs_temp = [aov for aov in allaovs if aov not in aov_update_list]
         [self.set_aov(aov_update, aov_id, aov_attrib) for aov_update in aov_update_list]
         aovs_temp.extend(aov_update_list)
         return redshift.RendererSetAOVs(self.vp, aovs_temp)

@@ -18,7 +18,7 @@ AR_NODESPACE = "com.autodesk.arnold.nodespace"
 VR_NODESPACE = "com.chaos.class.vray_node_renderer_nodespace"
 CE_NODESPACE = "com.centileo.class.nodespace"
 
-NODESPACE_INDEX = [RS_NODESPACE, AR_NODESPACE, VR_NODESPACE]
+NODESPACE_INDEX = [RS_NODESPACE, AR_NODESPACE, VR_NODESPACE, CE_NODESPACE]
 
 KEYWORD_LIST = ["$type", "$id", "$query", "$qmode", "$commands"]
 
@@ -580,7 +580,7 @@ class DescriptionConverter:
         if self.sourceSpcace is None:
             nodespace = self._guess_nodespace()
             if nodespace:
-                self.source_index = NODESPACE_INDEX[nodespace]
+                self.sourceSpcace = nodespace
 
         if self.sourceSpcace not in NODESPACE_INDEX:
             raise ValueError(f"Invalid source space: {self.sourceSpcace}")
@@ -948,7 +948,7 @@ class DescriptionHelper(NodeGraghHelper):
         Get the node space of the material.
         """
         for nodespace in NODESPACE_INDEX:
-            if self.nodeMaterial.HasSpace(NODESPACE_INDEX[nodespace]):
+            if self.nodeMaterial.HasSpace(nodespace):
                 return nodespace
 
     def ConvertTo(self, data: dict, target_space: str) -> None:

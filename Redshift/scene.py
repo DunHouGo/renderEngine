@@ -231,7 +231,7 @@ class SceneHelper:
                 randcolor = c4d.Vector(*generate_random_color(1))
             else:
                 random.seed(seed)
-                randcolor = NodeGraghHelper.generate_random_color(1)
+                randcolor = generate_random_color(1)
             light[c4d.ID_BASELIST_ICON_COLOR] = randcolor
 
     ### Tag ###

@@ -4,6 +4,7 @@
 """Provides classes that expose commonly used constants as immutable objects.
 """
 from ..constants.corona_id import *
+from ..constants import ID_MATERIAL_MANAGER
 from .scene import SceneHelper as Scene
 from .material import MaterialHelper as Material
 from .aov import AOVHelper as AOV
@@ -53,7 +54,7 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
 
     c4d.CallCommand(1040908) # Node material editor...
     # Only scroll to the material if material manager is opened
-    if c4d.IsCommandChecked(Renderer.ID_MATERIAL_MANAGER):
+    if c4d.IsCommandChecked(ID_MATERIAL_MANAGER):
         c4d.CallCommand(16297) # Scroll To Selection
 
 # 打开aov管理器
