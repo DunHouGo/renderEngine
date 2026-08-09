@@ -767,9 +767,14 @@ class NodeGraghHelper:
     # 在Wire中插入Shader （New） ==> ok
     def InsertShader(self, nodeID: Union[str,maxon.Id], wireData: Union[maxon.Wires, list[maxon.GraphNode]], 
                      input_port: list[Union[str,maxon.GraphNode]],
-                     output_port: list[Union[str,maxon.GraphNode]]) -> Optional[maxon.GraphNode]:
+                     output_port: list[Union[str,maxon.GraphNode]],
+                     remove_wires=False) -> Optional[maxon.GraphNode]:
         """
         Insert a shder into a wire, and keep connect.
+
+        If the source (out) port of the wire has other outgoing connections (fan-out to
+        other nodes), only the selected wire is replaced and the other connections on
+        that out port are preserved.
 
         Args:
             nodeID (Union[str,maxon.Id]): the node id
@@ -790,12 +795,12 @@ class NodeGraghHelper:
         if not self.IsPort(next_port):
             raise ValueError(f'{sys._getframe().f_code.co_name} wireData Error: cannot get a in-port form wireData')
 
-        # remove wire
+        # remove only the selected wire, other wires on pre_port (fan-out) stay untouched
         if isinstance(pre_port, maxon.GraphNode) or isinstance(next_port, maxon.GraphNode):
             self.RemoveConnection(next_port,pre_port)
 
-        # add our new shader and wires
-        return self.AddConnectShader(nodeID,input_port,pre_port,output_port,next_port)
+        # add our new shader and wires, remove_wires=False so pre_port's other connections are kept
+        return self.AddConnectShader(nodeID,input_port,pre_port,output_port,next_port,remove_wires=remove_wires)
 
     # 在节点后自动插入Shader ==> ok
     def AddShaderAfter(self, sourceNode: maxon.GraphNode, newNode: Union[str,maxon.GraphNode],
