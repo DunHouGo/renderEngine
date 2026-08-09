@@ -71,7 +71,7 @@ class NodeGraghHelper:
             if self.graph.IsNullValue():
                 raise ValueError("Cannot retrieve the graph of this nimbus NodeSpace.")
             
-            if c4d.GetC4DVersion() < 202500:
+            if c4d.GetC4DVersion() < 2025000:
                 self.root: maxon.GraphNode = self.graph.GetRoot()
             else:
                 self.root: maxon.GraphNode = self.graph.GetViewRoot()
@@ -1518,6 +1518,7 @@ class NodeGraghHelper:
         if callback:
             with self.graph.BeginTransaction() as transaction:
                 result = maxon.GraphModelHelper.GetSelectedConnections(self.graph, callback)
+                # Union[list[maxon.GraphNode], bool]
                 transaction.Commit()
         else:
             result = maxon.GraphModelHelper.GetSelectedConnections(self.graph, callback)
