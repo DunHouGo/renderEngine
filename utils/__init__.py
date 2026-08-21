@@ -74,12 +74,13 @@ class EasyTransaction:
     # Enable this to merge all the change within the Transaction
     MERGE_UNDO: bool = True
 
-    def __init__(self, material: c4d.BaseMaterial):
+    def __init__(self, material: c4d.BaseMaterial, nodespaceId: maxon.Id = None):
         """
         Creates a new EasyTransaction class with a material.
 
         Args:
             material (c4d.BaseMaterial): the host material
+            nodespaceId (maxon.Id, optional): the nodespace to use, fill none to use the active NodeSpace.
         """
 
         # if the matreial is not a NodeGraghHelper instance, we get the gragh of it
@@ -89,13 +90,16 @@ class EasyTransaction:
             # Prefer the active space only when this material actually owns it.
             # Newly created Renderer materials are often edited while another
             # renderer's NodeSpace is active, which otherwise yields a null graph.
-            active_nodespace = c4d.GetActiveNodeSpaceId()
-            candidates = [active_nodespace, RS_NODESPACE, AR_NODESPACE, VR_NODESPACE, CL_NODESPACE]
-            self.nodespaceId: maxon.Id = None
-            for candidate in candidates:
-                if candidate is not None and self.nodeMaterial.HasSpace(candidate):
-                    self.nodespaceId = candidate
-                    break
+            if nodespaceId is not None:
+                self.nodespaceId: maxon.Id = nodespaceId
+            else:
+                active_nodespace = c4d.GetActiveNodeSpaceId()
+                candidates = [active_nodespace, RS_NODESPACE, AR_NODESPACE, VR_NODESPACE, CL_NODESPACE]
+                self.nodespaceId: maxon.Id = None
+                for candidate in candidates:
+                    if candidate is not None and self.nodeMaterial.HasSpace(candidate):
+                        self.nodespaceId = candidate
+                        break
             if self.nodespaceId is None:
                 raise ValueError("Cannot retrieve a NodeSpace owned by the material.")
             self.nimbusRef: maxon.NimbusBaseRef = material.GetNimbusRef(self.nodespaceId)

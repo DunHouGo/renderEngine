@@ -769,9 +769,14 @@ class NodeGraghHelper:
     # 在Wire中插入Shader （New） ==> ok
     def InsertShader(self, nodeID: Union[str,maxon.Id], wireData: Union[maxon.Wires, list[maxon.GraphNode]], 
                      input_port: list[Union[str,maxon.GraphNode]],
-                     output_port: list[Union[str,maxon.GraphNode]]) -> Optional[maxon.GraphNode]:
+                     output_port: list[Union[str,maxon.GraphNode]],
+                     remove_wires=False) -> Optional[maxon.GraphNode]:
         """
         Insert a shder into a wire, and keep connect.
+
+        If the source (out) port of the wire has other outgoing connections (fan-out to
+        other nodes), only the selected wire is replaced and the other connections on
+        that out port are preserved.
 
         Args:
             nodeID (Union[str,maxon.Id]): the node id
@@ -795,12 +800,12 @@ class NodeGraghHelper:
         if not self.IsPort(next_port):
             raise ValueError(f'{sys._getframe().f_code.co_name} wireData Error: cannot get a in-port form wireData')
 
-        # remove wire
+        # remove only the selected wire, other wires on pre_port (fan-out) stay untouched
         if isinstance(pre_port, maxon.GraphNode) or isinstance(next_port, maxon.GraphNode):
             self.RemoveConnection(next_port,pre_port)
 
-        # add our new shader and wires
-        return self.AddConnectShader(nodeID,input_port,pre_port,output_port,next_port)
+        # add our new shader and wires, remove_wires=False so pre_port's other connections are kept
+        return self.AddConnectShader(nodeID,input_port,pre_port,output_port,next_port,remove_wires=remove_wires)
 
     # 在节点后自动插入Shader ==> ok
     def AddShaderAfter(self, sourceNode: maxon.GraphNode, newNode: Union[str,maxon.GraphNode],
@@ -829,7 +834,7 @@ class NodeGraghHelper:
                 if not self.IsPortValid(port_in):
                     return False
             else:
-                port_out: maxon.GraphNode = self.GetPort(sourceNode, source_out)
+                port_in: maxon.GraphNode = self.GetPort(node, new_input)
 
             self.ConnectPorts(port_out, port_in)
         return node
@@ -1222,7 +1227,7 @@ class NodeGraghHelper:
         for port in iterTree(shader):
             pid = str(port.GetId())
             last = pid.split('.')[-1].lower()
-            if (not target and last in out_ids) or pid == target or last == target.lower():
+            if (not target and last in out_ids) or pid == target or (target is not None and last == target.lower()):
                 return port
 
     # 获取端口所在节点 ==> ok
@@ -1491,10 +1496,10 @@ class NodeGraghHelper:
         Returns:
             Union[list[maxon.GraphNode],maxon.GraphNode,None]: the port or the list of ports
         """
-        # Bail when the passed node is not a true node.
-        if port.GetKind() != maxon.NODE_KIND.INPORT or port.GetKind() != maxon.NODE_KIND.OUTPORT:
+        # Bail when the passed port is neither an input nor an output port.
+        if port.GetKind() != maxon.NODE_KIND.INPORT and port.GetKind() != maxon.NODE_KIND.OUTPORT:
             return
-        
+
         result = list()
 
         if port.GetKind() != maxon.NODE_KIND.INPORT:
@@ -1523,6 +1528,7 @@ class NodeGraghHelper:
         if callback:
             with self.graph.BeginTransaction() as transaction:
                 result = maxon.GraphModelHelper.GetSelectedConnections(self.graph, callback)
+                # Union[list[maxon.GraphNode], bool]
                 transaction.Commit()
         else:
             result = maxon.GraphModelHelper.GetSelectedConnections(self.graph, callback)

@@ -68,7 +68,7 @@ def GetVersion() -> str :
     try:
         import redshift
         return redshift.GetCoreVersion()
-    except:
+    except Exception:
         return str(0)
 
 def OpenIPR():

@@ -72,4 +72,21 @@
 - ### 1.1.5
   - PBR material creators now limit preview size to 64x64 before insert/activate, so 4K TIFF/EXR sets no longer freeze Cinema 4D.
   - Remove duplicate undo and forced `material.Update(True, True)` from package and description PBR creation.
+  - 修复 `NodeGraghHelper.GetPort` 未指定 `port_id` 时因 `None` 调用 `.lower()` 报错的问题。
+  - 修复 `NodeGraghHelper.GetConnectedPorts` 端口类型判断的永真式逻辑错误（`or` 应为 `and`），此前该方法始终直接返回 `None`。
+  - 修复 `NodeGraghHelper.AddShaderAfter` 在未指定 `new_input` 且需自动查找输入端口分支下 `port_in` 未定义导致的 `UnboundLocalError`。
+  - 修复 `TextureHelper.GetAsset` 资产有效性判断取反的问题。
+  - 修复 `TextureHelper.GetAllTexturePaths` 收集资产贴图时引用未赋值变量 `name` 导致的 `NameError`。
+  - 修复 `CheckArgCallback` 装饰器对无默认值参数比较类型不匹配导致的 `TypeError`。
+  - 修复 `_description_helper.NODESPACE_INDEX` 缺少 CentiLeo 节点空间，及两处按值索引列表写反的问题。
+  - `EasyTransaction.__init__` 新增可选参数 `nodespaceId`（默认行为不变），修复 `rebuild_image_path` 调用时因缺少该参数报错的问题。
+  - 修复 Corona `OpenNodeEditor` 引用未导入的 `Renderer.ID_MATERIAL_MANAGER` 导致的 `NameError`。
+  - 修复 Corona/Octane `MaterialHelper.SetMaterial` 调用 `IsCoronaMaterial`/`IsOctaneMaterial` 时漏传 `material` 参数的问题。
+  - 修复 Octane `SetOctaneDialogOpened` 缺少 `nonlocal` 声明导致对话框已打开状态无法正确记录的问题。
+  - 修复 Octane `create_aov_shader` 传入空字符串 `aov_name` 时未回退到默认符号名的问题。
+  - 修复 Redshift `update_aov` 使用 `list.remove()` 返回值（均为 `None`）拼接 AOV 列表，导致提交给 `RendererSetAOVs` 的列表被污染的问题。
+  - 修复 Redshift `SceneHelper.add_light_modifier` 在 `seed` 非零分支调用不存在的 `NodeGraghHelper.generate_random_color` 导致的 `AttributeError`。
+  - 修复 Redshift `MaterialHelper.Create` 版本号按字符串而非数值比较的问题（新增 `_parse_version`），避免多位版本号（如 2026.10.0）比较结果错误，以更好适配不同 Redshift 版本。
+  - 收紧 Redshift 版本获取处的裸 `except`，改为 `except Exception`，避免掩盖非预期错误。
+  - 修复 Arnold `remove_last_aov`/`remove_aov_type` 在未找到对应 AOV 时未做空值检查即调用 `.Remove()` 导致的 `IndexError`/`AttributeError`。
 - __coming soon...__

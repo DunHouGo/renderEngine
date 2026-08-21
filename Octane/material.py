@@ -184,7 +184,7 @@ class MaterialHelper:
         """
 
         if isinstance(material, c4d.BaseMaterial):
-            if not self.IsOctaneMaterial():
+            if not self.IsOctaneMaterial(material):
                 raise ValueError("This is not an Octane Material")
         self.material: c4d.BaseMaterial = material
         return self.material

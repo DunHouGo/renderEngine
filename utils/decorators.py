@@ -203,8 +203,7 @@ def CheckArgCallback(*param_specs) -> Callable:
             for name, param in sig.parameters.items():
                 if name in args_dict:
                     if param.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD):
-                        if len(new_args) <= param.default:
-                            new_args.append(args_dict[name])
+                        new_args.append(args_dict[name])
                     else:
                         new_kwargs[name] = args_dict[name]
             

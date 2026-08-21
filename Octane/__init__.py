@@ -39,6 +39,7 @@ def GetVersion() -> str :
         return OctaneDialogOpened
     
     def SetOctaneDialogOpened( value = True ):
+        nonlocal OctaneDialogOpened
         OctaneDialogOpened = value
     
     if GetRenderEngine() == ID_OCTANE_VIDEO_POST:

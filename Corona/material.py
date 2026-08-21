@@ -83,7 +83,7 @@ class MaterialHelper:
         """
 
         if isinstance(material, c4d.BaseMaterial):
-            if not self.IsCoronaMaterial():
+            if not self.IsCoronaMaterial(material):
                 raise ValueError("This is not an Corona Material")
         self.material: c4d.BaseMaterial = material
         return self.material

@@ -214,6 +214,19 @@ class MaterialHelper(NodeGraghHelper):
         port.SetValue(maxon.NODE.ATTRIBUTE.HIDEPORTINNODEGRAPH, maxon.Bool(False))
         return port
 
+    @staticmethod
+    def _parse_version(version: str) -> tuple[int, ...]:
+        """
+        Parse a dotted version string (e.g. "2026.4.0") into a tuple of ints
+        so version comparisons are numeric instead of lexicographic.
+        """
+        parts = []
+        for chunk in str(version).split('.'):
+            try:
+                parts.append(int(chunk))
+            except ValueError:
+                break
+        return tuple(parts)
 
     # 创建材质(Standard Surface) ==> OK
     def Create(self, name: str = "") -> c4d.BaseMaterial:
@@ -228,10 +241,12 @@ class MaterialHelper(NodeGraghHelper):
         """
         # OpenPBR is the preferred Redshift model. Older Redshift builds simply
         # fail to instantiate it and use Standard Material as a compatibility path.
-        try:
-            return self.CreateOpenPBR(name)
-        except Exception:
-            return self.CreateDefault(name)
+        if MaterialHelper._parse_version(MaterialHelper._getversion()) >= (2026, 4, 0):
+            try:
+                return self.CreateOpenPBR(name)
+            except Exception:
+                pass
+        return self.CreateDefault(name)
 
     @staticmethod
     def CreateDefault(name: str = "") -> c4d.BaseMaterial:
