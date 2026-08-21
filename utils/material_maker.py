@@ -47,6 +47,66 @@ def is_valid_path(path: Any) -> bool:
         return False
     return os.path.exists(str(path))
 
+
+def _limit_pbr_preview(material: Optional[c4d.BaseMaterial]) -> None:
+    """Limit a newly created PBR material to a 64x64 preview.
+
+    Full-size previews of 4K TIFF/EXR sets can freeze Cinema 4D while the
+    material manager samples every connected map.
+
+    Args:
+        material: The Cinema 4D material to protect.
+    """
+    if not isinstance(material, c4d.BaseMaterial):
+        return
+    try:
+        material[c4d.MATERIAL_PREVIEWSIZE] = 6  # 64x64
+    except Exception:
+        pass
+
+
+def _insert_created_pbr_material(helper: Any, doc: c4d.documents.BaseDocument) -> Optional[c4d.BaseMaterial]:
+    """Insert and activate a created PBR material without forcing a full preview.
+
+    ``InsertMaterial`` already records undo, so this helper does not add a
+    second undo step. Preview size is reduced before the material becomes
+    active so 4K maps are not sampled at full resolution.
+
+    Args:
+        helper: A renderer material helper or a ``c4d.BaseMaterial``.
+        doc: The document that should own the material.
+
+    Returns:
+        The inserted material, or ``None`` when *helper* is invalid.
+
+    Example:
+        >>> return _insert_created_pbr_material(tr, doc)
+    """
+    material = getattr(helper, "material", helper)
+    if not isinstance(material, c4d.BaseMaterial):
+        return None
+    fast_preview = getattr(helper, "FastPreview", None)
+    if callable(fast_preview):
+        try:
+            fast_preview(True)
+        except Exception:
+            _limit_pbr_preview(material)
+    else:
+        _limit_pbr_preview(material)
+    if material.GetDocument() is None:
+        insert = getattr(helper, "InsertMaterial", None)
+        if callable(insert):
+            insert(doc)
+        else:
+            doc.InsertMaterial(material)
+            doc.AddUndo(c4d.UNDOTYPE_NEW, material)
+    set_active = getattr(helper, "SetActive", None)
+    if callable(set_active):
+        set_active(doc)
+    elif doc.GetActiveMaterial() is not material:
+        doc.SetActiveMaterial(material)
+    return material
+
 def _ApplyPBRDescription(material: c4d.BaseMaterial, nodespace: str, data: dict, doc: c4d.documents.BaseDocument) -> bool:
     """Internal helper to apply graph description to a material."""
     if C4D_VERSION < 2024200:
@@ -57,13 +117,12 @@ def _ApplyPBRDescription(material: c4d.BaseMaterial, nodespace: str, data: dict,
         return False
         
     maxon.GraphDescription.ApplyDescription(graph, data)
-    material.Message(c4d.MSG_UPDATE)
-    
+    _limit_pbr_preview(material)
     if material.GetDocument() is None:
         doc.InsertMaterial(material)
-    
-    doc.SetActiveMaterial(material)
-    material.Update(True, True)
+        doc.AddUndo(c4d.UNDOTYPE_NEW, material)
+    if doc.GetActiveMaterial() is not material:
+        doc.SetActiveMaterial(material)
     return True
 
 # =========================================================
@@ -368,11 +427,7 @@ def ArnoldPbrFromPackage(folder: str, pbr_name: str, triplanar: bool = True, use
         except Exception as e:
             raise RuntimeError (f"Unable to setup texture with {e}")
 
-    tr.InsertMaterial(doc)
-    doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, tr.material)
-    tr.SetActive(doc)
-    
-    return tr.material
+    return _insert_created_pbr_material(tr, doc)
 
 def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_displacement: bool = False, doc: c4d.documents.BaseDocument=None) -> Optional[c4d.BaseMaterial]:
     if doc is None:
@@ -387,27 +442,26 @@ def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, u
         standard_surface = tr.GetRootBRDF()
         tr.SetName(standard_surface, pbr_name)
 
-        # get ports
-        albedoPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.base_color')
-        roughnessPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_roughness')
-        metalnessPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.metalness')
-        opacityPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.opacity_color')
-        reflectionPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color')
-        emissionPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_color')
-        gloss2roughPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
-        specularPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color')
-        sheenPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.material.sheen_color')
-        anisotropyPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.material.refl_aniso')
+        # Resolve ports from the actual root material model, including OpenPBR.
+        albedoPort = tr.GetPBRPort(standard_surface, "diffuse")
+        roughnessPort = tr.GetPBRPort(standard_surface, "roughness")
+        metalnessPort = tr.GetPBRPort(standard_surface, "metalness")
+        opacityPort = tr.GetPBRPort(standard_surface, "opacity")
+        reflectionPort = tr.GetPBRPort(standard_surface, "transmission")
+        emissionPort = tr.GetPBRPort(standard_surface, "emission")
+        gloss2roughPort = tr.GetPBRPort(standard_surface, "glossiness")
+        specularPort = tr.GetPBRPort(standard_surface, "specular")
+        sheenPort = tr.GetPBRPort(standard_surface, "sheen")
+        anisotropyPort = tr.GetPBRPort(standard_surface, "anisotropy")
         triplanarID = "com.redshift3d.redshift4c4d.nodes.core.triplanar"
         triplanarInput = "com.redshift3d.redshift4c4d.nodes.core.triplanar.imagex"
         triplanarOutput = "com.redshift3d.redshift4c4d.nodes.core.triplanar.outcolor"
 
         try:
-            if "ao" in data:
+            if "ao" in data and "diffuse" in data:
                 aoNode = tr.AddTexture(filepath=data['ao'], shadername="AO")
-                if "diffuse" in data:
-                    tr.AddTextureTree(filepath=data['diffuse'], shadername="Albedo", raw=False, color_mode=True, color_mutiplier=aoNode, target_port=albedoPort, triplaner_node=triplaner)
-            else:
+                tr.AddTextureTree(filepath=data['diffuse'], shadername="Albedo", raw=False, color_mode=True, color_mutiplier=aoNode, target_port=albedoPort, triplaner_node=triplaner)
+            elif "diffuse" in data:
                 tr.AddTextureTree(filepath=data['diffuse'], shadername="Albedo", raw=False, target_port=albedoPort, triplaner_node=triplaner)
             
             if "metalness" in data:
@@ -420,10 +474,13 @@ def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, u
                         tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
 
             if "roughness" in data:
-                tr.SetPortData(gloss2roughPort, False)
+                # 新版 Redshift Standard Material 可能移除了该兼容端口。
+                if tr.IsPortValid(gloss2roughPort):
+                    tr.SetPortData(gloss2roughPort, False)
                 node = tr.AddTextureTree(filepath=data['roughness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplaner)
             elif "glossiness" in data:
-                tr.SetPortData(gloss2roughPort,True)
+                if tr.IsPortValid(gloss2roughPort):
+                    tr.SetPortData(gloss2roughPort, True)
                 node = tr.AddTextureTree(filepath=data['glossiness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplaner)
 
             if "normal" in data:
@@ -462,11 +519,7 @@ def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, u
         except Exception as e:
             raise RuntimeError (f"Unable to setup texture with {e}")
 
-    tr.InsertMaterial(doc)
-    doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, tr.material)
-    tr.SetActive(doc)
-    
-    return tr.material
+    return _insert_created_pbr_material(tr, doc)
 
 def OctanePbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_displacement: bool = False, doc: c4d.documents.BaseDocument=None) -> Optional[c4d.BaseMaterial]:
     if doc is None:
@@ -527,11 +580,7 @@ def OctanePbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use
     if triplaner:
         tr.AddTriplanars()
 
-    tr.InsertMaterial(doc)
-    doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, tr.material)
-    tr.SetActive(doc)
-    
-    return tr.material
+    return _insert_created_pbr_material(tr, doc)
 
 def CoronaPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_displacement: bool = False, doc: c4d.documents.BaseDocument=None) -> Optional[c4d.BaseMaterial]:
     if doc is None:
@@ -580,11 +629,7 @@ def CoronaPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use
     if "transmission" in data:
         tr.AddBitmapShader(data['transmission'], "Transmission", c4d.CORONA_PHYSICAL_MATERIAL_REFRACT_AMOUNT_TEXTURE)
 
-    tr.InsertMaterial(doc)
-    doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, tr.material)
-    tr.SetActive(doc)
-
-    return tr.material
+    return _insert_created_pbr_material(tr, doc)
 
 def VrayPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_displacement: bool = False, doc: c4d.documents.BaseDocument=None) -> Optional[c4d.BaseMaterial]:
     if doc is None:
@@ -687,11 +732,7 @@ def VrayPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_d
         except Exception as e:
             raise RuntimeError (f"Unable to setup texture with {e}")
 
-    tr.InsertMaterial(doc)
-    doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, tr.material)
-    tr.SetActive(doc)
-    
-    return tr.material
+    return _insert_created_pbr_material(tr, doc)
 
 #=============================================
 # PBR Material with PBR slots
@@ -774,11 +815,7 @@ def ArnoldPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
                     if triplanar:
                         tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), "input", "output")
 
-            tr.InsertMaterial(doc)
-            if isinstance(doc, c4d.documents.BaseDocument):
-                doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, tr.material)
-            tr.SetActive(doc)
-            return tr.material
+            return _insert_created_pbr_material(tr, doc)
             
         except Exception as e:
             raise RuntimeError (f"Unable to setup texture with {e}")
@@ -798,17 +835,17 @@ def RedshiftPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, al
                 standard_surface = tr.GetRootBRDF()
                 tr.SetName(standard_surface, name)
 
-                # get ports
-                albedoPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.base_color')
-                roughnessPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_roughness')
-                metalnessPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.metalness')
-                opacityPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.opacity_color')
-                reflectionPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color')
-                emissionPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_color')
-                gloss2roughPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
-                specularPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color')
-                sheenPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.material.sheen_color')
-                anisotropyPort = tr.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.material.refl_aniso')
+                # Resolve ports from the actual root material model, including OpenPBR.
+                albedoPort = tr.GetPBRPort(standard_surface, "diffuse")
+                roughnessPort = tr.GetPBRPort(standard_surface, "roughness")
+                metalnessPort = tr.GetPBRPort(standard_surface, "metalness")
+                opacityPort = tr.GetPBRPort(standard_surface, "opacity")
+                reflectionPort = tr.GetPBRPort(standard_surface, "transmission")
+                emissionPort = tr.GetPBRPort(standard_surface, "emission")
+                gloss2roughPort = tr.GetPBRPort(standard_surface, "glossiness")
+                specularPort = tr.GetPBRPort(standard_surface, "specular")
+                sheenPort = tr.GetPBRPort(standard_surface, "sheen")
+                anisotropyPort = tr.GetPBRPort(standard_surface, "anisotropy")
                 triplanarID = "com.redshift3d.redshift4c4d.nodes.core.triplanar"
                 triplanarInput = "com.redshift3d.redshift4c4d.nodes.core.triplanar.imagex"
                 triplanarOutput = "com.redshift3d.redshift4c4d.nodes.core.triplanar.outcolor"
@@ -834,10 +871,12 @@ def RedshiftPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, al
                             tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
 
                 if roughness:
-                    tr.SetPortData(gloss2roughPort, False)
+                    if tr.IsPortValid(gloss2roughPort):
+                        tr.SetPortData(gloss2roughPort, False)
                     tr.AddTextureTree(filepath=roughness, shadername="Roughness",triplaner_node=triplanar, target_port=roughnessPort)               
                 elif glossiness:
-                    tr.SetPortData(gloss2roughPort,True)
+                    if tr.IsPortValid(gloss2roughPort):
+                        tr.SetPortData(gloss2roughPort, True)
                     node = tr.AddTextureTree(filepath=glossiness, shadername="Roughness", target_port=roughnessPort, triplaner_node=triplanar)
             
                 if normal:
@@ -865,11 +904,7 @@ def RedshiftPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, al
                     node = tr.AddTexture(filepath=sheen, shadername="Sheen", raw=True, target_port=sheenPort)
                     if triplanar:
                         tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
-            tr.InsertMaterial(doc)
-            if isinstance(doc, c4d.documents.BaseDocument):
-                doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, tr.material)
-            tr.SetActive(doc)
-            return tr.material
+            return _insert_created_pbr_material(tr, doc)
 
         except Exception as e:
             raise RuntimeError (f"Unable to setup texture with {e}")
@@ -960,11 +995,7 @@ def VrayPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo
                 if triplanar:
                     tr.InsertShader(triplanarID, tr.GetConnectedPortsAfter(node), triplanarInput, triplanarOutput)
 
-        tr.InsertMaterial(doc)
-        if isinstance(doc, c4d.documents.BaseDocument):
-            doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, tr.material)
-        tr.SetActive(doc)
-        return tr.material
+        return _insert_created_pbr_material(tr, doc)
 
     except Exception as e:
         raise RuntimeError(f"Failed to import the textures {e}")
@@ -1033,11 +1064,7 @@ def OctanePbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
         if triplanar:
             mat.AddTriplanars()
 
-        mat.InsertMaterial(doc)
-        if isinstance(doc, c4d.documents.BaseDocument):
-            doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, mat.material)
-        mat.SetActive(doc)
-        return mat.material
+        return _insert_created_pbr_material(mat, doc)
     
     except Exception as e:
         pass
@@ -1086,9 +1113,7 @@ def CoronaPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
         if emission:  
             tr.AddBitmapShader(emission, "Emission", c4d.CORONA_PHYSICAL_MATERIAL_EMISSION_TEXTURE)
 
-        tr.InsertMaterial(doc)
-        tr.SetActive(doc)
-        return tr.material
+        return _insert_created_pbr_material(tr, doc)
     
     except Exception as e:
         raise RuntimeError(f"Failed to create the material {e}")

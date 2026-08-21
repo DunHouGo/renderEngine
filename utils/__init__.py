@@ -86,10 +86,18 @@ class EasyTransaction:
         if isinstance(material, c4d.BaseMaterial):
 
             self.nodeMaterial: c4d.NodeMaterial = material.GetNodeMaterialReference()
-            # node
-            self.nodespaceId: maxon.Id = c4d.GetActiveNodeSpaceId()
+            # Prefer the active space only when this material actually owns it.
+            # Newly created Renderer materials are often edited while another
+            # renderer's NodeSpace is active, which otherwise yields a null graph.
+            active_nodespace = c4d.GetActiveNodeSpaceId()
+            candidates = [active_nodespace, RS_NODESPACE, AR_NODESPACE, VR_NODESPACE, CL_NODESPACE]
+            self.nodespaceId: maxon.Id = None
+            for candidate in candidates:
+                if candidate is not None and self.nodeMaterial.HasSpace(candidate):
+                    self.nodespaceId = candidate
+                    break
             if self.nodespaceId is None:
-                raise ValueError("Cannot retrieve the NodeSpace.")
+                raise ValueError("Cannot retrieve a NodeSpace owned by the material.")
             self.nimbusRef: maxon.NimbusBaseRef = material.GetNimbusRef(self.nodespaceId)
             if self.nimbusRef is None:
                 raise ValueError("Cannot retrieve the nimbus reference for that NodeSpace.")
@@ -152,8 +160,12 @@ class EasyTransaction:
 
     # auto commit
     def __exit__(self, type, value, traceback) -> None:
-        if self.transaction is not None:
+        if self.transaction is None:
+            return
+        if type is None:
             self.transaction.Commit(self.setting)
+        else:
+            self.transaction.Rollback()
 
 ###  ==========  Functions  ==========  ###
 

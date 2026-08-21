@@ -71,7 +71,7 @@ class NodeGraghHelper:
             if self.graph.IsNullValue():
                 raise ValueError("Cannot retrieve the graph of this nimbus NodeSpace.")
             
-            if c4d.GetC4DVersion() < 202500:
+            if c4d.GetC4DVersion() < 2025000:
                 self.root: maxon.GraphNode = self.graph.GetRoot()
             else:
                 self.root: maxon.GraphNode = self.graph.GetViewRoot()
@@ -750,7 +750,8 @@ class NodeGraghHelper:
                     input_ports = input_ports[:len(connect_inNodes)]
                 for i, input_port in enumerate(input_ports):
                     input: maxon.GraphNode = self.GetPort(shader,input_port)
-                    connect_inNodes[i].Connect(input)
+                    if self.IsPortValid(input) and self.IsPortValid(connect_inNodes[i]):
+                        connect_inNodes[i].Connect(input)
         
         if output_ports is not None:
             if connect_outNodes is not None:
@@ -760,7 +761,8 @@ class NodeGraghHelper:
                     output_ports = output_ports[:len(connect_outNodes)]
                 for i, output_port in enumerate(output_ports):
                     output: maxon.GraphNode = self.GetPort(shader,output_port)
-                    output.Connect(connect_outNodes[i])
+                    if self.IsPortValid(output) and self.IsPortValid(connect_outNodes[i]):
+                        output.Connect(connect_outNodes[i])
 
         return shader
 
@@ -780,8 +782,11 @@ class NodeGraghHelper:
         Returns:
             Optional[maxon.GraphNode]: the node we added.
         """
-        if not wireData:
+        if wireData is None:
             wireData: list[maxon.GraphNode,maxon.Wires] = self.GetActiveWires() # last select wire
+
+        if not wireData or len(wireData) < 2:
+            return None
 
         pre_port: maxon.GraphNode = wireData[0]
         if not self.IsPort(pre_port):
@@ -1600,6 +1605,8 @@ class NodeGraghHelper:
         Returns:
             bool[bool]: True if connected, False to break loop.
         """
+        if not self.IsPortValid(portA) or not self.IsPortValid(portB):
+            return False
         if isinstance(portA,maxon.GraphNode) and portA.GetKind() != maxon.NODE_KIND.INPORT:
             if isinstance(portB,maxon.GraphNode) and portB.GetKind() != maxon.NODE_KIND.OUTPORT:
                 portA.Connect(portB)

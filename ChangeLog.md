@@ -69,4 +69,7 @@
   - Improve PBR package name matching for mixed-case names and normalized separators.
   - Detect `normaldx` and `normalgl` normal map tokens.
   - Fix `PBRPackage.to_dict` return typing.
+- ### 1.1.5
+  - PBR material creators now limit preview size to 64x64 before insert/activate, so 4K TIFF/EXR sets no longer freeze Cinema 4D.
+  - Remove duplicate undo and forced `material.Update(True, True)` from package and description PBR creation.
 - __coming soon...__

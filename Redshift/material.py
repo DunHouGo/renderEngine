@@ -23,6 +23,93 @@ class MaterialHelper(NodeGraghHelper):
     openpbr_mat = "com.redshift3d.redshift4c4d.nodes.core.openpbrmaterial"
     valid_mat = [standard_mat, redshift_mat, openpbr_mat]
 
+    # Public port table for the supported Redshift material models.
+    PBR_PORTS: dict[str, dict[str, str]] = {
+        standard_mat: {
+            "diffuse": f"{standard_mat}.base_color",
+            "specular": f"{standard_mat}.refl_color",
+            "roughness": f"{standard_mat}.refl_roughness",
+            "metalness": f"{standard_mat}.metalness",
+            "opacity": f"{standard_mat}.opacity_color",
+            "transmission": f"{standard_mat}.refr_color",
+            "emission": f"{standard_mat}.emission_color",
+            "normal": f"{standard_mat}.bump_input",
+            "coat_normal": f"{standard_mat}.coat_bump_input",
+            "glossiness": f"{standard_mat}.refl_isglossiness",
+            "sheen": f"{standard_mat}.sheen_color",
+            "anisotropy": f"{standard_mat}.refl_aniso",
+        },
+        redshift_mat: {
+            "diffuse": f"{redshift_mat}.diffuse_color",
+            "specular": f"{redshift_mat}.refl_color",
+            "roughness": f"{redshift_mat}.refl_roughness",
+            "metalness": f"{redshift_mat}.metalness",
+            "opacity": f"{redshift_mat}.opacity_color",
+            "transmission": f"{redshift_mat}.refr_color",
+            "emission": f"{redshift_mat}.emission_color",
+            "normal": f"{redshift_mat}.bump_input",
+            "coat_normal": f"{redshift_mat}.coat_bump_input",
+            "sheen": f"{redshift_mat}.sheen_color",
+            "anisotropy": f"{redshift_mat}.refl_aniso",
+        },
+        openpbr_mat: {
+            "base_weight": f"{openpbr_mat}.base_weight",
+            "diffuse": f"{openpbr_mat}.base_color",
+            "base_color": f"{openpbr_mat}.base_color",
+            "diffuse_roughness": f"{openpbr_mat}.base_diffuse_roughness",
+            "base_diffuse_roughness": f"{openpbr_mat}.base_diffuse_roughness",
+            "metalness": f"{openpbr_mat}.base_metalness",
+            "base_metalness": f"{openpbr_mat}.base_metalness",
+            "specular": f"{openpbr_mat}.specular_color",
+            "specular_color": f"{openpbr_mat}.specular_color",
+            "specular_weight": f"{openpbr_mat}.specular_weight",
+            "specular_ior": f"{openpbr_mat}.specular_ior",
+            "roughness": f"{openpbr_mat}.specular_roughness",
+            "specular_roughness": f"{openpbr_mat}.specular_roughness",
+            "anisotropy": f"{openpbr_mat}.specular_roughness_anisotropy",
+            "specular_roughness_anisotropy": f"{openpbr_mat}.specular_roughness_anisotropy",
+            "transmission": f"{openpbr_mat}.transmission_color",
+            "transmission_color": f"{openpbr_mat}.transmission_color",
+            "transmission_weight": f"{openpbr_mat}.transmission_weight",
+            "transmission_depth": f"{openpbr_mat}.transmission_depth",
+            "transmission_scatter": f"{openpbr_mat}.transmission_scatter",
+            "transmission_scatter_anisotropy": f"{openpbr_mat}.transmission_scatter_anisotropy",
+            "transmission_dispersion_scale": f"{openpbr_mat}.transmission_dispersion_scale",
+            "transmission_dispersion_abbe_number": f"{openpbr_mat}.transmission_dispersion_abbe_number",
+            "subsurface": f"{openpbr_mat}.subsurface_weight",
+            "subsurface_weight": f"{openpbr_mat}.subsurface_weight",
+            "subsurface_color": f"{openpbr_mat}.subsurface_color",
+            "subsurface_radius": f"{openpbr_mat}.subsurface_radius",
+            "subsurface_radius_scale": f"{openpbr_mat}.subsurface_radius_scale",
+            "subsurface_scatter_anisotropy": f"{openpbr_mat}.subsurface_scatter_anisotropy",
+            "emission": f"{openpbr_mat}.emission_color",
+            "emission_color": f"{openpbr_mat}.emission_color",
+            "emission_luminance": f"{openpbr_mat}.emission_luminance",
+            "opacity": f"{openpbr_mat}.geometry_opacity",
+            "geometry_opacity": f"{openpbr_mat}.geometry_opacity",
+            "normal": f"{openpbr_mat}.geometry_normal",
+            "geometry_normal": f"{openpbr_mat}.geometry_normal",
+            "coat_normal": f"{openpbr_mat}.geometry_coat_normal",
+            "geometry_coat_normal": f"{openpbr_mat}.geometry_coat_normal",
+            "coat_color": f"{openpbr_mat}.coat_color",
+            "coat_weight": f"{openpbr_mat}.coat_weight",
+            "coat_darkening": f"{openpbr_mat}.coat_darkening",
+            "coat_ior": f"{openpbr_mat}.coat_ior",
+            "coat_roughness": f"{openpbr_mat}.coat_roughness",
+            "coat_roughness_anisotropy": f"{openpbr_mat}.coat_roughness_anisotropy",
+            "sheen": f"{openpbr_mat}.fuzz_color",
+            "sheen_weight": f"{openpbr_mat}.fuzz_weight",
+            "sheen_roughness": f"{openpbr_mat}.fuzz_roughness",
+            "tangent": f"{openpbr_mat}.geometry_tangent",
+            "coat_tangent": f"{openpbr_mat}.geometry_coat_tangent",
+            "thin_film_weight": f"{openpbr_mat}.thin_film_weight",
+            "thin_film_thickness": f"{openpbr_mat}.thin_film_thickness",
+            "thin_film_ior": f"{openpbr_mat}.thin_film_ior",
+            "thin_walled": f"{openpbr_mat}.geometry_thin_walled",
+            "output": f"{openpbr_mat}.outcolor",
+        },
+    }
+
     # 初始化 ==> OK
     def __init__(self, material: c4d.BaseMaterial|str = None):
         
@@ -38,19 +125,30 @@ class MaterialHelper(NodeGraghHelper):
             self.material = material
 
         # Acess data
-        self.graph = None
+        # NodeGraghHelper defaults to the active NodeSpace, which is unsafe when
+        # the material editor is showing another renderer. Initialize the common
+        # fields locally and bind this helper only to the material's RS graph.
+        if not isinstance(self.material, c4d.BaseMaterial):
+            raise ValueError(f"Expected a BaseMaterial, got {type(self.material)}")
+        self.nodeMaterial = self.material.GetNodeMaterialReference()
+        if self.nodeMaterial is None:
+            raise ValueError("Cannot retrieve nodeMaterial reference")
+        self._support_renderers = [
+            "net.maxon.nodespace.standard",
+            "com.autodesk.arnold.nodespace",
+            RS_NODESPACE,
+            "com.chaos.class.vray_node_renderer_nodespace",
+            "com.centileo.class.nodespace",
+        ]
+        self.nodespaceId = RS_NODESPACE
         self.nimbusRef = self.material.GetNimbusRef(RS_NODESPACE)
-
-        if isinstance(self.material, c4d.Material):
-            nodeMaterial = self.material.GetNodeMaterialReference()
-            self.graph: maxon.GraphModelInterface = nodeMaterial.GetGraph(RS_NODESPACE)
-
-        # Super the NodeGraghHelper
-        super().__init__(self.material)
-
-        # A final check
+        self.graph = self.nodeMaterial.GetGraph(RS_NODESPACE)
         if self.graph.IsNullValue():
             raise RuntimeError("Empty graph associated with Redshift node space.")
+        if c4d.GetC4DVersion() < 2025000:
+            self.root = self.graph.GetRoot()
+        else:
+            self.root = self.graph.GetViewRoot()
 
     def __str__(self):
         return (f"A Redshift {self.__class__.__name__} Instance with Material : {self.material.GetName()}")
@@ -68,8 +166,53 @@ class MaterialHelper(NodeGraghHelper):
         try:
             import redshift
             return redshift.GetCoreVersion()
-        except:
+        except Exception:
             return str(0)
+
+    def GetPBRPortId(self, material_node: maxon.GraphNode, channel: str) -> str | None:
+        """Return the full Redshift port ID for a material channel.
+
+        :param material_node: The Redshift material node to inspect.
+        :param channel: A normalized channel name such as ``diffuse`` or ``roughness``.
+        :return: The full port ID, or ``None`` when the material model has no such channel.
+        :rtype: str | None
+        """
+        if not isinstance(material_node, maxon.GraphNode):
+            return None
+        asset_id = self.GetAssetId(material_node)
+        return self.PBR_PORTS.get(asset_id, {}).get(channel)
+
+    def GetPBRPort(self, material_node: maxon.GraphNode, channel: str) -> maxon.GraphNode | None:
+        """Return a validated material port for a normalized PBR channel.
+
+        :param material_node: The Redshift material node to inspect.
+        :param channel: A normalized PBR channel name.
+        :return: The matching valid graph port, or ``None`` when unavailable.
+        :rtype: maxon.GraphNode | None
+        """
+        port_id = self.GetPBRPortId(material_node, channel)
+        if not port_id:
+            return None
+        port = self.GetPort(material_node, port_id)
+        return port if self.IsPortValid(port) else None
+
+    def IsOpenPBR(self, material_node: maxon.GraphNode | None = None) -> bool:
+        """Return whether the given or current root material is an OpenPBR node.
+
+        :param material_node: An optional Redshift material node; the root BRDF is used by default.
+        :return: ``True`` when the node asset is Redshift OpenPBR.
+        :rtype: bool
+        """
+        node = material_node if material_node is not None else self.GetRootBRDF()
+        return isinstance(node, maxon.GraphNode) and self.GetAssetId(node) == self.openpbr_mat
+
+    def _ExposePortIfValid(self, node: maxon.GraphNode, port_id: str) -> maxon.GraphNode | None:
+        """Expose a material port only when it exists in the installed Redshift node definition."""
+        port = self.GetPort(node, port_id)
+        if not self.IsPortValid(port):
+            return None
+        port.SetValue(maxon.NODE.ATTRIBUTE.HIDEPORTINNODEGRAPH, maxon.Bool(False))
+        return port
 
 
     # 创建材质(Standard Surface) ==> OK
@@ -83,12 +226,11 @@ class MaterialHelper(NodeGraghHelper):
             The Material entry name.
 
         """
-        if MaterialHelper._getversion() >= '2026.4.0':
-            try:
-                return self.CreateOpenPBR(name)
-            except:
-                return self.CreateDefault(name)
-        else:
+        # OpenPBR is the preferred Redshift model. Older Redshift builds simply
+        # fail to instantiate it and use Standard Material as a compatibility path.
+        try:
+            return self.CreateOpenPBR(name)
+        except Exception:
             return self.CreateDefault(name)
 
     @staticmethod
@@ -105,16 +247,16 @@ class MaterialHelper(NodeGraghHelper):
         # Add a graph for the redshift node space
         nodeMaterial.CreateDefaultGraph(RS_NODESPACE)  
 
-        with EasyTransaction(material) as tr:
-
-            # ports
-            brdf: maxon.GraphNode = tr.GetRootBRDF()
-            tr.SetName(brdf,'Standard Surface')
-            tr.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color")
-            tr.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_weight")
-            tr.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_weight")
-            tr.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_color")
-            tr.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color")
+        helper = MaterialHelper(material)
+        with helper.graph.BeginTransaction() as transaction:
+            brdf: maxon.GraphNode = helper.GetRootBRDF()
+            helper.SetName(brdf, 'Standard Surface')
+            helper._ExposePortIfValid(brdf, f"{MaterialHelper.standard_mat}.refr_color")
+            helper._ExposePortIfValid(brdf, f"{MaterialHelper.standard_mat}.refr_weight")
+            helper._ExposePortIfValid(brdf, f"{MaterialHelper.standard_mat}.emission_weight")
+            helper._ExposePortIfValid(brdf, f"{MaterialHelper.standard_mat}.emission_color")
+            helper._ExposePortIfValid(brdf, f"{MaterialHelper.standard_mat}.refl_color")
+            transaction.Commit()
 
         return material
     
@@ -134,19 +276,17 @@ class MaterialHelper(NodeGraghHelper):
         if standardMaterial is None or standardMaterial is None:
             raise Exception("Failed to create Redshift Standard Surface Material")
         name = name if name else "Redshift Material"
-        with EasyTransaction(standardMaterial) as tr:
-            oldrs = tr.GetRootBRDF()
-
-            output_inport = tr.GetPort(tr.GetOutput(), "com.redshift3d.redshift4c4d.node.output.surface")
-            tr.RemoveShader(oldrs)
-            rsMaterial = tr.AddRSMaterial(target=output_inport)
-            tr.SetName(rsMaterial,'RS Material')
-            tr.SetShaderValue(rsMaterial,'com.redshift3d.redshift4c4d.nodes.core.material.refl_roughness',0.2)
-
-            # ports
-            #standardMaterial.ExposeUsefulPorts()
-            tr.AddPort(tr.GetRootBRDF(),'com.redshift3d.redshift4c4d.nodes.core.material.transl_color')
-            tr.AddPort(tr.GetRootBRDF(),'com.redshift3d.redshift4c4d.nodes.core.material.transl_weight')
+        helper = MaterialHelper(standardMaterial)
+        with helper.graph.BeginTransaction() as transaction:
+            oldrs = helper.GetRootBRDF()
+            output_inport = helper.GetPort(helper.GetOutput(), "com.redshift3d.redshift4c4d.node.output.surface")
+            helper.RemoveShader(oldrs)
+            rsMaterial = helper.AddRSMaterial(target=output_inport)
+            helper.SetName(rsMaterial, 'RS Material')
+            helper.SetShaderValue(rsMaterial, f"{MaterialHelper.redshift_mat}.refl_roughness", 0.2)
+            helper._ExposePortIfValid(helper.GetRootBRDF(), f"{MaterialHelper.redshift_mat}.transl_color")
+            helper._ExposePortIfValid(helper.GetRootBRDF(), f"{MaterialHelper.redshift_mat}.transl_weight")
+            transaction.Commit()
         return standardMaterial
 
     @staticmethod
@@ -159,25 +299,55 @@ class MaterialHelper(NodeGraghHelper):
         name : str
             The Material entry name.
         """
-        from maxon import GraphDescription
         material: c4d.BaseMaterial = c4d.BaseMaterial(c4d.Mmaterial)
+        if material is None:
+            raise ValueError("Cannot create a BaseMaterial")
         name = name if name else "OpenPBR Material"
         material.SetName(name)
-        graph: maxon.NodesGraphModelRef = maxon.GraphDescription.GetGraph(material, nodeSpaceId=maxon.NodeSpaceIdentifiers.RedshiftMaterial)
-        GraphDescription.ApplyDescription(
-            graph, {
-                GraphDescription.Type: "#~.output",
-                "#~.surface": {
-                    GraphDescription.Type: "#com.redshift3d.redshift4c4d.nodes.core.openpbrmaterial",
-                }
-            }
-        )
-        with EasyTransaction(material) as tr:
-
-            brdf: maxon.GraphNode = tr.GetRootBRDF()
-            tr.SetName(brdf, name)
-            tr.AddPort(brdf,"com.redshift3d.redshift4c4d.nodes.core.openpbrmaterial.geometry_opacity")
-            tr.AddPort(brdf,"geometry_normal")
+        nodeMaterial = material.GetNodeMaterialReference()
+        if nodeMaterial is None:
+            raise ValueError("Cannot retrieve nodeMaterial reference")
+        nodeMaterial.CreateDefaultGraph(RS_NODESPACE)
+        helper = MaterialHelper(material)
+        with helper.graph.BeginTransaction() as transaction:
+            old_brdf = helper.GetRootBRDF()
+            output_port = helper.GetPort(helper.GetOutput(), "com.redshift3d.redshift4c4d.node.output.surface")
+            if not helper.IsPortValid(output_port):
+                raise RuntimeError("Redshift output surface port is unavailable")
+            if helper.IsNode(old_brdf):
+                helper.RemoveShader(old_brdf, keep_wire=False)
+            brdf = helper.AddOpenPBRMaterial(target=output_port)
+            if not helper.IsNode(brdf):
+                raise RuntimeError("Redshift OpenPBR node could not be created")
+            helper.SetName(brdf, name)
+            for port_id in (
+                "diffuse",
+                "diffuse_roughness",
+                "metalness",
+                "specular",
+                "specular_weight",
+                "roughness",
+                "anisotropy",
+                "transmission",
+                "transmission_weight",
+                "emission",
+                "emission_luminance",
+                "opacity",
+                "normal",
+                "coat_normal",
+                "coat_color",
+                "coat_weight",
+                "coat_roughness",
+                "sheen",
+                "sheen_weight",
+                "sheen_roughness",
+                "tangent",
+                "coat_tangent",
+            ):
+                port_id = helper.GetPBRPortId(brdf, port_id)
+                if port_id:
+                    helper._ExposePortIfValid(brdf, port_id)
+            transaction.Commit()
 
         return material
     
@@ -185,26 +355,20 @@ class MaterialHelper(NodeGraghHelper):
     def ExposeUsefulPorts(self):
         if self.graph is None:
             raise ValueError("can't retrieve the graph of this nimbus ref")
-        
-        # expose port callback
-        def ExposeHidePorts(node):
-            transmission_color = node.GetInputs().FindChild("com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color")
-            transmission = node.GetInputs().FindChild("com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_weight")
-            emission = node.GetInputs().FindChild("com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_weight")
-            emission_color = node.GetInputs().FindChild("com.redshift3d.redshift4c4d.nodes.core.standardmaterial.emission_color")
-            refl_color = node.GetInputs().FindChild("com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color")
-            # Display the port in the node editor
+
+        def expose_ports(node: maxon.GraphNode) -> bool:
+            """Expose the common PBR ports on one Redshift material node."""
+            asset_id = self.GetAssetId(node)
             with self.graph.BeginTransaction() as transaction:
-                refl_color.SetValue(maxon.NODE.ATTRIBUTE.HIDEPORTINNODEGRAPH, maxon.Bool(False))
-                transmission.SetValue(maxon.NODE.ATTRIBUTE.HIDEPORTINNODEGRAPH, maxon.Bool(False))
-                transmission_color.SetValue(maxon.NODE.ATTRIBUTE.HIDEPORTINNODEGRAPH, maxon.Bool(False))
-                emission.SetValue(maxon.NODE.ATTRIBUTE.HIDEPORTINNODEGRAPH, maxon.Bool(False))
-                emission_color.SetValue(maxon.NODE.ATTRIBUTE.HIDEPORTINNODEGRAPH, maxon.Bool(False))
+                for channel in self.PBR_PORTS.get(asset_id, {}):
+                    port_id = self.GetPBRPortId(node, channel)
+                    if port_id:
+                        self._ExposePortIfValid(node, port_id)
                 transaction.Commit()
             return True
-        
-        # Do Expose defined ports on standard_surface
-        maxon.GraphModelHelper.FindNodesByAssetId(self.graph, "com.redshift3d.redshift4c4d.nodes.core.standardmaterial", False, ExposeHidePorts)
+
+        for asset_id in self.valid_mat:
+            maxon.GraphModelHelper.FindNodesByAssetId(self.graph, asset_id, False, expose_ports)
 
         return self.material
 
@@ -275,13 +439,14 @@ class MaterialHelper(NodeGraghHelper):
             # 更改Standard Surface节点名称
             redshiftMaterial.SetName(standard_surface, f'{mat_name} Shader')
 
-            # get ports
-            albedoPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.base_color')
-            specularPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_color')
-            roughnessPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_roughness')
-            metalnessPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.metalness')
-            opacityPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.opacity_color')
-            reflectionPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refr_color')
+            # Resolve the ports from the actual material model, including OpenPBR.
+            albedoPort = redshiftMaterial.GetPBRPort(standard_surface, "diffuse")
+            specularPort = redshiftMaterial.GetPBRPort(standard_surface, "specular")
+            roughnessPort = redshiftMaterial.GetPBRPort(standard_surface, "roughness")
+            metalnessPort = redshiftMaterial.GetPBRPort(standard_surface, "metalness")
+            opacityPort = redshiftMaterial.GetPBRPort(standard_surface, "opacity")
+            reflectionPort = redshiftMaterial.GetPBRPort(standard_surface, "transmission")
+            glossinessPort = redshiftMaterial.GetPBRPort(standard_surface, "glossiness")
 
             try:
                 # Base Color            
@@ -299,9 +464,8 @@ class MaterialHelper(NodeGraghHelper):
                     
                     if "Glossiness" in tex_data:
                         self.AddTextureTree(filepath=tex_data['Glossiness'], shadername="Glossiness", target_port=roughnessPort)
-                        isglossinessPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
-
-                        tr.SetPortData(isglossinessPort, True)
+                        if redshiftMaterial.IsPortValid(glossinessPort):
+                            tr.SetPortData(glossinessPort, True)
 
                     elif "Roughness" in tex_data:
                         roughnessNode = self.AddTextureTree(filepath=tex_data['Roughness'], shadername="Roughness", scaleramp=True, target_port=roughnessPort)
@@ -315,9 +479,8 @@ class MaterialHelper(NodeGraghHelper):
 
                     elif "Glossiness" in tex_data:
                         self.AddTextureTree(filepath=tex_data['Glossiness'], shadername="Glossiness", scaleramp=True, target_port=roughnessPort)
-                        isglossinessPort = redshiftMaterial.GetPort(standard_surface,'com.redshift3d.redshift4c4d.nodes.core.standardmaterial.refl_isglossiness')
- 
-                        tr.SetPortData(isglossinessPort, True)                  
+                        if redshiftMaterial.IsPortValid(glossinessPort):
+                            tr.SetPortData(glossinessPort, True)
 
                 if "Normal" in tex_data:
                     self.AddBumpTree(filepath=tex_data['Normal'], shadername="Normal")
@@ -363,7 +526,7 @@ class MaterialHelper(NodeGraghHelper):
             False: inpput full node id 
         """
         if self.graph is None:
-            return None        
+            return None
 
         shader = self.AddShader(nodeId)
 
@@ -423,6 +586,26 @@ class MaterialHelper(NodeGraghHelper):
             output_ports=['com.redshift3d.redshift4c4d.nodes.core.standardmaterial.outcolor'], 
             connect_outNodes = target
             )
+
+    def AddOpenPBRMaterial(
+        self,
+        inputs: list[NodeInput] | NodeInput = None,
+        target: list[NodeInput] | NodeInput = None,
+    ) -> maxon.GraphNode:
+        """Add an OpenPBR material node and optionally connect it to graph ports.
+
+        :param inputs: Optional source ports connected to the OpenPBR base color.
+        :param target: Optional target ports connected from the OpenPBR output.
+        :return: The newly created OpenPBR graph node.
+        :rtype: maxon.GraphNode
+        """
+        return self.AddConnectShader(
+            nodeID=self.openpbr_mat,
+            input_ports=[self.PBR_PORTS[self.openpbr_mat]["diffuse"]],
+            connect_inNodes=inputs,
+            output_ports=[f"{self.openpbr_mat}.outcolor"],
+            connect_outNodes=target,
+        )
     
     def AddRSMaterial(self,  inputs: list[NodeInput] = None, target: list[NodeInput] = None) -> maxon.GraphNode :
         """
@@ -819,15 +1002,21 @@ class MaterialHelper(NodeGraghHelper):
         nodeId = "bumpmap"
         shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core." + nodeId, maxon.DataDictionary())
         type_port = self.GetPort(shader, 'com.redshift3d.redshift4c4d.nodes.core.bumpmap.inputtype')
-        self.SetPortData(type_port,bump_mode)
+        # 部分 Redshift 版本没有 inputtype 端口，不能将 None 传给 SetPortData。
+        if self.IsPortValid(type_port):
+            self.SetPortData(type_port, bump_mode)
 
         if input_port:
             if isinstance(input_port, maxon.GraphNode):
                 input: maxon.GraphNode = self.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpmap.input')
-                input_port.Connect(input)
+                if self.IsPortValid(input):
+                    input_port.Connect(input)
 
                 
         output: maxon.GraphNode = self.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.bumpmap.out')
+        if not self.IsPortValid(output):
+            shader.Remove()
+            return None
         
         if target_port is not None:
             if isinstance(target_port, maxon.GraphNode):
@@ -837,13 +1026,16 @@ class MaterialHelper(NodeGraghHelper):
             material = self.GetRootBRDF()
             if self.GetAssetId(material) == self.standard_mat:
                 bump_port = self.GetPort(material,"com.redshift3d.redshift4c4d.nodes.core.standardmaterial.bump_input")
-                output.Connect(bump_port)
+                if self.IsPortValid(bump_port):
+                    output.Connect(bump_port)
             elif self.GetAssetId(material) == self.redshift_mat:
                 bump_port = self.GetPort(material,"com.redshift3d.redshift4c4d.nodes.core.material.bump_input")
-                output.Connect(bump_port)
+                if self.IsPortValid(bump_port):
+                    output.Connect(bump_port)
             elif self.GetAssetId(material) == self.openpbr_mat:
                 bump_port = self.GetPort(material,"com.redshift3d.redshift4c4d.nodes.core.openpbrmaterial.geometry_normal")
-                output.Connect(bump_port)
+                if self.IsPortValid(bump_port):
+                    output.Connect(bump_port)
         return shader
     
     # 创建Bump Blender ==> OK
@@ -883,7 +1075,7 @@ class MaterialHelper(NodeGraghHelper):
                 input: maxon.GraphNode = self.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacement.texmap')
                 try:
                     input_port.Connect(input)
-                except:
+                except Exception:
                     pass
                 
         output: maxon.GraphNode = self.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.displacement.out')
@@ -892,7 +1084,7 @@ class MaterialHelper(NodeGraghHelper):
             if isinstance(target_port, maxon.GraphNode):                
                 try:
                     output.Connect(target_port)
-                except:
+                except Exception:
                     pass
 
         else:
@@ -1093,30 +1285,40 @@ class MaterialHelper(NodeGraghHelper):
         
         nodeId = "texturesampler"
         shader: maxon.GraphNode = self.graph.AddChild("", "com.redshift3d.redshift4c4d.nodes.core." + nodeId, maxon.DataDictionary())
+        if not self.IsNode(shader):
+            return None
         self.SetName(shader,shadername)
         
         texPort: maxon.GraphNode = self.GetPort(shader,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.tex0")
+        if not self.IsPortValid(texPort):
+            shader.Remove()
+            return None
         texFilenamePort: maxon.GraphNode = texPort.FindChild('path')
         colorspacePort: maxon.GraphNode = texPort.FindChild("colorspace")
         gammaPort: maxon.GraphNode = self.GetPort(shader,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.tex0_gamma")
-        self.SetPortData(gammaPort, gamma)
+        if self.IsPortValid(gammaPort):
+            self.SetPortData(gammaPort, gamma)
         # tex path
         if filepath is not None:
-            self.SetPortData(texFilenamePort, filepath)
+            if self.IsPortValid(texFilenamePort):
+                self.SetPortData(texFilenamePort, filepath)
         
         # color space
         if raw:
-            self.SetPortData(colorspacePort, "RS_INPUT_COLORSPACE_RAW")
+            if self.IsPortValid(colorspacePort):
+                self.SetPortData(colorspacePort, "RS_INPUT_COLORSPACE_RAW")
         else:
-            self.SetPortData(colorspacePort, "RS_INPUT_COLORSPACE_SRGB")
+            if self.IsPortValid(colorspacePort):
+                self.SetPortData(colorspacePort, "RS_INPUT_COLORSPACE_SRGB")
         
         # target connect
-        if target_port:
+        if self.IsPortValid(target_port):
             if isinstance(target_port, maxon.GraphNode):
                 outPort: maxon.GraphNode = self.GetPort(shader,'com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor')
                 try:
-                    outPort.Connect(target_port)
-                except:
+                    if self.IsPortValid(outPort):
+                        outPort.Connect(target_port)
+                except Exception:
                     pass
 
         return shader
@@ -1133,10 +1335,25 @@ class MaterialHelper(NodeGraghHelper):
         
         # add
         tex_node = self.AddTexture(shadername, filepath, raw, gamma)
+        if not self.IsNode(tex_node):
+            return None
         color_mutiplier_port = self.GetPort(tex_node,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.color_multiplier")
+        tex_output = self.GetPort(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor")
+        if not self.IsPortValid(tex_output):
+            tex_node.Remove()
+            return None
         
         if color_mode:
             cc_node = self.AddColorCorrect(target=target_port)
+            if not self.IsNode(cc_node):
+                tex_node.Remove()
+                return None
+            self.AddConnection(
+                tex_node,
+                "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor",
+                cc_node,
+                "com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.input",
+            )
         
         else:
             cc_node = self.AddColorCorrect()
@@ -1146,7 +1363,7 @@ class MaterialHelper(NodeGraghHelper):
                 ramp_node = self.AddRamp(target=target_port)
         
         if triplaner_node:
-            triplaner_node = self.AddTriPlanar(self.GetPort(tex_node,"com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor"), self.GetPort(cc_node,"com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.input"))
+            triplaner_node = self.AddTriPlanar(tex_output, self.GetPort(cc_node,"com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.input"))
 
         else:
             self.AddConnection(tex_node, "com.redshift3d.redshift4c4d.nodes.core.texturesampler.outcolor", cc_node, "com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection.input")
