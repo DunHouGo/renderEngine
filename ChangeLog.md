@@ -89,4 +89,7 @@
   - 修复 Redshift `MaterialHelper.Create` 版本号按字符串而非数值比较的问题（新增 `_parse_version`），避免多位版本号（如 2026.10.0）比较结果错误，以更好适配不同 Redshift 版本。
   - 收紧 Redshift 版本获取处的裸 `except`，改为 `except Exception`，避免掩盖非预期错误。
   - 修复 Arnold `remove_last_aov`/`remove_aov_type` 在未找到对应 AOV 时未做空值检查即调用 `.Remove()` 导致的 `IndexError`/`AttributeError`。
+  - 创建 PBR 颜色贴图始终使用 `color_mode`，不再插入 Scalar Ramp 把颜色变成灰度。
+  - 识别 `specularlevel`、`scatteringweight` 等 GSG 通道名，并跳过 preview 图；通道检测优先使用文件名末尾的通道词。
+  - PBR 通道识别对齐 RSBumpMap：单词边界匹配、最靠后且最长关键词优先；创建器的颜色和粗糙度树默认只接 Color Correct，不再插入 Ramp。
 - __coming soon...__

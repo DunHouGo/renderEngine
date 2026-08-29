@@ -367,15 +367,11 @@ def ArnoldPbrFromPackage(folder: str, pbr_name: str, triplanar: bool = True, use
 
         try:
             # Base Color            
-            if "ao" in data:
+            if "ao" in data and "diffuse" in data:
                 aoNode = tr.AddTexture(filepath=data['ao'], shadername="AO")
-                if "diffuse" in data:
-                    tr.AddTextureTree(filepath=data['diffuse'], shadername="Albedo", raw=False, color_mode=True, color_mutiplier=aoNode, target_port=albedoPort, triplaner_node=triplanar)
-            else:
-                tr.AddTextureTree(filepath=data['diffuse'], shadername="Albedo", raw=False, target_port=albedoPort, triplaner_node=triplanar)
-            # if triplaner:
-            #     mat.AddTriPlanar(mat.GetPort(albedo,mat.GetConvertOutput(albedo)), 
-            #                     mat.GetPort(albedo_cc := mat.GetNextNode(albedo)[0] ,mat.GetConvertInput(albedo_cc)))
+                tr.AddTextureTree(filepath=data['diffuse'], shadername="Albedo", raw=False, color_mode=True, color_mutiplier=aoNode, target_port=albedoPort, triplaner_node=triplanar)
+            elif "diffuse" in data:
+                tr.AddTextureTree(filepath=data['diffuse'], shadername="Albedo", raw=False, color_mode=True, target_port=albedoPort, triplaner_node=triplanar)
             
             if "metalness" in data:
                 node = tr.AddTexture(filepath=data['metalness'], shadername="metalness",target_port=metalnessPort)
@@ -385,10 +381,10 @@ def ArnoldPbrFromPackage(folder: str, pbr_name: str, triplanar: bool = True, use
                     node = tr.AddTexture(filepath=data['anisotropy'], shadername="anisotropy",target_port=anisotropyPort)
                     if triplanar:
                         tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
-                if "specular" in data:
-                    node = tr.AddTexture(filepath=data['specular'], shadername="Specular",target_port=specularPort)
-                    if triplanar:
-                        tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
+            if "specular" in data:
+                node = tr.AddTexture(filepath=data['specular'], shadername="Specular",target_port=specularPort)
+                if triplanar:
+                    tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
             if "sheen" in data:
                 node = tr.AddTexture(filepath=data['sheen'], shadername="sheen",target_port=sheenPort)
                 if triplanar:
@@ -396,10 +392,10 @@ def ArnoldPbrFromPackage(folder: str, pbr_name: str, triplanar: bool = True, use
 
 
             if "roughness" in data and "glossiness" not in data:
-                node = tr.AddTextureTree(filepath=data['roughness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplanar)
+                node = tr.AddTextureTree(filepath=data['roughness'], shadername="roughness", color_mode=True, target_port=roughnessPort, triplaner_node=triplanar)
 
             elif "glossiness" in data and "roughness" not in data:
-                node = tr.AddTextureTree(filepath=data['glossiness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplanar)
+                node = tr.AddTextureTree(filepath=data['glossiness'], shadername="roughness", color_mode=True, target_port=roughnessPort, triplaner_node=triplanar)
 
             if "normal" in data:
                 tr.AddNormalTree(filepath=data['normal'], shadername="Normal", triplaner_node=triplanar)
@@ -420,6 +416,13 @@ def ArnoldPbrFromPackage(folder: str, pbr_name: str, triplanar: bool = True, use
                     tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
             if "transmission" in data:
                 node = tr.AddTexture(filepath=data['transmission'], shadername="Transmission", raw=True, target_port=transmissionPort)
+                if triplanar:
+                    tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
+            if "subsurface" in data:
+                subsurfacePort = tr.GetPort(standard_surface, "subsurface")
+                if not tr.IsPortValid(subsurfacePort):
+                    subsurfacePort = tr.GetPort(standard_surface, "subsurface_color")
+                node = tr.AddTexture(filepath=data['subsurface'], shadername="Subsurface", raw=True, target_port=subsurfacePort)
                 if triplanar:
                     tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
             tr.material.SetName(pbr_name)
@@ -462,7 +465,7 @@ def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, u
                 aoNode = tr.AddTexture(filepath=data['ao'], shadername="AO")
                 tr.AddTextureTree(filepath=data['diffuse'], shadername="Albedo", raw=False, color_mode=True, color_mutiplier=aoNode, target_port=albedoPort, triplaner_node=triplaner)
             elif "diffuse" in data:
-                tr.AddTextureTree(filepath=data['diffuse'], shadername="Albedo", raw=False, target_port=albedoPort, triplaner_node=triplaner)
+                tr.AddTextureTree(filepath=data['diffuse'], shadername="Albedo", raw=False, color_mode=True, target_port=albedoPort, triplaner_node=triplaner)
             
             if "metalness" in data:
                 node = tr.AddTexture(filepath=data['metalness'], shadername="metalness",target_port=metalnessPort)
@@ -477,11 +480,11 @@ def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, u
                 # 新版 Redshift Standard Material 可能移除了该兼容端口。
                 if tr.IsPortValid(gloss2roughPort):
                     tr.SetPortData(gloss2roughPort, False)
-                node = tr.AddTextureTree(filepath=data['roughness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplaner)
+                node = tr.AddTextureTree(filepath=data['roughness'], shadername="roughness", color_mode=True, target_port=roughnessPort, triplaner_node=triplaner)
             elif "glossiness" in data:
                 if tr.IsPortValid(gloss2roughPort):
                     tr.SetPortData(gloss2roughPort, True)
-                node = tr.AddTextureTree(filepath=data['glossiness'], shadername="roughness", target_port=roughnessPort, triplaner_node=triplaner)
+                node = tr.AddTextureTree(filepath=data['glossiness'], shadername="roughness", color_mode=True, target_port=roughnessPort, triplaner_node=triplaner)
 
             if "normal" in data:
                 tr.AddBumpTree(filepath=data['normal'], shadername="Normal", triplaner_node=triplaner)
@@ -512,6 +515,13 @@ def RedshiftPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, u
                     tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
             if "transmission" in data:
                 node = tr.AddTexture(filepath=data['transmission'], shadername="Transmission", raw=True, target_port=reflectionPort)
+                if triplaner:
+                    tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
+            if "subsurface" in data:
+                subsurfacePort = tr.GetPBRPort(standard_surface, "subsurface")
+                if not tr.IsPortValid(subsurfacePort):
+                    subsurfacePort = tr.GetPBRPort(standard_surface, "subsurface_color")
+                node = tr.AddTexture(filepath=data['subsurface'], shadername="Subsurface", raw=True, target_port=subsurfacePort)
                 if triplaner:
                     tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
             tr.material.SetName(pbr_name)
@@ -727,6 +737,11 @@ def VrayPbrFromPackage(folder: str, pbr_name: str, triplaner: bool = True, use_d
                 node = tr.AddTexture(filepath=data['transmission'], shadername="Translucency", raw=False, target_port=reflectionPort)
                 if triplaner:
                     tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
+            if "subsurface" in data:
+                subsurfacePort = tr.GetPort(base_material, "com.chaos.vray_node.brdfvraymtl.translucency_color")
+                node = tr.AddTexture(filepath=data['subsurface'], shadername="Subsurface", raw=True, target_port=subsurfacePort)
+                if triplaner:
+                    tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),triplanarInput,triplanarOutput)
             tr.material.SetName(pbr_name)
 
         except Exception as e:
@@ -786,7 +801,7 @@ def ArnoldPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
                         if triplanar:
                             tr.InsertShader(triplanarID,tr.GetConnectedPortsAfter(node),"input","output")
                 if roughness:
-                    tr.AddTextureTree(filepath=roughness, shadername="Roughness",triplaner_node=triplanar, target_port=roughnessPort)               
+                    tr.AddTextureTree(filepath=roughness, shadername="Roughness", color_mode=True, triplaner_node=triplanar, target_port=roughnessPort)               
 
                 if sheen:
                     node = tr.AddTexture(filepath=sheen, shadername="sheen",target_port=sheenPort)
@@ -873,11 +888,11 @@ def RedshiftPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, al
                 if roughness:
                     if tr.IsPortValid(gloss2roughPort):
                         tr.SetPortData(gloss2roughPort, False)
-                    tr.AddTextureTree(filepath=roughness, shadername="Roughness",triplaner_node=triplanar, target_port=roughnessPort)               
+                    tr.AddTextureTree(filepath=roughness, shadername="Roughness", color_mode=True, triplaner_node=triplanar, target_port=roughnessPort)               
                 elif glossiness:
                     if tr.IsPortValid(gloss2roughPort):
                         tr.SetPortData(gloss2roughPort, True)
-                    node = tr.AddTextureTree(filepath=glossiness, shadername="Roughness", target_port=roughnessPort, triplaner_node=triplanar)
+                    node = tr.AddTextureTree(filepath=glossiness, shadername="Roughness", color_mode=True, target_port=roughnessPort, triplaner_node=triplanar)
             
                 if normal:
                     tr.AddBumpTree(filepath=normal, shadername="Normal",triplaner_node=triplanar)
@@ -964,10 +979,10 @@ def VrayPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo
 
             if roughness:
                 tr.SetPortData(useRoughness, True)
-                tr.AddTextureTree(filepath=roughness, shadername="Roughness",triplaner_node=triplanar, target_port=roughnessPort)   
+                tr.AddTextureTree(filepath=roughness, shadername="Roughness", color_mode=True, triplaner_node=triplanar, target_port=roughnessPort)   
             elif glossiness:
                 tr.SetPortData(useRoughness, False)
-                tr.AddTextureTree(filepath=glossiness, shadername="Glossiness",triplaner_node=triplanar, target_port=roughnessPort)
+                tr.AddTextureTree(filepath=glossiness, shadername="Glossiness", color_mode=True, triplaner_node=triplanar, target_port=roughnessPort)
 
             if normal:
                 tr.AddBumpTree(filepath=normal, shadername="Normal",triplaner_node=triplanar,bump_mode=1)

@@ -23,7 +23,8 @@ PBR_SLOTS: tuple[str, ...] = (
     "normal", 
     "emission", 
     "displacement",
-    "transmission", 
+    "transmission",
+    "subsurface",
     "sheen", 
     "anisotropy", 
     "coat", 
@@ -44,26 +45,45 @@ FORMAT_PRIORITY: dict[str, int] = {
     ".tga": 80, ".jpg": 60, ".jpeg": 60, ".bmp": 50
 }
 
-# 贴图类型的关键字映射表
+# 贴图类型的关键字映射表，对齐 RSBumpMap 的通道词，并补充 GSG 复合词。
 # Mapping of keywords to their respective PBR map types
 MAP_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "diffuse": ("diff", "dif", "diffuse", "albedo", "basecolor", "base_color", "color", "col", "base"),
-    "normal": ("normal", "nor", "nrm", "normalgl", "normaldx", "opengl", "directx", "nrm_gl", "nrm_dx"),
-    "roughness": ("rough", "roughness", "rougher"),
-    "glossiness": ("gloss", "glossiness", "glossy"),
-    "metalness": ("metal", "metallic", "metalness", "m"),
-    "specular": ("spec", "specular", "edgetint", "spec_level"),
-    "ao": ("ao", "ambientocclusion", "occlusion", "occ", "mixed_ao"),
-    "displacement": ("disp", "disp16", "displacement", "height", "heightmap", "depth", "displace", "dis"),
-    "bump": ("bump", "b"),
-    "alpha": ("alpha", "opacity", "opacity_mask", "mask"),
-    "emission": ("emission", "emissive", "emit", "emis", "light"),
-    "transmission": ("transmission", "translucency", "trans", "sss", "subsurface"),
+    "diffuse": ("albedo", "basecolor", "base_color", "diffuse", "diff", "color", "col", "base"),
+    "normal": ("normalgl", "normaldx", "normalmap", "normal", "nrm_gl", "nrm_dx", "nrm"),
+    "roughness": ("roughness", "rougher", "rough"),
+    "glossiness": ("glossiness", "glossy", "gloss"),
+    "metalness": (
+        "metalness", "metallic", "metalcolor", "metal_color",
+        "edgetint", "edge_tint", "metal", "met", "f0",
+    ),
+    "specular": (
+        "specularlevel", "specular_level", "spec_level",
+        "specular", "reflection", "spec",
+    ),
+    "ao": ("ambientocclusion", "mixed_ao", "occlusion", "occ", "ao"),
+    "displacement": ("displacement", "heightmap", "displace", "disp16", "height", "disp"),
+    "bump": ("bumpmap", "bump"),
+    "alpha": (
+        "opacity_mask", "opacitymap", "opacity", "transparency",
+        "transparent", "alpha", "cutout", "mask", "op",
+    ),
+    "emission": ("emission", "emissive", "emiss", "emit", "glow"),
+    "transmission": ("transmission", "translucency", "translucent", "refract", "refraction"),
+    "subsurface": (
+        "scatteringweight", "scattering_weight", "subsurface", "scattering", "sss",
+    ),
     "arm": ("arm",),
     "orm": ("orm",),
     "sheen": ("sheen",),
-    "coat": ("clearcoat", "coat"),
-    "anisotropy": ("anisotropy", "anis", "anisotropy_angle")
+    "coat": (
+        "coatnormal", "coat_normal", "coatroughness", "coat_roughness",
+        "coatweight", "coat_weight", "coatbump", "coat_bump",
+        "clearcoat", "coat",
+    ),
+    "anisotropy": (
+        "anisotropylevel", "anisotropy_level", "anisotropyangle",
+        "anisotropy_angle", "anisotropy", "aniso",
+    ),
 }
 
 # 性能优化：将关键字映射表展平，以便在扫描时进行 O(1) 查找
@@ -130,6 +150,57 @@ def _normalize_texture_token(token: str) -> str:
     return token
 
 
+def classify_pbr_texture(name: str | Path) -> Optional[str]:
+    """Identify a PBR channel from a filename using word-boundary matching.
+
+    Matching follows RSBumpMap: hyphens, spaces and dots become underscores,
+    then ``(^|_)keyword($|_)`` is applied. The rightmost hit wins; equal
+    positions prefer the longer keyword. Preview images are ignored.
+
+    Args:
+        name: Filename, stem or path-like value.
+
+    Returns:
+        A PBR slot name, or ``None`` when no channel is recognized.
+
+    Example:
+        >>> classify_pbr_texture("GSG_Metal_4k_basecolor.tif")
+        'diffuse'
+        >>> classify_pbr_texture("GSG_MC088_A004_WarmGrayWoolFelt_4k_specularlevel.tif")
+        'specular'
+    """
+    stem = Path(name).stem
+    name_norm = re.sub(r"[-\s.]+", "_", stem.lower())
+    if re.search(r"(^|_)preview", name_norm):
+        return None
+
+    best_type: Optional[str] = None
+    best_pos = -1
+    best_len = -1
+    for map_type, keywords in MAP_KEYWORDS.items():
+        for keyword in keywords:
+            keyword_text = _normalize_texture_token(str(keyword).lower())
+            if not keyword_text:
+                continue
+            match = re.search(r"(^|_)" + re.escape(keyword_text) + r"($|_)", name_norm)
+            if match is None:
+                continue
+            pos = match.start()
+            length = len(keyword_text)
+            if pos > best_pos or (pos == best_pos and length > best_len):
+                best_pos = pos
+                best_len = length
+                best_type = map_type
+
+    disp_match = re.search(r"(^|_)disp\d+($|_)", name_norm)
+    if disp_match is not None:
+        pos = disp_match.start()
+        length = len(disp_match.group(0).strip("_"))
+        if pos > best_pos or (pos == best_pos and length > best_len):
+            best_type = "displacement"
+    return best_type
+
+
 def detect_map_type(tokens: list[str]) -> Optional[str]:
     """
     Identifies the PBR map type from filename tokens using keyword matching.
@@ -146,12 +217,9 @@ def detect_map_type(tokens: list[str]) -> Optional[str]:
         >>> detect_map_type(['metal', 'nrm'])
         'normal'
     """
-    # 遍历令牌，利用全局展平的字典快速查找
-    for token in tokens:
-        token = _normalize_texture_token(token)
-        if token in KEYWORD_TO_TYPE:
-            return KEYWORD_TO_TYPE[token]
-    return None
+    if not tokens:
+        return None
+    return classify_pbr_texture("_".join(str(token) for token in tokens if token))
 
 def detect_resolution(name: str) -> Optional[int]:
     """
@@ -341,9 +409,13 @@ def GetPBRImages(folder_path: str | Path, package_name: str | Path = "") -> list
     results = []
     try:
         for item in search_folder.iterdir():
-            if item.is_file() and item.suffix.lower() in IMAGE_EXTENSIONS:
-                if not search_package or is_in_package(item.name, search_package):
-                    results.append(str(item.absolute()))
+            if not item.is_file() or item.suffix.lower() not in IMAGE_EXTENSIONS:
+                continue
+            # 预览图不是 PBR 通道，避免污染套图扫描。
+            if "preview" in item.stem.lower():
+                continue
+            if not search_package or is_in_package(item.name, search_package):
+                results.append(str(item.absolute()))
     except (OSError, PermissionError):
         pass
                 
@@ -549,6 +621,8 @@ class PBRLibraryScanner:
 
         for p in root_path.rglob("*"):
             if not p.is_file() or p.suffix.lower() not in IMAGE_EXTENSIONS:
+                continue
+            if "preview" in p.stem.lower():
                 continue
 
             filename = p.name
