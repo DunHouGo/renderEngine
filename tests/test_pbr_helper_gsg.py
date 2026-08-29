@@ -55,8 +55,24 @@ class TestGSGMapDetection(unittest.TestCase):
         self.assertEqual(pbr_helper.classify_pbr_texture("Wood_Roughness.tif"), "roughness")
         self.assertNotEqual(pbr_helper.classify_pbr_texture("Wood_Roughness.tif"), "normal")
         self.assertEqual(pbr_helper.classify_pbr_texture("Fabric_Opacity.tif"), "alpha")
-        # coat_normal 仍按主法线通道识别，避免短词 coat 抢先。
-        self.assertEqual(pbr_helper.classify_pbr_texture("Coat_Normal.tif"), "normal")
+        # 对齐 rsbumpmap_settings.json：coat 系复合词是独立通道，长词优先于尾缀短词。
+        self.assertEqual(pbr_helper.classify_pbr_texture("Coat_Normal.tif"), "coat_normal")
+        self.assertEqual(pbr_helper.classify_pbr_texture("Mat_4k_clearcoat_normal.tif"), "coat_normal")
+        self.assertEqual(pbr_helper.classify_pbr_texture("Mat_4k_coating_roughness.tif"), "coat_roughness")
+        self.assertEqual(pbr_helper.classify_pbr_texture("Mat_4k_coat_bump.tif"), "coat_bump")
+        self.assertEqual(pbr_helper.classify_pbr_texture("Mat_4k_coatweight.tif"), "coat_weight")
+        self.assertEqual(pbr_helper.classify_pbr_texture("Mat_4k_coat.tif"), "coat")
+        self.assertEqual(pbr_helper.classify_pbr_texture("Mat_4k_anisotropy_angle.tif"), "anisotropy_angle")
+        self.assertEqual(pbr_helper.classify_pbr_texture("Mat_4k_anisotropyrotation.tif"), "anisotropy_angle")
+        self.assertEqual(pbr_helper.classify_pbr_texture("Mat_4k_flowmap.exr"), "anisotropy_angle")
+        self.assertEqual(pbr_helper.classify_pbr_texture("Mat_4k_anisolevel.tif"), "anisotropy")
+        # RSBumpMap 单字母与短词通道。
+        self.assertEqual(pbr_helper.classify_pbr_texture("Brick_2k_n.tif"), "normal")
+        self.assertEqual(pbr_helper.classify_pbr_texture("Brick_2k_em.tif"), "emission")
+        self.assertEqual(pbr_helper.classify_pbr_texture("Brick_2k_trans.png"), "transmission")
+        # edgetint 归入 specular（反射工作流）而非 metalness。
+        self.assertEqual(pbr_helper.classify_pbr_texture("Gold_4k_edgetint.tif"), "specular")
+        self.assertEqual(pbr_helper.classify_pbr_texture("Gold_4k_metalcolor.tif"), "metalness")
 
     def test_package_from_gsg_folder(self) -> None:
         names = (

@@ -637,6 +637,70 @@ class MaterialHelper:
         self.material[slot] = shader
         return shader
 
+
+    #=============================================
+    # Node Editor Arrange
+    #=============================================
+
+    # 自动排列材质所有节点（需材质在 Corona 节点编辑器打开过）
+    def ArrangeNodes(self, config=None) -> tuple[int, int]:
+        """
+        Apply a layered flow layout to the node editor widgets of the material.
+
+        Args:
+            config (ArrangeConfig, optional): layout parameters in local unit space.
+
+        Returns:
+            tuple[int, int]: (written widget count, total node count), (0, n) when no view exists.
+        """
+        from .arrange import ArrangeHelper
+        return ArrangeHelper(self.material).Arrange(config)
+
+    # 对齐视图中的活动节点
+    def AlignNodes(self, mode: str = "left", widgets: list[c4d.BaseList2D] = None) -> int:
+        """
+        Align active widgets along one axis, fallback to all widgets of the material view.
+
+        Args:
+            mode (str): one of "left", "right", "top", "bottom", "center_x", "center_y".
+            widgets (list[c4d.BaseList2D], optional): explicit widget list.
+
+        Returns:
+            int: the number of updated widgets.
+        """
+        from .arrange import ArrangeHelper
+        return ArrangeHelper(self.material).Align(mode, widgets)
+
+    # 设置控件位置（局部单位空间）
+    def SetWidgetPosition(self, widget: c4d.BaseList2D, pos: c4d.Vector) -> bool:
+        """
+        Set the position of a node editor widget in local unit space.
+
+        Args:
+            widget (c4d.BaseList2D): a widget node under a view.
+            pos (c4d.Vector): the position to store.
+
+        Returns:
+            bool: True when the position was written.
+        """
+        from .arrange import ArrangeHelper
+        return ArrangeHelper.SetWidgetPosition(widget, pos)
+
+    # 隐藏控件预览
+    def SetWidgetHidePreview(self, widget: c4d.BaseList2D, hide: bool = True) -> bool:
+        """
+        Hide or show the preview sphere of a node editor widget.
+
+        Args:
+            widget (c4d.BaseList2D): a widget node under a view.
+            hide (bool): True to hide the preview.
+
+        Returns:
+            bool: True when the flag was written.
+        """
+        from .arrange import ArrangeHelper
+        return ArrangeHelper.SetWidgetHidePreview(widget, hide)
+
 __all__ = [
     "MaterialHelper",
     "IsCoronaMaterial",

@@ -92,4 +92,11 @@
   - 创建 PBR 颜色贴图始终使用 `color_mode`，不再插入 Scalar Ramp 把颜色变成灰度。
   - 识别 `specularlevel`、`scatteringweight` 等 GSG 通道名，并跳过 preview 图；通道检测优先使用文件名末尾的通道词。
   - PBR 通道识别对齐 RSBumpMap：单词边界匹配、最靠后且最长关键词优先；创建器的颜色和粗糙度树默认只接 Color Correct，不再插入 Ramp。
+- ### 1.1.6
+  - 新增节点自动排列与对齐：`Renderer.utils.node_arrange` 共享分层流向布局引擎（分层、对齐、等间距分布）。
+  - 新增 `Renderer.Octane.ArrangeHelper`（也可用 `Octane.ArrangeMaterial` / `Octane.AlignMaterial` 便捷函数）：写入 OC 节点位置并触发 99011 刷新打开中的节点编辑器，支持 Arrange / Align / Distribute / GetNodePosition / SetNodePosition。
+  - 新增 `Renderer.Corona.ArrangeHelper`（也可用 `Corona.ArrangeMaterial` / `Corona.AlignMaterial`）：基于 Corona 节点编辑器视图（CNodeSystemViews 分支）与节点控件读写真实布局，ID 对齐 `plugins/Corona/res/nodesystem.h`，另提供控件隐藏主体/预览等属性便捷方法；材质未在 Corona 节点编辑器打开过时优雅跳过。
+  - `Octane.MaterialHelper` / `Corona.MaterialHelper` 新增 `ArrangeNodes`、`AlignNodes` 等便捷方法。
+  - PBR 贴图识别对齐 `rsbumpmap_settings.json`：补充 `n`/`em`/`trans`/`anisolevel`/`flowmap` 等 RSBumpMap 通道词；coat 与 anisotropy 拆分为细粒度槽位（`coat_normal`、`coat_roughness`、`coat_weight`、`coat_bump`、`anisotropy_angle`）；匹配规则改为"结束位置最靠后优先、同位置取最长关键词"，修复 `coat_normal`、`coat_roughness` 等复合词被 `normal`/`roughness` 抢占的问题；`edgetint` 归入 specular。
+  - `tests/04_arrange_basic.py` 新增排列/对齐集成测试。
 - __coming soon...__

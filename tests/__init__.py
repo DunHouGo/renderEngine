@@ -1,4 +1,2 @@
-#!c4dpy
 # -*- coding: utf-8 -*-
-
-from test_constants import * 
+"""Renderer library test package."""

@@ -103,6 +103,7 @@ def HowToUse():
 - [__Material Example__](./tests/01_material_basic.py)
 - [__AOV Example__](./tests/02_aov_basic.py)
 - [__Scene Example__](./tests/03_scene_basic.py)
+- [__Arrange Example__](./tests/04_arrange_basic.py)
 
 
 # Class Presentation
@@ -120,6 +121,7 @@ Renderer
   - AOV
   - Material
   - Scene
+  - ArrangeHelper
 - Arnold
   - AOV
   - Material
@@ -127,6 +129,7 @@ Renderer
 - Corona
   - AOV
   - Material
+  - ArrangeHelper
 - Vray
   - AOV
   - Material
@@ -138,5 +141,6 @@ Renderer
   - TextureHelper
   - EasyTransaction
   - MaterialMaker
+  - NodeArrange
 - constants
   - ...

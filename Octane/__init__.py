@@ -7,6 +7,7 @@ from ..constants.octane_id import *
 from .scene import SceneHelper as Scene
 from .material import MaterialHelper as Material
 from .aov import AOVHelper as AOV
+from .arrange import ArrangeHelper, ArrangeMaterial, AlignMaterial
 from typing import Union
 
 # 获取渲染器

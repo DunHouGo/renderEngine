@@ -8,6 +8,7 @@ from ..constants import ID_MATERIAL_MANAGER
 from .scene import SceneHelper as Scene
 from .material import MaterialHelper as Material
 from .aov import AOVHelper as AOV
+from .arrange import ArrangeHelper, ArrangeMaterial, AlignMaterial
 
 # 获取渲染器
 def GetRenderEngine(document: c4d.documents.BaseDocument = None) -> int :

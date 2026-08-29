@@ -302,3 +302,21 @@ AOV_NAME_MAP = {
  34: 'Cryptomatte',
  999: 'Folder'
  }
+
+# 节点编辑器视图与节点控件参数（对应 plugins/Corona/res/nodesystem.h）
+CORONA_NODESYSTEM_VIEW_BRANCH: int = 1040910         # CNodeSystemViews 分支 ID
+CORONA_NODESYSTEM_NODE_POS_X: int = 1000             # 节点位置 X（局部单位空间，节点宽度为 1）
+CORONA_NODESYSTEM_NODE_POS_Y: int = 1001             # 节点位置 Y
+CORONA_NODESYSTEM_NODE_POS_W: int = 1002             # 节点宽度
+CORONA_NODESYSTEM_NODE_POS_H: int = 1003             # 节点高度
+CORONA_NODESYSTEM_NODE_HIDE_BODY: int = 1004         # 隐藏节点主体与端口
+CORONA_NODESYSTEM_NODE_HIDE_PREVIEW: int = 1005      # 隐藏节点预览
+CORONA_NODESYSTEM_NODE_HIDDEN: int = 1006            # 节点被移出视图（不可见）
+CORONA_NODESYSTEM_NODE_TYPE: int = 2000              # 节点类型（保留）
+CORONA_NODESYSTEM_NODE_LINK: int = 2001              # 指向实际文档节点（材质/着色器）的链接
+CORONA_NODESYSTEM_NODE_PORTS_IN: int = 2002          # 输入端口容器
+CORONA_NODESYSTEM_NODE_PORTS_OUT: int = 2003         # 输出端口容器（保留）
+CORONA_NODESYSTEM_NODE_LINK_ID: int = 2004           # 共享着色器唯一标识
+CORONA_NODESYSTEM_GROUP_ZOOM: int = 3000             # 组节点视图缩放
+CORONA_NODESYSTEM_GROUP_OFFSET_X: int = 3001         # 组节点视图偏移 X
+CORONA_NODESYSTEM_GROUP_OFFSET_Y: int = 3002         # 组节点视图偏移 Y

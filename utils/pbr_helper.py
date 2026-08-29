@@ -12,23 +12,28 @@ from pathlib import Path
 # PBR 槽位定义，定义了标准的贴图通道名称
 # Standard PBR slot names defined as a tuple for immutability
 PBR_SLOTS: tuple[str, ...] = (
-    "diffuse", 
-    "specular", 
-    "metalness", 
-    "roughness", 
+    "diffuse",
+    "specular",
+    "metalness",
+    "roughness",
     "glossiness",
-    "ao", 
-    "alpha", 
-    "bump", 
-    "normal", 
-    "emission", 
+    "ao",
+    "alpha",
+    "bump",
+    "normal",
+    "emission",
     "displacement",
     "transmission",
     "subsurface",
-    "sheen", 
-    "anisotropy", 
-    "coat", 
-    "arm", 
+    "sheen",
+    "anisotropy",
+    "anisotropy_angle",
+    "coat",
+    "coat_normal",
+    "coat_roughness",
+    "coat_weight",
+    "coat_bump",
+    "arm",
     "orm"
 )
 
@@ -45,20 +50,21 @@ FORMAT_PRIORITY: dict[str, int] = {
     ".tga": 80, ".jpg": 60, ".jpeg": 60, ".bmp": 50
 }
 
-# 贴图类型的关键字映射表，对齐 RSBumpMap 的通道词，并补充 GSG 复合词。
+# 贴图类型的关键字映射表，对齐 rsbumpmap_settings.json 的通道词，并补充 GSG 复合词。
+# Coat 与 Anisotropy 按 RSBumpMap 拆分为细粒度槽位，复合词（如 coat_normal）优先于尾缀短词。
 # Mapping of keywords to their respective PBR map types
 MAP_KEYWORDS: dict[str, tuple[str, ...]] = {
     "diffuse": ("albedo", "basecolor", "base_color", "diffuse", "diff", "color", "col", "base"),
-    "normal": ("normalgl", "normaldx", "normalmap", "normal", "nrm_gl", "nrm_dx", "nrm"),
+    "normal": ("normalgl", "normaldx", "normalmap", "normal", "nrm_gl", "nrm_dx", "nrm", "n"),
     "roughness": ("roughness", "rougher", "rough"),
     "glossiness": ("glossiness", "glossy", "gloss"),
     "metalness": (
         "metalness", "metallic", "metalcolor", "metal_color",
-        "edgetint", "edge_tint", "metal", "met", "f0",
+        "metal", "met", "f0",
     ),
     "specular": (
         "specularlevel", "specular_level", "spec_level",
-        "specular", "reflection", "spec",
+        "specular", "reflection", "edgetint", "edge_tint", "spec",
     ),
     "ao": ("ambientocclusion", "mixed_ao", "occlusion", "occ", "ao"),
     "displacement": ("displacement", "heightmap", "displace", "disp16", "height", "disp"),
@@ -67,22 +73,29 @@ MAP_KEYWORDS: dict[str, tuple[str, ...]] = {
         "opacity_mask", "opacitymap", "opacity", "transparency",
         "transparent", "alpha", "cutout", "mask", "op",
     ),
-    "emission": ("emission", "emissive", "emiss", "emit", "glow"),
-    "transmission": ("transmission", "translucency", "translucent", "refract", "refraction"),
+    "emission": ("emission", "emissive", "emiss", "emit", "glow", "em"),
+    "transmission": (
+        "transmission", "translucency", "translucent", "trans",
+        "refract", "refraction",
+    ),
     "subsurface": (
         "scatteringweight", "scattering_weight", "subsurface", "scattering", "sss",
     ),
     "arm": ("arm",),
     "orm": ("orm",),
     "sheen": ("sheen",),
-    "coat": (
-        "coatnormal", "coat_normal", "coatroughness", "coat_roughness",
-        "coatweight", "coat_weight", "coatbump", "coat_bump",
-        "clearcoat", "coat",
+    "coat": ("clearcoat", "coat"),
+    "coat_normal": ("coatnormal", "coat_normal", "coating_normal", "clearcoat_normal"),
+    "coat_roughness": ("coatroughness", "coat_roughness", "coating_roughness"),
+    "coat_weight": (
+        "coatweight", "coat_weight", "coating_weight", "coatstrength",
+        "coat_strength", "coatmask", "coat_mask", "coat_amount",
     ),
-    "anisotropy": (
-        "anisotropylevel", "anisotropy_level", "anisotropyangle",
-        "anisotropy_angle", "anisotropy", "aniso",
+    "coat_bump": ("coatbump", "coat_bump", "coating_bump", "clearcoat_bump"),
+    "anisotropy": ("anisotropylevel", "anisotropy_level", "anisolevel", "anisotropy", "aniso"),
+    "anisotropy_angle": (
+        "anisotropyangle", "anisotropy_angle", "anisoangle",
+        "anisotropyrotation", "anisorotation", "flowmap",
     ),
 }
 
@@ -153,9 +166,11 @@ def _normalize_texture_token(token: str) -> str:
 def classify_pbr_texture(name: str | Path) -> Optional[str]:
     """Identify a PBR channel from a filename using word-boundary matching.
 
-    Matching follows RSBumpMap: hyphens, spaces and dots become underscores,
-    then ``(^|_)keyword($|_)`` is applied. The rightmost hit wins; equal
-    positions prefer the longer keyword. Preview images are ignored.
+    Matching follows rsbumpmap_settings.json: hyphens, spaces and dots become
+    underscores, then the keyword must be a full token (only underscores or
+    string edges around it). The match that ends last wins; equal ends prefer
+    the longer keyword so composite words like ``coat_normal`` beat the plain
+    ``normal`` suffix. Preview images are ignored.
 
     Args:
         name: Filename, stem or path-like value.
@@ -168,6 +183,8 @@ def classify_pbr_texture(name: str | Path) -> Optional[str]:
         'diffuse'
         >>> classify_pbr_texture("GSG_MC088_A004_WarmGrayWoolFelt_4k_specularlevel.tif")
         'specular'
+        >>> classify_pbr_texture("Mat_4k_coat_normal.tif")
+        'coat_normal'
     """
     stem = Path(name).stem
     name_norm = re.sub(r"[-\s.]+", "_", stem.lower())
@@ -175,28 +192,30 @@ def classify_pbr_texture(name: str | Path) -> Optional[str]:
         return None
 
     best_type: Optional[str] = None
-    best_pos = -1
+    best_end = -1
     best_len = -1
     for map_type, keywords in MAP_KEYWORDS.items():
         for keyword in keywords:
             keyword_text = _normalize_texture_token(str(keyword).lower())
             if not keyword_text:
                 continue
-            match = re.search(r"(^|_)" + re.escape(keyword_text) + r"($|_)", name_norm)
+            # (?<![^_]) 与 (?![^_]) 等价于 (^|_)keyword($|_)，但能取到关键词真实跨度
+            match = re.search(r"(?<![^_])" + re.escape(keyword_text) + r"(?![^_])", name_norm)
             if match is None:
                 continue
-            pos = match.start()
+            end = match.end()
             length = len(keyword_text)
-            if pos > best_pos or (pos == best_pos and length > best_len):
-                best_pos = pos
+            # 最靠后的结束位置优先，同位置取最长关键词
+            if end > best_end or (end == best_end and length > best_len):
+                best_end = end
                 best_len = length
                 best_type = map_type
 
-    disp_match = re.search(r"(^|_)disp\d+($|_)", name_norm)
+    disp_match = re.search(r"(?<![^_])disp[0-9]+(?![^_])", name_norm)
     if disp_match is not None:
-        pos = disp_match.start()
-        length = len(disp_match.group(0).strip("_"))
-        if pos > best_pos or (pos == best_pos and length > best_len):
+        end = disp_match.end()
+        length = len(disp_match.group(0))
+        if end > best_end or (end == best_end and length > best_len):
             best_type = "displacement"
     return best_type
 

@@ -316,3 +316,8 @@ MAT_NAME_SYMBOLS: dict[int, str]  = {
 }
 
 ID_ORBX_LOADER: int = 1050418
+# 节点编辑器布局：节点位置存放在每个节点的 BaseContainer 子容器中
+# 参考tests/oc_auto_arrange.py的实测结论
+ID_OCTANE_NE_SAVER: int = 99000        # 节点编辑器状态子容器 ID
+ID_OCTANE_NE_NODE_POS: int = 700       # 子容器内节点位置 Vector(x, y, 0)
+ID_OCTANE_AUTO_ARRANGE: int = 99011    # 材质上的自动排列触发参数（刷新打开中的编辑器）

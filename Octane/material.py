@@ -1,7 +1,7 @@
 # coding=utf-8
 
 import c4d
-from typing import Any
+from typing import Any, Union
 from ..constants import *
 from ..utils import iterate
 
@@ -1063,6 +1063,69 @@ class MaterialHelper:
             mysha = self.AddShader(ID_OCTANE_TRIPLANAR)
             self.AddConnectShader(shader, mysha, c4d.TRIPTEX_TEXTURE1)
         self.UniProjection(effectiveShaders, 6)
+
+
+    #=============================================
+    # Node Editor Arrange
+    #=============================================
+
+    # 获取节点在节点编辑器中的位置
+    def GetNodePosition(self, node: c4d.BaseList2D) -> Union[c4d.Vector, None]:
+        """
+        Get the node editor position of the material or one of its shaders.
+
+        Args:
+            node (c4d.BaseList2D): the material or one of its shaders.
+
+        Returns:
+            Union[c4d.Vector, None]: the stored position, None when not stored yet.
+        """
+        from .arrange import ArrangeHelper
+        return ArrangeHelper(self.material).GetNodePosition(node)
+
+    # 设置节点在节点编辑器中的位置
+    def SetNodePosition(self, node: c4d.BaseList2D, pos: c4d.Vector) -> bool:
+        """
+        Set the node editor position of the material or one of its shaders.
+
+        Args:
+            node (c4d.BaseList2D): the material or one of its shaders.
+            pos (c4d.Vector): the position to store.
+
+        Returns:
+            bool: True when the position was written.
+        """
+        from .arrange import ArrangeHelper
+        return ArrangeHelper(self.material).SetNodePosition(node, pos)
+
+    # 自动排列材质所有节点
+    def ArrangeNodes(self, config=None) -> tuple[int, int]:
+        """
+        Apply a layered flow layout to all nodes and refresh open node editors.
+
+        Args:
+            config (ArrangeConfig, optional): layout parameters, defaults to ArrangeConfig().
+
+        Returns:
+            tuple[int, int]: (written node count, total node count).
+        """
+        from .arrange import ArrangeHelper
+        return ArrangeHelper(self.material).Arrange(config)
+
+    # 对齐节点
+    def AlignNodes(self, mode: str = "left", nodes: list[c4d.BaseList2D] = None) -> int:
+        """
+        Align selected nodes along one axis, fallback to all nodes.
+
+        Args:
+            mode (str): one of "left", "right", "top", "bottom", "center_x", "center_y".
+            nodes (list[c4d.BaseList2D], optional): explicit node list, defaults to selected nodes.
+
+        Returns:
+            int: the number of updated nodes.
+        """
+        from .arrange import ArrangeHelper
+        return ArrangeHelper(self.material).Align(mode, nodes)
 
 __all__ = [
     "MaterialHelper",
