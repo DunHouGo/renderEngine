@@ -1,5 +1,10 @@
 # Version & Updates
 
+## Unreleased
+
+- 添加 Renderer 发布打包脚本，生成 `dist/Renderer.zip`，并使用 `Renderer/` 作为压缩包内的顶层目录。
+- 发布包自动排除 `.git`、`__pycache__`、`tests` 和 `versions` 文件夹，以及 Python 字节码文件。
+
 - ### 0.1.0
   - old library called **renderEngine**
 
