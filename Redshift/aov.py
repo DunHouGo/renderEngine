@@ -215,14 +215,18 @@ class AOVHelper:
 
     def update_aov(self, aov_type: int|c4d.redshift.RSAOV, aov_id: int, aov_attrib):
         allaovs = self.get_all_aovs()
-        aov_update_list = []
-        for aov in allaovs:
-            if aov.GetParameter(c4d.REDSHIFT_AOV_TYPE) == aov_type:
-                aov_update_list.append(aov)
-        aovs_temp = [aov for aov in allaovs if aov not in aov_update_list]
-        [self.set_aov(aov_update, aov_id, aov_attrib) for aov_update in aov_update_list]
-        aovs_temp.extend(aov_update_list)
-        return redshift.RendererSetAOVs(self.vp, aovs_temp)
+        if isinstance(aov_type, c4d.redshift.RSAOV):
+            target = aov_type
+            aov_update_list = [target] if target in allaovs else []
+        else:
+            aov_update_list = [aov for aov in allaovs
+                               if aov.GetParameter(c4d.REDSHIFT_AOV_TYPE) == aov_type]
+        if not aov_update_list:
+            return False
+        for aov_update in aov_update_list:
+            self.set_aov(aov_update, aov_id, aov_attrib)
+        # Update objects in place so renderer ordering remains unchanged.
+        return redshift.RendererSetAOVs(self.vp, allaovs)
 
     # 将aov添加到vp ==> ok
     def add_aov(self, aov_shader: c4d.redshift.RSAOV|list[c4d.redshift.RSAOV]):
@@ -307,36 +311,54 @@ class AOVHelper:
         redshift.RendererSetAOVs(self.vp, aov_list)
 
     # 添加灯光组 ==> ok
-    def set_light_group(self, aov: c4d.redshift.RSAOV, group_name: str = None):
-        if aov is None:
+    def set_light_group(self, aov: int | c4d.redshift.RSAOV | None,
+                        group_name: str | None = None) -> None:
+        """Add exact light group names to one registered AOV without duplicates.
+
+        :param aov: Registered AOV, or a type selecting its first AOV.
+        :param group_name: One name or newline-separated names; ``None`` is ignored.
+        :return: ``None``.
+        :raises ValueError: The AOV is missing or its type and name are ambiguous.
+
+        .. note::
+            Redshift returns detached AOV copies. Give AOVs of the same type
+            distinct names so a supplied copy can be matched unambiguously.
+        """
+        if aov is None or group_name is None:
             return
-        if group_name is None:
-            return
-        
-        if isinstance(aov, c4d.redshift.RSAOV):
-            aovtype = 	aov.GetParameter(c4d.REDSHIFT_AOV_TYPE)
-            aovshader = aov
+        current_aovs = self.get_all_aovs()
         if isinstance(aov, int):
-            aovtype = aov
-            aovshader = self.get_aov(aov)
-        or_str = aovshader.GetParameter(c4d.REDSHIFT_AOV_LIGHTGROUP_NAMES)
-        if or_str == "":
-            group_str = group_name + "\n"
+            matches = [item for item in current_aovs
+                       if item.GetParameter(c4d.REDSHIFT_AOV_TYPE) == aov][:1]
+        elif isinstance(aov, c4d.redshift.RSAOV):
+            matches = [item for item in current_aovs
+                       if item.GetParameter(c4d.REDSHIFT_AOV_TYPE) == aov.GetParameter(c4d.REDSHIFT_AOV_TYPE)
+                       and item.GetParameter(c4d.REDSHIFT_AOV_NAME) == aov.GetParameter(c4d.REDSHIFT_AOV_NAME)]
         else:
-            group_str = or_str + "\n" + group_name + "\n"
-        self.update_aov(aov_type=aovtype, aov_id=c4d.REDSHIFT_AOV_LIGHTGROUP_NAMES, aov_attrib=group_str)
+            raise TypeError("Expected an AOV type or RSAOV instance.")
+        if len(matches) != 1:
+            raise ValueError("The AOV is missing or has an ambiguous type and name.")
+        target = matches[0]
+        groups = list(dict.fromkeys(name for name in
+                      (target.GetParameter(c4d.REDSHIFT_AOV_LIGHTGROUP_NAMES) or "").splitlines() if name))
+        for name in group_name.splitlines():
+            if name and name not in groups:
+                groups.append(name)
+        target.SetParameter(c4d.REDSHIFT_AOV_LIGHTGROUP_NAMES,
+                            "\n".join(groups) + ("\n" if groups else ""))
+        redshift.RendererSetAOVs(self.vp, current_aovs)
 
     # 添加灯光组 ==> ok   
-    def active_light_group(self, aov: c4d.redshift.RSAOV, group_name: str = None):
-        if aov is None:
-            return
-        if group_name is None:
-            return
-        or_group = aov.GetParameter(c4d.REDSHIFT_AOV_LIGHTGROUP_NAMES)
-        
-        if group_name not in or_group:
-            group_str = or_group + "\n" + group_name.strip() + "\n"
-            self.set_light_group(aov,group_str)
+    def active_light_group(self, aov: int | c4d.redshift.RSAOV | None,
+                           group_name: str | None = None) -> None:
+        """Enable exact light group names using the existing public setter.
+
+        :param aov: Registered AOV, or a type selecting its first AOV.
+        :param group_name: One name or newline-separated names.
+        :return: ``None``.
+        :raises ValueError: The target AOV is missing or ambiguous.
+        """
+        self.set_light_group(aov, group_name)
             
     # 添加纯白puzzle matte ==> ok
     def set_puzzle_matte(self, puzzle_id: int = 1, aov_enabled: bool = True, aov_name: str = None, muti_enabled: bool = True, muti_bit: int = 16):

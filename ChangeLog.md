@@ -1,6 +1,14 @@
 # Version & Updates
 
+## 2026-09-05
+
+- 修复 Redshift 灯光组设置误改同类型的其他 AOV；保留列表顺序，以类型和名称匹配传入的副本，歧义时明确报错。
+- 修复灯光组部分重名误匹配和重复追加；支持换行分隔名称，保留名称中的有效空格。
+
 ## Unreleased
+
+- 修复 Redshift AOV 更新对 RSAOV 对象参数不生效及更新后改变 AOV 顺序的问题。
+- 扩展 PBR 命名识别，支持 Poliigon 的 COL/NRM/RGH、Poly Haven 的 nor_gl/nor_dx、Megascans 的 dsp，以及常见 Cargo 资源后缀。
 
 - 添加 Renderer 发布打包脚本，生成 `dist/Renderer.zip`，并使用 `Renderer/` 作为压缩包内的顶层目录。
 - 发布包自动排除 `.git`、`__pycache__`、`tests` 和 `versions` 文件夹，以及 Python 字节码文件。
