@@ -113,3 +113,5 @@
   - PBR 贴图识别对齐 `rsbumpmap_settings.json`：补充 `n`/`em`/`trans`/`anisolevel`/`flowmap` 等 RSBumpMap 通道词；coat 与 anisotropy 拆分为细粒度槽位（`coat_normal`、`coat_roughness`、`coat_weight`、`coat_bump`、`anisotropy_angle`）；匹配规则改为"结束位置最靠后优先、同位置取最长关键词"，修复 `coat_normal`、`coat_roughness` 等复合词被 `normal`/`roughness` 抢占的问题；`edgetint` 归入 specular。
   - `tests/04_arrange_basic.py` 新增排列/对齐集成测试。
 - __coming soon...__
+
+- Add packed ARM/ORM channel mapping metadata for material creation: R=AO, G=roughness, B=metalness, allowing renderer makers to insert channel extraction nodes.
