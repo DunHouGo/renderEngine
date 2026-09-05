@@ -115,3 +115,5 @@
 - __coming soon...__
 
 - Add packed ARM/ORM channel mapping metadata for material creation: R=AO, G=roughness, B=metalness, allowing renderer makers to insert channel extraction nodes.
+- 修正 ARM/ORM 展开接口，显式返回贴图路径与通道，避免渲染器误将打包贴图作为完整颜色纹理使用。
+- Redshift PBR 材质创建支持 ARM/ORM：自动创建 rscolorsplitter，并将 R/G/B 分别连接到 AO、粗糙度和金属度端口。

@@ -571,20 +571,23 @@ class PBRPackage:
 
         self.detect_workflow()
 
-    def expand_packed_channels(self) -> dict[str, str]:
-        """Return packed ARM/ORM maps as channel bindings for material makers.
+    def expand_packed_channels(self) -> dict[str, tuple[str, str]]:
+        """Return packed ARM/ORM maps as explicit channel bindings.
 
         The values intentionally keep the source path; renderers must insert a
         channel extraction node when creating the graph.  This avoids treating
         a packed image as a scalar texture and gives all makers one consistent
         mapping (R=AO, G=roughness, B=metalness).
         """
-        result = dict(self.selected)
-        packed = result.get("orm") or result.get("arm")
+        result: dict[str, tuple[str, str]] = {
+            key: (value, "luma") for key, value in self.selected.items()
+            if key not in {"arm", "orm"}
+        }
+        packed = self.selected.get("orm") or self.selected.get("arm")
         if packed:
-            result.setdefault("ao", packed)
-            result.setdefault("roughness", packed)
-            result.setdefault("metalness", packed)
+            result.setdefault("ao", (packed, "r"))
+            result.setdefault("roughness", (packed, "g"))
+            result.setdefault("metalness", (packed, "b"))
         return result
 
     def get_channel_map(self) -> dict[str, tuple[str, str]]:

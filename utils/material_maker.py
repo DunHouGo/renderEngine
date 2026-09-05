@@ -838,7 +838,7 @@ def ArnoldPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
 def RedshiftPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albedo: str=None, ao: str=None, 
                       metalness: str=None, roughness: str=None, alpha: str=None, bump: str=None, normal: str=None, displacement: str=None, 
                       emission: str=None, transmission: str=None, sheen: str=None, specular: str=None, anisotropy: str=None, glossiness: str=None,
-                      triplanar: bool = True) -> Optional[c4d.BaseMaterial]:
+                      triplanar: bool = True, arm: str = None, orm: str = None) -> Optional[c4d.BaseMaterial]:
     if doc is None:
         doc = c4d.documents.GetActiveDocument()
     if Redshift.IsNodeBased():
@@ -864,6 +864,17 @@ def RedshiftPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, al
                 triplanarID = "com.redshift3d.redshift4c4d.nodes.core.triplanar"
                 triplanarInput = "com.redshift3d.redshift4c4d.nodes.core.triplanar.imagex"
                 triplanarOutput = "com.redshift3d.redshift4c4d.nodes.core.triplanar.outcolor"
+
+                # Packed ARM/ORM textures must be split before scalar ports.
+                packed_path = orm or arm
+                if packed_path:
+                    packed = tr.AddTexture(filepath=packed_path, shadername="ORM/ARM", raw=False)
+                    splitter = tr.AddColorSplitter(inputs=[packed])
+                    ao_port = tr.GetPBRPort(standard_surface, "ao")
+                    if tr.IsPortValid(ao_port):
+                        tr.GetPort(splitter, "com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter.outr").Connect(ao_port)
+                    tr.GetPort(splitter, "com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter.outg").Connect(roughnessPort)
+                    tr.GetPort(splitter, "com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter.outb").Connect(metalnessPort)
 
                 if ao:
                     aoNode = tr.AddTexture(filepath=ao, shadername="AO")
@@ -1132,4 +1143,3 @@ def CoronaPbrMaterial(doc: c4d.documents.BaseDocument=None, name: str=None, albe
     
     except Exception as e:
         raise RuntimeError(f"Failed to create the material {e}")
-

@@ -61,6 +61,7 @@ class TestGSGMapDetection(unittest.TestCase):
         self.assertEqual(package.get_channel_map()["ao"], ("/tmp/packed_orm.png", "r"))
         self.assertEqual(package.get_channel_map()["roughness"], ("/tmp/packed_orm.png", "g"))
         self.assertEqual(package.get_channel_map()["metalness"], ("/tmp/packed_orm.png", "b"))
+        self.assertEqual(package.expand_packed_channels()["roughness"], ("/tmp/packed_orm.png", "g"))
         self.assertEqual(pbr_helper.classify_pbr_texture("Fabric_Opacity.tif"), "alpha")
         # 对齐 rsbumpmap_settings.json：coat 系复合词是独立通道，长词优先于尾缀短词。
         self.assertEqual(pbr_helper.classify_pbr_texture("Coat_Normal.tif"), "coat_normal")
