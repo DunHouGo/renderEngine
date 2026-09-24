@@ -54,6 +54,14 @@ class TestGSGMapDetection(unittest.TestCase):
     def test_word_boundary_avoids_short_keyword_false_positive(self) -> None:
         self.assertEqual(pbr_helper.classify_pbr_texture("Wood_Roughness.tif"), "roughness")
         self.assertNotEqual(pbr_helper.classify_pbr_texture("Wood_Roughness.tif"), "normal")
+
+    def test_packed_arm_orm_channel_mapping(self) -> None:
+        package = pbr_helper.PBRPackage("packed")
+        package.selected = {"orm": "/tmp/packed_orm.png"}
+        self.assertEqual(package.get_channel_map()["ao"], ("/tmp/packed_orm.png", "r"))
+        self.assertEqual(package.get_channel_map()["roughness"], ("/tmp/packed_orm.png", "g"))
+        self.assertEqual(package.get_channel_map()["metalness"], ("/tmp/packed_orm.png", "b"))
+        self.assertEqual(package.expand_packed_channels()["roughness"], ("/tmp/packed_orm.png", "g"))
         self.assertEqual(pbr_helper.classify_pbr_texture("Fabric_Opacity.tif"), "alpha")
         # 对齐 rsbumpmap_settings.json：coat 系复合词是独立通道，长词优先于尾缀短词。
         self.assertEqual(pbr_helper.classify_pbr_texture("Coat_Normal.tif"), "coat_normal")

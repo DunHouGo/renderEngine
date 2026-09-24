@@ -54,21 +54,21 @@ FORMAT_PRIORITY: dict[str, int] = {
 # Coat 与 Anisotropy 按 RSBumpMap 拆分为细粒度槽位，复合词（如 coat_normal）优先于尾缀短词。
 # Mapping of keywords to their respective PBR map types
 MAP_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "diffuse": ("albedo", "basecolor", "base_color", "diffuse", "diff", "color", "col", "base"),
-    "normal": ("normalgl", "normaldx", "normalmap", "normal", "nrm_gl", "nrm_dx", "nrm", "n"),
-    "roughness": ("roughness", "rougher", "rough"),
-    "glossiness": ("glossiness", "glossy", "gloss"),
+    "diffuse": ("albedo", "basecolor", "base_color", "basecolour", "diffuse", "diffusecolor", "diff", "color", "colour", "col", "base"),
+    "normal": ("normalgl", "normaldx", "normalmap", "normal", "nor_gl", "nor_dx", "nrm_gl", "nrm_dx", "nrm", "nrml", "n"),
+    "roughness": ("roughness", "rougher", "rough", "rgh"),
+    "glossiness": ("glossiness", "glossy", "gloss", "gls"),
     "metalness": (
         "metalness", "metallic", "metalcolor", "metal_color",
-        "metal", "met", "f0",
+        "metal", "met", "metl", "f0",
     ),
     "specular": (
         "specularlevel", "specular_level", "spec_level",
         "specular", "reflection", "edgetint", "edge_tint", "spec",
     ),
-    "ao": ("ambientocclusion", "mixed_ao", "occlusion", "occ", "ao"),
-    "displacement": ("displacement", "heightmap", "displace", "disp16", "height", "disp"),
-    "bump": ("bumpmap", "bump"),
+    "ao": ("ambientocclusion", "ambient_occlusion", "mixed_ao", "occlusion", "occ", "ao"),
+    "displacement": ("displacement", "heightmap", "displace", "disp16", "height", "disp", "dsp"),
+    "bump": ("bumpmap", "bump", "bmp"),
     "alpha": (
         "opacity_mask", "opacitymap", "opacity", "transparency",
         "transparent", "alpha", "cutout", "mask", "op",
@@ -81,8 +81,8 @@ MAP_KEYWORDS: dict[str, tuple[str, ...]] = {
     "subsurface": (
         "scatteringweight", "scattering_weight", "subsurface", "scattering", "sss",
     ),
-    "arm": ("arm",),
-    "orm": ("orm",),
+    "arm": ("arm", "ao_roughness_metallic"),
+    "orm": ("orm", "occlusion_roughness_metallic"),
     "sheen": ("sheen",),
     "coat": ("clearcoat", "coat"),
     "coat_normal": ("coatnormal", "coat_normal", "coating_normal", "clearcoat_normal"),
@@ -570,6 +570,41 @@ class PBRPackage:
                 self.udim_tiles[map_type] = [f.path for f in files if f.udim]
 
         self.detect_workflow()
+
+    def expand_packed_channels(self) -> dict[str, tuple[str, str]]:
+        """Return packed ARM/ORM maps as explicit channel bindings.
+
+        The values intentionally keep the source path; renderers must insert a
+        channel extraction node when creating the graph.  This avoids treating
+        a packed image as a scalar texture and gives all makers one consistent
+        mapping (R=AO, G=roughness, B=metalness).
+        """
+        result: dict[str, tuple[str, str]] = {
+            key: (value, "luma") for key, value in self.selected.items()
+            if key not in {"arm", "orm"}
+        }
+        packed = self.selected.get("orm") or self.selected.get("arm")
+        if packed:
+            result.setdefault("ao", (packed, "r"))
+            result.setdefault("roughness", (packed, "g"))
+            result.setdefault("metalness", (packed, "b"))
+        return result
+
+    def get_channel_map(self) -> dict[str, tuple[str, str]]:
+        """Return scalar slots and the source channel used by packed maps.
+
+        ARM and ORM conventions are ``R=AO, G=roughness, B=metalness``.
+        """
+        result: dict[str, tuple[str, str]] = {
+            key: (value, "luma") for key, value in self.selected.items()
+            if key not in {"arm", "orm"}
+        }
+        packed = self.selected.get("orm") or self.selected.get("arm")
+        if packed:
+            result.setdefault("ao", (packed, "r"))
+            result.setdefault("roughness", (packed, "g"))
+            result.setdefault("metalness", (packed, "b"))
+        return result
 
     def detect_workflow(self) -> None:
         """Determines if the material uses a Metalness or Specular workflow."""
