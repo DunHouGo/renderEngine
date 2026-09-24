@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Extend Corona ArrangeHelper with active widget inspection and preview/body visibility toggles for renderer-specific NodeFlow menus.
+- Fix Corona OpenNodeEditor to set the document active material before opening the editor.
+- Use Corona's actual node editor command ID (1040908) consistently when opening the Corona editor.
 - 添加 Renderer 发布打包脚本，生成 `dist/Renderer.zip`，并使用 `Renderer/` 作为压缩包内的顶层目录。
 - 发布包自动排除 `.git`、`__pycache__`、`tests` 和 `versions` 文件夹，以及 Python 字节码文件。
 
@@ -103,5 +106,8 @@
   - 新增 `Renderer.Corona.ArrangeHelper`（也可用 `Corona.ArrangeMaterial` / `Corona.AlignMaterial`）：基于 Corona 节点编辑器视图（CNodeSystemViews 分支）与节点控件读写真实布局，ID 对齐 `plugins/Corona/res/nodesystem.h`，另提供控件隐藏主体/预览等属性便捷方法；材质未在 Corona 节点编辑器打开过时优雅跳过。
   - `Octane.MaterialHelper` / `Corona.MaterialHelper` 新增 `ArrangeNodes`、`AlignNodes` 等便捷方法。
   - PBR 贴图识别对齐 `rsbumpmap_settings.json`：补充 `n`/`em`/`trans`/`anisolevel`/`flowmap` 等 RSBumpMap 通道词；coat 与 anisotropy 拆分为细粒度槽位（`coat_normal`、`coat_roughness`、`coat_weight`、`coat_bump`、`anisotropy_angle`）；匹配规则改为"结束位置最靠后优先、同位置取最长关键词"，修复 `coat_normal`、`coat_roughness` 等复合词被 `normal`/`roughness` 抢占的问题；`edgetint` 归入 specular。
-  - `tests/04_arrange_basic.py` 新增排列/对齐集成测试。
+  - tests/04_arrange_basic.py 新增排列/对齐集成测试。
+- ### 1.1.7
+  - 修复 Corona 节点编辑器视图枚举：按 Corona 官方论坛示例使用 GetBranchInfo(0)。
+  - Corona 节点控件的位置、链接和显示属性改用标准 GetParameter / SetParameter 访问，支持读取活动节点的 BIT_ACTIVE 状态。
 - __coming soon...__

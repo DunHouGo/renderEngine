@@ -40,18 +40,23 @@ def OpenNodeEditor(actmat: c4d.BaseMaterial = None) -> None:
         doc = c4d.documents.GetActiveDocument()
         actmat = doc.GetActiveMaterial()
 
-    elif isinstance(actmat, Material):
-        actmat = actmat.material
-
-    else:
-        doc = actmat.GetDocument()
-
-    doc.AddUndo(c4d.UNDOTYPE_BITS,actmat)
-    actmat.SetBit(c4d.BIT_ACTIVE)
-    
     if not actmat:
         raise ValueError("Failed to retrieve a Material.")
 
+    if isinstance(actmat, Material):
+        actmat = actmat.material
+    doc = actmat.GetDocument() or c4d.documents.GetActiveDocument()
+    if doc is None:
+        raise ValueError("The material does not belong to a document.")
+
+    current = doc.GetActiveMaterial()
+    if current is not actmat:
+        if current is not None:
+            doc.AddUndo(c4d.UNDOTYPE_BITS, current)
+            current.DelBit(c4d.BIT_ACTIVE)
+        doc.AddUndo(c4d.UNDOTYPE_BITS, actmat)
+        actmat.SetBit(c4d.BIT_ACTIVE)
+    doc.SetActiveMaterial(actmat)
 
     c4d.CallCommand(1040908) # Node material editor...
     # Only scroll to the material if material manager is opened

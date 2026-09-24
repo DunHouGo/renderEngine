@@ -10,7 +10,7 @@ Corona 节点编辑器的视图与节点控件存储在场景钩子（CNodeSyste
 """
 
 import c4d
-from typing import Optional
+from typing import Any, Optional
 
 from ..constants import (
     CORONA_STR_NODEMATERIALSHOOK,
@@ -61,6 +61,16 @@ class ArrangeHelper:
         orphan_offset_x=-32.0, orphan_spacing_y=1.6,
     )
 
+    @classmethod
+    def _get_parameter(cls, node: c4d.BaseList2D, parameter_id: int) -> Any:
+        """Read a Corona node-system parameter through the standard C4D API."""
+        return node.GetParameter(parameter_id, c4d.DESCFLAGS_GET_0)
+
+    @classmethod
+    def _set_parameter(cls, node: c4d.BaseList2D, parameter_id: int, value: Any) -> bool:
+        """Write a Corona node-system parameter through the standard C4D API."""
+        return bool(node.SetParameter(parameter_id, value, c4d.DESCFLAGS_SET_0))
+
     def __init__(self, material: c4d.BaseMaterial, doc: c4d.documents.BaseDocument = None):
         """
         Args:
@@ -93,7 +103,7 @@ class ArrangeHelper:
         hook = doc.FindSceneHook(CORONA_STR_NODEMATERIALSHOOK)
         if hook is None:
             return []
-        for info in hook.GetBranchInfo():
+        for info in hook.GetBranchInfo(0):
             if info.get("id") == CORONA_NODESYSTEM_VIEW_BRANCH:
                 head = info.get("head")
                 return list(head.GetChildren()) if head is not None else []
@@ -126,7 +136,7 @@ class ArrangeHelper:
         if widget is None:
             return None
         try:
-            return widget[CORONA_NODESYSTEM_NODE_LINK]
+            return ArrangeHelper._get_parameter(widget, CORONA_NODESYSTEM_NODE_LINK)
         except Exception:
             return None
 
@@ -144,8 +154,8 @@ class ArrangeHelper:
             return None
         try:
             return c4d.Vector(
-                float(widget[CORONA_NODESYSTEM_NODE_POS_X]),
-                float(widget[CORONA_NODESYSTEM_NODE_POS_Y]),
+                float(ArrangeHelper._get_parameter(widget, CORONA_NODESYSTEM_NODE_POS_X)),
+                float(ArrangeHelper._get_parameter(widget, CORONA_NODESYSTEM_NODE_POS_Y)),
                 0.0,
             )
         except Exception:
@@ -165,9 +175,9 @@ class ArrangeHelper:
         if widget is None:
             return False
         try:
-            widget[CORONA_NODESYSTEM_NODE_POS_X] = float(pos.x)
-            widget[CORONA_NODESYSTEM_NODE_POS_Y] = float(pos.y)
-            return True
+            x_set = ArrangeHelper._set_parameter(widget, CORONA_NODESYSTEM_NODE_POS_X, float(pos.x))
+            y_set = ArrangeHelper._set_parameter(widget, CORONA_NODESYSTEM_NODE_POS_Y, float(pos.y))
+            return x_set and y_set
         except Exception:
             return False
 
@@ -185,10 +195,39 @@ class ArrangeHelper:
         if widget is None:
             return False
         try:
-            widget[CORONA_NODESYSTEM_NODE_HIDE_PREVIEW] = bool(hide)
-            return True
+            return ArrangeHelper._set_parameter(widget, CORONA_NODESYSTEM_NODE_HIDE_PREVIEW, bool(hide))
         except Exception:
             return False
+
+    @staticmethod
+    def GetWidgetHidePreview(widget: c4d.BaseList2D) -> Optional[bool]:
+        """Read whether a Corona node preview is hidden.
+
+        Args:
+            widget: A node widget under a Corona view.
+
+        Returns:
+            The hidden state, or ``None`` when the parameter is unavailable.
+        """
+        if widget is None:
+            return None
+        try:
+            return bool(ArrangeHelper._get_parameter(widget, CORONA_NODESYSTEM_NODE_HIDE_PREVIEW))
+        except Exception:
+            return None
+
+    @staticmethod
+    def ToggleWidgetHidePreview(widget: c4d.BaseList2D) -> bool:
+        """Toggle the preview visibility of a Corona node widget.
+
+        Args:
+            widget: A node widget under a Corona view.
+
+        Returns:
+            True when the new state was written.
+        """
+        current = ArrangeHelper.GetWidgetHidePreview(widget)
+        return current is not None and ArrangeHelper.SetWidgetHidePreview(widget, not current)
 
     @staticmethod
     def SetWidgetHideBody(widget: c4d.BaseList2D, hide: bool = True) -> bool:
@@ -204,10 +243,39 @@ class ArrangeHelper:
         if widget is None:
             return False
         try:
-            widget[CORONA_NODESYSTEM_NODE_HIDE_BODY] = bool(hide)
-            return True
+            return ArrangeHelper._set_parameter(widget, CORONA_NODESYSTEM_NODE_HIDE_BODY, bool(hide))
         except Exception:
             return False
+
+    @staticmethod
+    def GetWidgetHideBody(widget: c4d.BaseList2D) -> Optional[bool]:
+        """Read whether a Corona node body is hidden.
+
+        Args:
+            widget: A node widget under a Corona view.
+
+        Returns:
+            The hidden state, or ``None`` when the parameter is unavailable.
+        """
+        if widget is None:
+            return None
+        try:
+            return bool(ArrangeHelper._get_parameter(widget, CORONA_NODESYSTEM_NODE_HIDE_BODY))
+        except Exception:
+            return None
+
+    @staticmethod
+    def ToggleWidgetHideBody(widget: c4d.BaseList2D) -> bool:
+        """Toggle the body visibility of a Corona node widget.
+
+        Args:
+            widget: A node widget under a Corona view.
+
+        Returns:
+            True when the new state was written.
+        """
+        current = ArrangeHelper.GetWidgetHideBody(widget)
+        return current is not None and ArrangeHelper.SetWidgetHideBody(widget, not current)
 
     @staticmethod
     def IsWidgetHidden(widget: c4d.BaseList2D) -> Optional[bool]:
@@ -222,7 +290,7 @@ class ArrangeHelper:
         if widget is None:
             return None
         try:
-            return bool(widget[CORONA_NODESYSTEM_NODE_HIDDEN])
+            return bool(ArrangeHelper._get_parameter(widget, CORONA_NODESYSTEM_NODE_HIDDEN))
         except Exception:
             return None
 
