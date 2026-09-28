@@ -8,7 +8,7 @@ import maxon
 from typing import Iterator, Optional, Union
 
 import random
-from .node_helper import NodeGraghHelper
+from .node_helper import NodeGraghHelper, GetInnerNodes
 from .texture_helper import TextureHelper, g_texture_helper
 from .converter_ports import ConverterPorts
 from ..constants import *

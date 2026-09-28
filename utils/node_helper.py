@@ -14,6 +14,36 @@ def iterTree(node: maxon.GraphNode) -> Iterator[maxon.GraphNode]:
         for item in iterTree(child):
             yield item
 
+
+def GetInnerNodes(node: maxon.GraphNode, mask: maxon.NODE_KIND = maxon.NODE_KIND.NODE) -> list[maxon.GraphNode]:
+    """Return nested graph nodes with Cinema 4D version compatible traversal.
+
+    :param node: Root node whose descendants should be collected.
+    :param mask: Node kind filter used by the graph API.
+    :return: Descendant nodes matching ``mask``, excluding ``node`` itself.
+    :rtype: list[maxon.GraphNode]
+
+    Cinema 4D 2023 exposes ``GetInnerNodes`` in the SDK headers, but its Python
+    binding is not implemented. Older versions therefore use recursive
+    ``GetChildren`` calls; newer versions use the native recursive API.
+    """
+    if node is None:
+        return []
+    if c4d.GetC4DVersion() >= 2024000:
+        return list(node.GetInnerNodes(mask=mask, includeThis=False))
+
+    result: list[maxon.GraphNode] = []
+
+    def collect(parent: maxon.GraphNode) -> None:
+        children: list[maxon.GraphNode] = []
+        parent.GetChildren(children, mask)
+        for child in children:
+            result.append(child)
+            collect(child)
+
+    collect(node)
+    return result
+
 # Custom Helper for New Node Materials Graph
 class NodeGraghHelper:
 
@@ -1729,7 +1759,7 @@ class NodeGraghHelper:
         Args:
             hide (bool, optional): True to hide, False to show. Defaults to True.
         """
-        for node in self.root.GetInnerNodes(mask=maxon.NODE_KIND.NODE, includeThis=False):
+        for node in GetInnerNodes(self.root):
             # not hide output preview
             if node == self.GetOutput():
                 continue

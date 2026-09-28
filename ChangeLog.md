@@ -1,5 +1,9 @@
 # Version & Updates
 
+## 2026-09-27
+
+- 新增通用 `GetInnerNodes()` 节点遍历工具；C4D 2023.x 使用 `GetChildren()` 递归获取节点，2024 及以上使用原生 `GetInnerNodes()`，各渲染器可复用。
+
 ## 2026-09-05
 
 - 修复 Redshift 灯光组设置误改同类型的其他 AOV；保留列表顺序，以类型和名称匹配传入的副本，歧义时明确报错。

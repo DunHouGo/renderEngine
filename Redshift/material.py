@@ -1,7 +1,7 @@
 import c4d
 import maxon
 from ..constants import *
-from ..utils.node_helper import NodeGraghHelper
+from ..utils.node_helper import NodeGraghHelper, GetInnerNodes
 from ..utils import EasyTransaction
 
 from typing import Union, TypeAlias 
@@ -152,7 +152,7 @@ class MaterialHelper(NodeGraghHelper):
 
     def __str__(self):
         return (f"A Redshift {self.__class__.__name__} Instance with Material : {self.material.GetName()}")
-    
+
     # =====  Material  ===== #
 
     @staticmethod
@@ -1519,8 +1519,7 @@ class MaterialHelper(NodeGraghHelper):
         groupPortOut_rotate.Connect(tex_rotate)
 
         # Find innder node
-        innerNodes: list[maxon.GraphNode] = []
-        groupRoot.GetInnerNodes(maxon.NODE_KIND.NODE, False, innerNodes)
+        innerNodes = GetInnerNodes(groupRoot)
         # maxon.GraphModelHelper.FindNodesByAssetId(self.graph, maxon.Id(rsID.StrNodeID("rsmathabs")), True, innerNodes)
         for node in innerNodes:
             if self.GetName(node) == "Scale":
@@ -1620,8 +1619,7 @@ class MaterialHelper(NodeGraghHelper):
         groupPortOut_rotate: maxon.GraphNode =  maxon.GraphModelHelper.CreateOutputPort(groupRoot, "group_output_rotate_id", "Rotation")
 
         # Find innder node
-        innerNodes: list[maxon.GraphNode] = []
-        groupRoot.GetInnerNodes(maxon.NODE_KIND.NODE, False, innerNodes)
+        innerNodes = GetInnerNodes(groupRoot)
         # maxon.GraphModelHelper.FindNodesByAssetId(self.graph, maxon.Id(rsID.StrNodeID("rsmathabs")), True, innerNodes)
         for node in innerNodes:
             if self.GetName(node) == "Scale":
