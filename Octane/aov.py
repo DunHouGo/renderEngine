@@ -7,6 +7,29 @@ from typing import Iterator
 from ..constants import *
 from ..utils import iterate, GetVideoPost
 
+ID_OCTANE_AOV_NODE = 1056125
+AOV_NODE_TYPE = 1900
+AOV_NODE_NAME = 1901
+AOV_INPUT_COUNT = 1800
+AOV_COMP_INPUT = 1904
+AOV_DENOISER_ALBEDO_INPUT = 1894
+AOV_DENOISER_NORMAL_INPUT = 1895
+AOV_EFFECTS_LINK = 2159
+AOV_RENDER_PASS_ID = 1808
+AOV_RENDER_PASS_NAME = 1809
+AOV_ENABLE_IMAGER = 1902
+AOV_ENABLE_POSTPROC = 1903
+AOV_COMPOSITOR = 3390
+AOV_OUTPUT_LINK = 3600
+# Output AOV links occupy the 100 slots immediately before the count field.
+AOV_OUTPUT_SLOT_LIMIT = SET_RENDERAOV_IN_CNT - AOV_OUTPUT_LINK
+AOV_TYPE_OUTPUT = 393
+AOV_TYPE_RENDER = 391
+AOV_TYPE_DENOISE = 441
+AOV_TYPE_SDR = 406
+AOV_TYPE_EFFECTS = 385
+AOV_TYPE_LAYER_GROUP = 388
+
 class AOVHelper:
 
     """
@@ -89,7 +112,7 @@ class AOVHelper:
         start_shader = self.vp.GetFirstShader()
         
         if not start_shader:
-            raise RuntimeError("No shader found")
+            return result
         
         for obj in iterate(start_shader):
 
@@ -97,6 +120,286 @@ class AOVHelper:
 
         # Return the object List.
         return result
+
+    def ensure_aov_types(self, aov_types: tuple[int, ...]) -> list[c4d.BaseShader]:
+        """Create missing AOV types and return the newly created shaders.
+
+        :param aov_types: AOV type IDs that should exist in the current pass list.
+        :return: Newly created AOV shaders, in the requested order.
+        :rtype: list[c4d.BaseShader]
+        """
+        existing_types = {aov[RNDAOV_TYPE] for aov in self.get_all_aovs()}
+        created: list[c4d.BaseShader] = []
+        for aov_type in aov_types:
+            if aov_type in existing_types:
+                continue
+            aov = self.create_aov_shader(aov_type)
+            self.add_aov(aov)
+            created.append(aov)
+            existing_types.add(aov_type)
+        self.remove_empty_aov()
+        return created
+
+    def replace_light_aovs(
+        self,
+        light_ids: list[int],
+        light_names: dict[int, str] | None = None,
+    ) -> list[c4d.BaseShader]:
+        """Replace light AOVs with the supplied zero-based Light IDs.
+
+        :param light_ids: Octane Light IDs using the same convention as
+            :meth:`add_light_aov`; Sun and Environment use ``-1`` and ``0``.
+        :param light_names: Optional display names keyed by Light ID.
+        :return: Newly created light AOV shaders.
+        :rtype: list[c4d.BaseShader]
+        """
+        self.remove_aov_type(RNDAOV_LIGHT)
+        created: list[c4d.BaseShader] = []
+        names = light_names or {}
+        for light_id in dict.fromkeys(light_ids):
+            aov = self.add_light_aov(light_id, names.get(light_id, f"Light {light_id}"))
+            if aov is not None:
+                created.append(aov)
+        self.remove_empty_aov()
+        return created
+
+    def ensure_light_aovs(
+        self,
+        light_ids: list[int],
+        light_names: dict[int, str] | None = None,
+    ) -> list[c4d.BaseShader]:
+        """Add missing light AOVs without changing existing AOV settings.
+
+        :param light_ids: Octane Light IDs using the helper's convention; Sun and
+            Environment use ``-1`` and ``0``.
+        :param light_names: Optional display names keyed by Light ID.
+        :return: Newly created light AOV shaders.
+        :rtype: list[c4d.BaseShader]
+        """
+        names = light_names or {}
+        existing_ids = {
+            int(aov[RNDAOV_LIGHT_ID]) - 1
+            for aov in self.get_aov(RNDAOV_LIGHT)
+        }
+        created: list[c4d.BaseShader] = []
+        for light_id in dict.fromkeys(light_ids):
+            if light_id in existing_ids:
+                continue
+            aov = self.add_light_aov(light_id, names.get(light_id, f"Light {light_id}"))
+            if aov is not None:
+                created.append(aov)
+                existing_ids.add(light_id)
+        self.remove_empty_aov()
+        return created
+
+    def set_all_enabled(self, enabled: bool) -> int:
+        """Set the enabled state for every AOV and return the number changed.
+
+        :param enabled: Desired enabled state.
+        :return: Number of AOV shaders whose state changed.
+        :rtype: int
+        """
+        changed = 0
+        for aov in self.get_all_aovs():
+            if bool(aov[RNDAOV_ENABLED]) == enabled:
+                continue
+            aov[RNDAOV_ENABLED] = enabled
+            changed += 1
+        return changed
+
+    def create_light_denoise_aovs(
+        self,
+        light_ids: list[tuple[int, str]],
+        with_sdr: bool = True,
+    ) -> int:
+        """Create Octane Output AOV groups with shared Open Image Denoise.
+
+        :param light_ids: Light Pass IDs and display names. IDs ``99`` and
+            ``100`` represent Sunlight and Environment; regular IDs are 1-20.
+        :param with_sdr: Add the Convert for SDR display (ACES) layer when true.
+        :return: Number of Output AOV groups created.
+        :rtype: int
+        """
+        if self.vp is None:
+            raise RuntimeError(f"Can't get the {self.vpname} VideoPost")
+        if not light_ids:
+            return 0
+
+        pass_values: dict[int, tuple[str, str]] = {}
+        for light_id, name in light_ids:
+            if light_id == 99:
+                pass_values.setdefault(22, ("Sun light", name or "Sun light"))
+            elif light_id == 100:
+                pass_values.setdefault(21, ("Ambient light", name or "Ambient light"))
+            elif 1 <= light_id <= 20:
+                render_pass = 22 + light_id if light_id <= 8 else 76 + light_id
+                pass_values.setdefault(render_pass, (f"Light pass {light_id}", name or f"Light {light_id}"))
+        if not pass_values:
+            return 0
+
+        target_types = {
+            AOV_TYPE_OUTPUT,
+            AOV_TYPE_RENDER,
+            AOV_TYPE_DENOISE,
+            AOV_TYPE_SDR,
+            AOV_TYPE_EFFECTS,
+            AOV_TYPE_LAYER_GROUP,
+        }
+
+        def node_type(node: c4d.BaseList2D) -> int | None:
+            try:
+                return int(node[AOV_NODE_TYPE])
+            except (AttributeError, TypeError, ValueError):
+                return None
+
+        def children(node: c4d.BaseList2D) -> Iterator[c4d.BaseList2D]:
+            child = node.GetDown()
+            while isinstance(child, c4d.BaseList2D):
+                yield child
+                child = child.GetNext()
+            try:
+                inputs = node.GetInputs()
+                input_children = (
+                    inputs.GetChildren()
+                    if hasattr(inputs, "GetChildren")
+                    else inputs
+                )
+                for child in input_children:
+                    if isinstance(child, c4d.BaseList2D):
+                        yield child
+            except (AttributeError, TypeError):
+                return
+
+        def collect(node: c4d.BaseList2D, seen: set[int], result: list[c4d.BaseList2D]) -> None:
+            if not isinstance(node, c4d.BaseList2D) or id(node) in seen:
+                return
+            seen.add(id(node))
+            if node_type(node) in target_types:
+                result.append(node)
+            for child in children(node):
+                collect(child, seen, result)
+
+        targets: list[c4d.BaseList2D] = []
+        for index in range(AOV_OUTPUT_SLOT_LIMIT):
+            slot = self.vp[AOV_OUTPUT_LINK + index]
+            if isinstance(slot, c4d.BaseList2D):
+                collect(slot, set(), targets)
+        shader = self.vp.GetFirstShader()
+        while isinstance(shader, c4d.BaseList2D):
+            collect(shader, set(), targets)
+            shader = shader.GetNext()
+        roots: list[c4d.BaseList2D] = []
+        for node in targets:
+            if not node.IsAlive():
+                continue
+            top = node
+            parent = top.GetUp()
+            while isinstance(parent, c4d.BaseList2D) and node_type(parent) in target_types:
+                top = parent
+                parent = top.GetUp()
+            if top.IsAlive() and all(existing is not top for existing in roots):
+                roots.append(top)
+        for top in roots:
+            if top.IsAlive():
+                self.doc.AddUndo(c4d.UNDOTYPE_DELETEOBJ, top)
+        for index in range(AOV_OUTPUT_SLOT_LIMIT):
+            # 输出槽位是动态链接参数，必须使用 None 清空，不能写入 BaseContainer。
+            self.vp[AOV_OUTPUT_LINK + index] = None
+        self.vp[AOV_COMPOSITOR] = c4d.BaseContainer()
+        self.vp[AOV_INPUT_COUNT] = 0
+        for top in roots:
+            if top.IsAlive():
+                top.Remove()
+
+        def new_node(node_type_value: int, name: str = "") -> c4d.BaseList2D:
+            node = c4d.BaseList2D(ID_OCTANE_AOV_NODE)
+            node[AOV_NODE_TYPE] = node_type_value
+            if name:
+                node[AOV_NODE_NAME] = name
+            self.vp.InsertShader(node)
+            self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, node)
+            return node
+
+        denoise_albedo = new_node(AOV_TYPE_RENDER, "Denoise albedo")
+        denoise_albedo[AOV_RENDER_PASS_ID] = 123
+        denoise_albedo[AOV_RENDER_PASS_NAME] = "Denoise albedo"
+        denoise_normal = new_node(AOV_TYPE_RENDER, "Denoise normal")
+        denoise_normal[AOV_RENDER_PASS_ID] = 40
+        denoise_normal[AOV_RENDER_PASS_NAME] = "Denoise normal"
+        denoise = new_node(AOV_TYPE_DENOISE)
+        denoise[AOV_INPUT_COUNT] = 2
+        denoise_albedo.InsertUnder(denoise)
+        denoise_normal.InsertUnder(denoise)
+        denoise[AOV_DENOISER_ALBEDO_INPUT] = denoise_albedo
+        denoise[AOV_DENOISER_NORMAL_INPUT] = denoise_normal
+        sdr = new_node(AOV_TYPE_SDR) if with_sdr else None
+        effects_layer = new_node(AOV_TYPE_EFFECTS, "Effectslayers")
+
+        denoise_albedo[AOV_EFFECTS_LINK] = effects_layer
+        denoise_normal[AOV_EFFECTS_LINK] = effects_layer
+
+        groups = []
+        for render_pass, (render_name, display_name) in sorted(pass_values.items()):
+            output = new_node(AOV_TYPE_OUTPUT, display_name)
+            output[AOV_ENABLE_IMAGER] = True
+            output[AOV_ENABLE_POSTPROC] = True
+            output[AOV_RENDER_PASS_ID] = render_pass
+            render = c4d.BaseList2D(ID_OCTANE_AOV_NODE)
+            render[AOV_NODE_TYPE] = AOV_TYPE_RENDER
+            render[AOV_RENDER_PASS_ID] = render_pass
+            render[AOV_RENDER_PASS_NAME] = render_name
+            output.InsertShader(render)
+            self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, render)
+            render[AOV_EFFECTS_LINK] = effects_layer
+            output[AOV_COMP_INPUT] = render
+            output[AOV_COMP_INPUT + 1] = denoise
+            linked_count = 2
+            if sdr is not None:
+                output[AOV_COMP_INPUT + 2] = sdr
+                linked_count = 3
+            output[AOV_INPUT_COUNT] = linked_count
+            groups.append(output)
+
+        compositor = c4d.BaseContainer()
+        for index, output in enumerate(groups):
+            entry = c4d.BaseContainer()
+            entry.SetInt32(0, AOV_TYPE_OUTPUT)
+            entry.SetLink(100, output)
+            compositor.SetContainer(index, entry)
+            self.vp[AOV_OUTPUT_LINK + index] = output
+        self.vp[AOV_COMPOSITOR] = compositor
+        self.vp[AOV_INPUT_COUNT] = len(groups)
+        self.vp.Message(c4d.MSG_CHANGE)
+        self.vp.Message(c4d.MSG_UPDATE)
+        return len(groups)
+
+    def get_light_denoise_aov_mode(self) -> bool | None:
+        """Return the current light denoise Output AOV mode, if one exists.
+
+        :return: ``True`` for sRGB with SDR conversion, ``False`` for ACES,
+            or ``None`` when no light Output AOV is connected to Open Image Denoise.
+        :rtype: bool | None
+        """
+        if self.vp is None:
+            raise RuntimeError(f"Can't get the {self.vpname} VideoPost")
+
+        for index in range(AOV_OUTPUT_SLOT_LIMIT):
+            output = self.vp[AOV_OUTPUT_LINK + index]
+            if not isinstance(output, c4d.BaseList2D):
+                continue
+            if output[AOV_NODE_TYPE] != AOV_TYPE_OUTPUT:
+                continue
+            denoise = output[AOV_COMP_INPUT + 1]
+            if not isinstance(denoise, c4d.BaseList2D):
+                continue
+            if denoise[AOV_NODE_TYPE] != AOV_TYPE_DENOISE:
+                continue
+            sdr = output[AOV_COMP_INPUT + 2]
+            return (
+                isinstance(sdr, c4d.BaseList2D)
+                and sdr[AOV_NODE_TYPE] == AOV_TYPE_SDR
+            )
+        return None
 
     # 获取指定类型的aov shader ==> ok
     def get_aov(self, aov_type: c4d.BaseList2D) -> list[c4d.BaseList2D]:
